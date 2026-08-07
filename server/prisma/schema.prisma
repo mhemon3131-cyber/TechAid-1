@@ -1,0 +1,77 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      String   @default("CUSTOMER") // CUSTOMER, TECHNICIAN, ADMIN
+  phone     String?
+  avatar    String?
+  createdAt DateTime @default(now())
+
+  technician      Technician?
+  serviceRequests ServiceRequest[] @relation("CustomerRequests")
+  appointments    Appointment[]    @relation("CustomerAppointments")
+}
+
+model Technician {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id])
+  name         String
+  specialty    String        // e.g. Laptop & Desktop Specialist
+  rating       Float         @default(4.9)
+  distanceKm   Float         @default(2.1)
+  isAvailable  Boolean       @default(true)
+  avatar       String?
+  appointments Appointment[]
+}
+
+model ServiceRequest {
+  id              String       @id @default(uuid())
+  trackingId      String       @unique // REQ-2026-8942
+  customerId      String
+  customer        User         @relation("CustomerRequests", fields: [customerId], references: [id])
+  deviceCategory  String       // Laptop, Desktop, Phone, Printer, Internet
+  title           String
+  description     String
+  urgency         String       // Low, Moderate, Critical
+  serviceMethod   String       // Live Chat, Video Call, Home Visit
+  status          String       @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, RESOLVED
+  estimatedCost   String       @default("৳800 - 1,500")
+  attachments     Attachment[]
+  appointment     Appointment?
+  createdAt       DateTime     @default(now())
+}
+
+model Attachment {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  fileUrl          String
+  fileType         String         // IMAGE, SCREENSHOT, VOICE, VIDEO
+  fileName         String
+  createdAt        DateTime       @default(now())
+}
+
+model Appointment {
+  id               String         @id @default(uuid())
+  serviceRequestId String?        @unique
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
+  customerId       String
+  customer         User           @relation("CustomerAppointments", fields: [customerId], references: [id])
+  technicianId     String
+  technician       Technician     @relation(fields: [technicianId], references: [id])
+  date             String         // e.g. Mon Jul 13, 2026
+  timeSlot         String         // e.g. 10:00 am, 11:30 am
+  serviceType      String         // Remote support, Home visit, Service center
+  status           String         @default("PENDING") // PENDING, APPROVED, REJECTED, RESCHEDULED
+  estimatedCost    String         @default("৳800 - 1,500")
+  createdAt        DateTime       @default(now())
+}
