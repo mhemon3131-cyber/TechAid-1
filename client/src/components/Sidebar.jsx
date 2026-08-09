@@ -18,14 +18,16 @@ import {
   Clock,
   DollarSign,
   Shield,
-  UserCheck
+  UserCheck,
+  Activity,
+  Sliders
 } from 'lucide-react';
 
 export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
   return (
     <Box
       sx={{
-        width: 240,
+        width: 250,
         backgroundColor: '#0D1527',
         borderRight: '1px solid #1E293B',
         height: '100vh',
@@ -36,7 +38,7 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
       }}
     >
       {/* Brand Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 4 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <Box
           sx={{
             width: 38,
@@ -76,7 +78,12 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
         <Button
           fullWidth
           size="small"
-          onClick={() => setUserRole('CUSTOMER')}
+          onClick={() => {
+            setUserRole('CUSTOMER');
+            if (activeTab === 'tech-availability' || activeTab === 'tech-dashboard') {
+              setActiveTab('new-request');
+            }
+          }}
           sx={{
             backgroundColor: userRole === 'CUSTOMER' ? '#00A8FF' : 'transparent',
             color: userRole === 'CUSTOMER' ? '#0D1527' : '#94A3B8',
@@ -116,12 +123,13 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
 
       {/* Navigation Links */}
       <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, px: 1, mb: 1 }}>
-        {userRole === 'CUSTOMER' ? 'CUSTOMER MENU' : 'TECHNICIAN DASHBOARD'}
+        {userRole === 'CUSTOMER' ? 'CUSTOMER FEATURES' : 'TECHNICIAN FEATURES'}
       </Typography>
 
       <List disablePadding>
         {userRole === 'CUSTOMER' ? (
           <>
+            {/* Module 1 */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'new-request'}
@@ -134,13 +142,14 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
                   '&:hover': { backgroundColor: '#172036' }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: activeTab === 'new-request' ? '#00A8FF' : '#94A3B8' }}>
-                  <PlusCircle size={20} />
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'new-request' ? '#00A8FF' : '#94A3B8' }}>
+                  <PlusCircle size={18} />
                 </ListItemIcon>
-                <ListItemText primary="New request" primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
+                <ListItemText primary="New request" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
 
+            {/* Module 2 */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'appointments'}
@@ -153,29 +162,30 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
                   '&:hover': { backgroundColor: '#172036' }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: activeTab === 'appointments' ? '#00A8FF' : '#94A3B8' }}>
-                  <Calendar size={20} />
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'appointments' ? '#00A8FF' : '#94A3B8' }}>
+                  <Calendar size={18} />
                 </ListItemIcon>
-                <ListItemText primary="Appointments" primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
+                <ListItemText primary="Appointments" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
 
+            {/* Module 3 Feature 4 */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
-                selected={activeTab === 'messages'}
-                onClick={() => setActiveTab('messages')}
+                selected={activeTab === 'progress-tracker'}
+                onClick={() => setActiveTab('progress-tracker')}
                 sx={{
                   borderRadius: 2,
-                  color: activeTab === 'messages' ? '#FFFFFF' : '#94A3B8',
-                  backgroundColor: activeTab === 'messages' ? '#172036' : 'transparent',
-                  borderLeft: activeTab === 'messages' ? '4px solid #00A8FF' : '4px solid transparent',
+                  color: activeTab === 'progress-tracker' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'progress-tracker' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'progress-tracker' ? '4px solid #00A8FF' : '4px solid transparent',
                   '&:hover': { backgroundColor: '#172036' }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: activeTab === 'messages' ? '#00A8FF' : '#94A3B8' }}>
-                  <MessageSquare size={20} />
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'progress-tracker' ? '#00A8FF' : '#94A3B8' }}>
+                  <Activity size={18} />
                 </ListItemIcon>
-                <ListItemText primary="Messages" primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
+                <ListItemText primary="Track Progress" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
           </>
@@ -193,48 +203,50 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
                   '&:hover': { backgroundColor: '#172036' }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: activeTab === 'tech-dashboard' ? '#00A8FF' : '#94A3B8' }}>
-                  <ClipboardList size={20} />
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'tech-dashboard' ? '#00A8FF' : '#94A3B8' }}>
+                  <ClipboardList size={18} />
                 </ListItemIcon>
-                <ListItemText primary="Requests" primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
+                <ListItemText primary="Job Requests" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
 
+            {/* Module 3 Feature 3 */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
-                selected={activeTab === 'tech-schedule'}
-                onClick={() => setActiveTab('tech-schedule')}
+                selected={activeTab === 'tech-availability'}
+                onClick={() => setActiveTab('tech-availability')}
                 sx={{
                   borderRadius: 2,
-                  color: activeTab === 'tech-schedule' ? '#FFFFFF' : '#94A3B8',
-                  backgroundColor: activeTab === 'tech-schedule' ? '#172036' : 'transparent',
-                  borderLeft: activeTab === 'tech-schedule' ? '4px solid #00A8FF' : '4px solid transparent',
+                  color: activeTab === 'tech-availability' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'tech-availability' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'tech-availability' ? '4px solid #00A8FF' : '4px solid transparent',
                   '&:hover': { backgroundColor: '#172036' }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: activeTab === 'tech-schedule' ? '#00A8FF' : '#94A3B8' }}>
-                  <Clock size={20} />
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'tech-availability' ? '#00A8FF' : '#94A3B8' }}>
+                  <Sliders size={18} />
                 </ListItemIcon>
-                <ListItemText primary="Schedule" primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
+                <ListItemText primary="Availability Config" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
 
+            {/* Module 3 Feature 4 Status Control */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
-                selected={activeTab === 'tech-earnings'}
-                onClick={() => setActiveTab('tech-earnings')}
+                selected={activeTab === 'progress-tracker'}
+                onClick={() => setActiveTab('progress-tracker')}
                 sx={{
                   borderRadius: 2,
-                  color: activeTab === 'tech-earnings' ? '#FFFFFF' : '#94A3B8',
-                  backgroundColor: activeTab === 'tech-earnings' ? '#172036' : 'transparent',
-                  borderLeft: activeTab === 'tech-earnings' ? '4px solid #00A8FF' : '4px solid transparent',
+                  color: activeTab === 'progress-tracker' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'progress-tracker' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'progress-tracker' ? '4px solid #00A8FF' : '4px solid transparent',
                   '&:hover': { backgroundColor: '#172036' }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: activeTab === 'tech-earnings' ? '#00A8FF' : '#94A3B8' }}>
-                  <DollarSign size={20} />
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'progress-tracker' ? '#00A8FF' : '#94A3B8' }}>
+                  <Activity size={18} />
                 </ListItemIcon>
-                <ListItemText primary="Earning" primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
+                <ListItemText primary="Status Tracker" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
           </>
@@ -249,9 +261,9 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
           </Typography>
         </Box>
         <Chip
-          label={userRole === 'CUSTOMER' ? 'ID: 23201345' : 'Verified Technician'}
+          label={userRole === 'CUSTOMER' ? 'Member 2 (ID: 23201345)' : 'Verified Technician'}
           size="small"
-          sx={{ mt: 1, backgroundColor: 'rgba(0, 168, 255, 0.15)', color: '#00A8FF', fontSize: '0.7rem', fontWeight: 700 }}
+          sx={{ mt: 1, backgroundColor: 'rgba(0, 168, 255, 0.15)', color: '#00A8FF', fontSize: '0.68rem', fontWeight: 700 }}
         />
       </Box>
     </Box>

@@ -1,6 +1,6 @@
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -22,33 +22,48 @@ model User {
 }
 
 model Technician {
-  id           String        @id @default(uuid())
-  userId       String        @unique
-  user         User          @relation(fields: [userId], references: [id])
-  name         String
-  specialty    String        // e.g. Laptop & Desktop Specialist
-  rating       Float         @default(4.9)
-  distanceKm   Float         @default(2.1)
-  isAvailable  Boolean       @default(true)
-  avatar       String?
-  appointments Appointment[]
+  id                    String        @id @default(uuid())
+  userId                String        @unique
+  user                  User          @relation(fields: [userId], references: [id])
+  name                  String
+  specialty             String        // e.g. Laptop & Desktop Specialist
+  rating                Float         @default(4.9)
+  distanceKm            Float         @default(2.1)
+  isAvailable           Boolean       @default(true)
+  avatar                String?
+  availableDays         String        @default("Mon,Tue,Wed,Thu,Fri") // Module 3 Feature 3
+  workingHours          String        @default("09:00 AM - 06:00 PM") // Module 3 Feature 3
+  serviceAreas          String        @default("Gulshan, Banani, Dhanmondi, Uttara") // Module 3 Feature 3
+  maxDailyAppointments  Int           @default(5) // Module 3 Feature 3
+  appointments          Appointment[]
 }
 
 model ServiceRequest {
-  id              String       @id @default(uuid())
-  trackingId      String       @unique // REQ-2026-8942
+  id              String          @id @default(uuid())
+  trackingId      String          @unique // e.g. REQ-2026-8942
   customerId      String
-  customer        User         @relation("CustomerRequests", fields: [customerId], references: [id])
-  deviceCategory  String       // Laptop, Desktop, Phone, Printer, Internet
+  customer        User            @relation("CustomerRequests", fields: [customerId], references: [id])
+  deviceCategory  String          // Laptop, Desktop, Phone, Printer, Internet
   title           String
   description     String
-  urgency         String       // Low, Moderate, Critical
-  serviceMethod   String       // Live Chat, Video Call, Home Visit
-  status          String       @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, RESOLVED
-  estimatedCost   String       @default("৳800 - 1,500")
+  urgency         String          // Low, Moderate, Critical
+  serviceMethod   String          // Live Chat, Video Call, Home Visit
+  status          String          @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
+  estimatedCost   String          @default("৳800 - 1,500")
   attachments     Attachment[]
   appointment     Appointment?
-  createdAt       DateTime     @default(now())
+  statusLogs      StatusHistory[] // Module 3 Feature 4 (Progress Tracking)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt @default(now())
+}
+
+model StatusHistory {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  status           String         // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
+  note             String?
+  createdAt        DateTime       @default(now())
 }
 
 model Attachment {
