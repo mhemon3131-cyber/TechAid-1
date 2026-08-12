@@ -52,10 +52,13 @@ export const AppointmentBooking = ({ currentUser }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Slot selection state
-  const [selectedDate, setSelectedDate] = useState('Mon 13');
+  const [selectedDate, setSelectedDate] = useState('Mon 13'); // Format: "Day Num" e.g. "Tue 14"
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('10:00 am');
   const [serviceType, setServiceType] = useState('Remote support');
-  const [bookedSlots, setBookedSlots] = useState([]);
+  
+  // PER-TECHNICIAN AND PER-DATE BOOKED SLOTS DICTIONARY (Fixes Leakage Bug!)
+  // Key format: `${techId}_${formattedDate}` e.g. "tech-1_Mon Jul 13, 2026"
+  const [bookedMap, setBookedMap] = useState({});
 
   // Confirmation Modal & API state
   const [openModal, setOpenModal] = useState(false);
@@ -64,11 +67,11 @@ export const AppointmentBooking = ({ currentUser }) => {
   const [conflictError, setConflictError] = useState('');
 
   const dateOptions = [
-    { day: 'Sun', dateNum: '12' },
-    { day: 'Mon', dateNum: '13' },
-    { day: 'Tue', dateNum: '14' },
-    { day: 'Wed', dateNum: '15' },
-    { day: 'Thu', dateNum: '16' }
+    { day: 'Sun', dateNum: '12', fullDay: 'Sun' },
+    { day: 'Mon', dateNum: '13', fullDay: 'Mon' },
+    { day: 'Tue', dateNum: '14', fullDay: 'Tue' },
+    { day: 'Wed', dateNum: '15', fullDay: 'Wed' },
+    { day: 'Thu', dateNum: '16', fullDay: 'Thu' }
   ];
 
   const timeSlots = [
@@ -82,24 +85,31 @@ export const AppointmentBooking = ({ currentUser }) => {
 
   const serviceTypes = ['Remote support', 'Home visit', 'Service center'];
 
+  // Helper to format exact date string e.g. "Tue 14" -> "Tue Jul 14, 2026"
+  const getFormattedDateStr = (dateLabel) => {
+    const parts = dateLabel.split(' ');
+    const dayName = parts[0];
+    const num = parts[1];
+    return `${dayName} Jul ${num}, 2026`;
+  };
+
   useEffect(() => {
     fetchTechs();
   }, []);
 
+  // Fetch booked slots SPECIFIC to selected tech and SPECIFIC date whenever either changes
   useEffect(() => {
     if (selectedTech && selectedDate) {
-      fetchBookedSlots();
+      fetchBookedSlotsForCurrentSelection();
     }
-  }, [selectedTech, selectedDate]);
+  }, [selectedTech?.id, selectedDate]);
 
   const fetchTechs = async () => {
-    // Check locally registered technicians from Auth signup
     const registeredTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
 
     try {
       const res = await axios.get('http://localhost:5000/api/technicians');
       if (res.data.success && res.data.data.length > 0) {
-        // Combine DB techs with local registered techs (avoid duplicates)
         const combined = [...res.data.data];
         registeredTechs.forEach(rt => {
           if (!combined.some(t => t.name.toLowerCase() === rt.name.toLowerCase())) {
@@ -121,20 +131,32 @@ export const AppointmentBooking = ({ currentUser }) => {
     }
   };
 
-  const fetchBookedSlots = async () => {
+  const fetchBookedSlotsForCurrentSelection = async () => {
+    if (!selectedTech) return;
+    const formattedDate = getFormattedDateStr(selectedDate);
+    const key = `${selectedTech.id}_${formattedDate}`;
+
     try {
-      const formattedDate = `Mon Jul ${selectedDate.split(' ')[1]}, 2026`;
       const res = await axios.get(`http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`);
       if (res.data.success) {
         const taken = res.data.data
-          .filter(app => app.status !== 'REJECTED')
+          .filter(app => app.status !== 'REJECTED' && app.technicianId === selectedTech.id && app.date === formattedDate)
           .map(app => app.timeSlot);
-        setBookedSlots(taken);
+        
+        setBookedMap(prev => ({
+          ...prev,
+          [key]: taken
+        }));
       }
     } catch (err) {
-      setBookedSlots([]);
+      // Keep local entries for this key if backend offline
     }
   };
+
+  // Get currently booked slots for the active tech + active date
+  const currentFormattedDate = getFormattedDateStr(selectedDate);
+  const currentKey = selectedTech ? `${selectedTech.id}_${currentFormattedDate}` : '';
+  const activeBookedSlots = bookedMap[currentKey] || [];
 
   const filteredTechs = technicians.filter((t) =>
     t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -145,16 +167,18 @@ export const AppointmentBooking = ({ currentUser }) => {
     setLoading(true);
     setConflictError('');
 
-    if (bookedSlots.includes(selectedTimeSlot)) {
-      setConflictError(`Scheduling Conflict: ${selectedTech?.name} is already booked for ${selectedTimeSlot} on ${selectedDate}. Please select another time slot.`);
+    if (activeBookedSlots.includes(selectedTimeSlot)) {
+      setConflictError(`Scheduling Conflict: ${selectedTech?.name} is already booked for ${selectedTimeSlot} on ${selectedDate}. Please select another available time slot.`);
       setLoading(false);
       return;
     }
 
+    const formattedDate = getFormattedDateStr(selectedDate);
+
     try {
       const payload = {
         technicianId: selectedTech ? selectedTech.id : 'tech-1',
-        date: `Mon Jul ${selectedDate.split(' ')[1]}, 2026`,
+        date: formattedDate,
         timeSlot: selectedTimeSlot,
         serviceType,
         customerId: currentUser?.id || 'usr-1',
@@ -164,17 +188,24 @@ export const AppointmentBooking = ({ currentUser }) => {
       const res = await axios.post('http://localhost:5000/api/appointments', payload);
       if (res.data.success) {
         setBookingSuccess(res.data.data);
-        setBookedSlots([...bookedSlots, selectedTimeSlot]);
+        // Add to booked map specifically for this technician and this date
+        setBookedMap(prev => ({
+          ...prev,
+          [currentKey]: [...(prev[currentKey] || []), selectedTimeSlot]
+        }));
       }
     } catch (err) {
       setBookingSuccess({
         id: `app-${Date.now()}`,
-        date: `Mon Jul ${selectedDate.split(' ')[1]}, 2026`,
+        date: formattedDate,
         timeSlot: selectedTimeSlot,
         serviceType,
         technicianName: selectedTech.name
       });
-      setBookedSlots([...bookedSlots, selectedTimeSlot]);
+      setBookedMap(prev => ({
+        ...prev,
+        [currentKey]: [...(prev[currentKey] || []), selectedTimeSlot]
+      }));
     } finally {
       setLoading(false);
     }
@@ -305,7 +336,7 @@ export const AppointmentBooking = ({ currentUser }) => {
           </Box>
         </Box>
       ) : (
-        /* STEP 2: Calendar & Time Slots Screen */
+        /* STEP 2: Calendar & Time Slots Screen (With Strict Dynamic Tech & Date Separation) */
         <Grid container spacing={4} sx={{ maxWidth: 1000 }}>
           <Grid item xs={12} md={7}>
             <Paper
@@ -368,13 +399,13 @@ export const AppointmentBooking = ({ currentUser }) => {
                 })}
               </Box>
 
-              {/* Time Slots */}
+              {/* Time Slots: Dynamic Filtering for selectedTech + selectedDate ONLY */}
               <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1.5 }}>
-                Available time slots — {selectedDate}
+                Available time slots for {selectedTech?.name} — {selectedDate}
               </Typography>
               <Grid container spacing={1.5} sx={{ mb: 4 }}>
                 {timeSlots.map((slot) => {
-                  const isBooked = bookedSlots.includes(slot);
+                  const isBooked = activeBookedSlots.includes(slot);
                   const selected = selectedTimeSlot === slot;
                   return (
                     <Grid item xs={4} key={slot}>
@@ -435,7 +466,7 @@ export const AppointmentBooking = ({ currentUser }) => {
                   variant="contained"
                   fullWidth
                   onClick={() => setOpenModal(true)}
-                  disabled={bookedSlots.includes(selectedTimeSlot)}
+                  disabled={activeBookedSlots.includes(selectedTimeSlot)}
                   sx={{
                     backgroundColor: '#00A8FF',
                     color: '#0D1527',
@@ -504,7 +535,7 @@ export const AppointmentBooking = ({ currentUser }) => {
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" sx={{ color: '#94A3B8' }}>Date & time</Typography>
-                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>Mon Jul 13, {selectedTimeSlot}</Typography>
+                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{getFormattedDateStr(selectedDate)}, {selectedTimeSlot}</Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" sx={{ color: '#94A3B8' }}>Service type</Typography>
