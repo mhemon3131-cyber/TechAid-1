@@ -19,44 +19,22 @@ import {
   Search,
   Star,
   MapPin,
-  Calendar as CalendarIcon,
-  Clock,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
-import { getTechnicians, createAppointment } from '../services/api';
+import axios from 'axios';
 
-// Default Fallback Technicians (Ensures UI always displays technicians matching Figma)
-const DEFAULT_TECHS = [
-  {
-    id: 'tech-1',
-    name: 'Rafiq Ahmed',
-    specialty: 'Laptop & desktop specialist',
-    rating: 4.9,
-    distanceKm: 2.1,
-    isAvailable: true,
-    avatar: 'RA'
-  },
-  {
-    id: 'tech-2',
-    name: 'Sara Noor',
-    specialty: 'Smartphone repair & OS recovery',
-    rating: 4.7,
-    distanceKm: 3.7,
-    isAvailable: true,
-    avatar: 'SN'
-  }
-];
-
-export const AppointmentBooking = () => {
+export const AppointmentBooking = ({ currentUser }) => {
   const [step, setStep] = useState(1);
-  const [technicians, setTechnicians] = useState(DEFAULT_TECHS);
-  const [selectedTech, setSelectedTech] = useState(DEFAULT_TECHS[0]);
+  const [technicians, setTechnicians] = useState([]);
+  const [selectedTech, setSelectedTech] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Slot selection state
   const [selectedDate, setSelectedDate] = useState('Mon 13');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('10:00 am');
   const [serviceType, setServiceType] = useState('Remote support');
+  const [bookedSlots, setBookedSlots] = useState([]); // Slots already booked in Prisma DB
 
   // Confirmation Modal & API state
   const [openModal, setOpenModal] = useState(false);
@@ -87,17 +65,36 @@ export const AppointmentBooking = () => {
     fetchTechs();
   }, []);
 
+  useEffect(() => {
+    if (selectedTech && selectedDate) {
+      fetchBookedSlots();
+    }
+  }, [selectedTech, selectedDate]);
+
   const fetchTechs = async () => {
     try {
-      const res = await getTechnicians();
-      if (res.success && res.data.length > 0) {
-        setTechnicians(res.data);
-        setSelectedTech(res.data[0]);
+      const res = await axios.get('http://localhost:5000/api/technicians');
+      if (res.data.success) {
+        setTechnicians(res.data.data);
+        setSelectedTech(res.data.data[0]);
       }
     } catch (err) {
-      console.warn('Backend server offline. Using default technicians fallback.');
-      setTechnicians(DEFAULT_TECHS);
-      setSelectedTech(DEFAULT_TECHS[0]);
+      console.error('Error fetching technicians:', err);
+    }
+  };
+
+  const fetchBookedSlots = async () => {
+    try {
+      const formattedDate = `Mon Jul ${selectedDate.split(' ')[1]}, 2026`;
+      const res = await axios.get(`http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`);
+      if (res.data.success) {
+        const taken = res.data.data
+          .filter(app => app.status !== 'REJECTED')
+          .map(app => app.timeSlot);
+        setBookedSlots(taken);
+      }
+    } catch (err) {
+      setBookedSlots([]);
     }
   };
 
@@ -109,28 +106,31 @@ export const AppointmentBooking = () => {
   const handleConfirmBooking = async () => {
     setLoading(true);
     setConflictError('');
+
+    // Pre-validation collision check
+    if (bookedSlots.includes(selectedTimeSlot)) {
+      setConflictError(`Scheduling Conflict: ${selectedTech?.name} is already booked for ${selectedTimeSlot} on ${selectedDate}. Please select another time slot.`);
+      setLoading(false);
+      return;
+    }
+
     try {
       const payload = {
         technicianId: selectedTech ? selectedTech.id : 'tech-1',
         date: `Mon Jul ${selectedDate.split(' ')[1]}, 2026`,
         timeSlot: selectedTimeSlot,
         serviceType,
+        customerId: currentUser?.id || 'usr-1',
         serviceRequestId: 'req-101'
       };
 
-      const res = await createAppointment(payload);
-      if (res.success) {
-        setBookingSuccess(res.data);
+      const res = await axios.post('http://localhost:5000/api/appointments', payload);
+      if (res.data.success) {
+        setBookingSuccess(res.data.data);
+        setBookedSlots([...bookedSlots, selectedTimeSlot]);
       }
     } catch (err) {
-      // Fallback local booking simulation if backend is offline
-      setBookingSuccess({
-        id: `app-${Date.now()}`,
-        date: `Mon Jul ${selectedDate.split(' ')[1]}, 2026`,
-        timeSlot: selectedTimeSlot,
-        serviceType,
-        technicianName: selectedTech.name
-      });
+      setConflictError(err.response?.data?.message || 'Scheduling conflict: This slot is already booked in database.');
     } finally {
       setLoading(false);
     }
@@ -140,10 +140,7 @@ export const AppointmentBooking = () => {
     <Box sx={{ flexGrow: 1, p: 4, backgroundColor: '#0D1527', minHeight: '100vh', overflowY: 'auto' }}>
       {/* Page Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="caption" sx={{ color: '#00A8FF', fontWeight: 700, letterSpacing: 1 }}>
-          MEMBER 2 • MODULE 2 (FEATURE 2.2)
-        </Typography>
-        <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700, mt: 0.5 }}>
+        <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700 }}>
           Appointment Scheduling System
         </Typography>
         <Typography variant="body2" sx={{ color: '#94A3B8' }}>
@@ -158,7 +155,6 @@ export const AppointmentBooking = () => {
             Choose a technician
           </Typography>
 
-          {/* Search bar matching Figma */}
           <TextField
             fullWidth
             placeholder="Search by name or specialty..."
@@ -180,7 +176,6 @@ export const AppointmentBooking = () => {
             }}
           />
 
-          {/* Technician Cards */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredTechs.map((tech) => (
               <Paper
@@ -266,7 +261,7 @@ export const AppointmentBooking = () => {
           </Box>
         </Box>
       ) : (
-        /* STEP 2: Calendar & Time Slots Screen matching Figma */
+        /* STEP 2: Calendar & Time Slots Screen with Real Conflict Disabling */
         <Grid container spacing={4} sx={{ maxWidth: 1000 }}>
           <Grid item xs={12} md={7}>
             <Paper
@@ -278,7 +273,6 @@ export const AppointmentBooking = () => {
                 border: '1px solid #2A364F'
               }}
             >
-              {/* Selected Tech Card Header */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4, p: 2, backgroundColor: '#0F172A', borderRadius: 2 }}>
                 <Avatar sx={{ backgroundColor: '#00A8FF', color: '#0D1527', fontWeight: 700 }}>
                   {selectedTech?.avatar}
@@ -330,29 +324,32 @@ export const AppointmentBooking = () => {
                 })}
               </Box>
 
-              {/* Time Slots */}
+              {/* Time Slots (Disables Booked Slots in Prisma DB) */}
               <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1.5 }}>
                 Available time slots — {selectedDate}
               </Typography>
               <Grid container spacing={1.5} sx={{ mb: 4 }}>
                 {timeSlots.map((slot) => {
+                  const isBooked = bookedSlots.includes(slot);
                   const selected = selectedTimeSlot === slot;
                   return (
                     <Grid item xs={4} key={slot}>
                       <Button
                         fullWidth
+                        disabled={isBooked}
                         onClick={() => setSelectedTimeSlot(slot)}
                         sx={{
-                          backgroundColor: selected ? '#00A8FF' : '#0F172A',
-                          color: selected ? '#0D1527' : '#94A3B8',
-                          border: selected ? '1px solid #00A8FF' : '1px solid #2A364F',
+                          backgroundColor: isBooked ? '#1E293B' : selected ? '#00A8FF' : '#0F172A',
+                          color: isBooked ? '#64748B' : selected ? '#0D1527' : '#94A3B8',
+                          border: isBooked ? '1px dashed #334155' : selected ? '1px solid #00A8FF' : '1px solid #2A364F',
                           py: 1,
                           fontSize: '0.85rem',
                           fontWeight: 600,
-                          '&:hover': { backgroundColor: selected ? '#00A8FF' : '#1E293B' }
+                          textDecoration: isBooked ? 'line-through' : 'none',
+                          '&:hover': { backgroundColor: isBooked ? '#1E293B' : selected ? '#00A8FF' : '#1E293B' }
                         }}
                       >
-                        {slot}
+                        {slot} {isBooked ? '(Booked)' : ''}
                       </Button>
                     </Grid>
                   );
@@ -394,6 +391,7 @@ export const AppointmentBooking = () => {
                   variant="contained"
                   fullWidth
                   onClick={() => setOpenModal(true)}
+                  disabled={bookedSlots.includes(selectedTimeSlot)}
                   sx={{
                     backgroundColor: '#00A8FF',
                     color: '#0D1527',
@@ -410,7 +408,7 @@ export const AppointmentBooking = () => {
         </Grid>
       )}
 
-      {/* Booking Summary Confirmation Modal matching Figma */}
+      {/* Booking Summary Confirmation Modal */}
       <Dialog
         open={openModal}
         onClose={() => setOpenModal(false)}
@@ -445,7 +443,7 @@ export const AppointmentBooking = () => {
                 Booking Successful!
               </Typography>
               <Typography variant="body2" sx={{ color: '#94A3B8', mb: 2 }}>
-                An appointment confirmation email has been dispatched via EmailJS to customer@techaid.com.
+                Saved in Prisma database & email dispatched via EmailJS API.
               </Typography>
               <Box sx={{ backgroundColor: '#0F172A', p: 2, borderRadius: 2, textAlign: 'left', mb: 2 }}>
                 <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>APPOINTMENT ID</Typography>

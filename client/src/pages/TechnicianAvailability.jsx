@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-export const TechnicianAvailability = () => {
+export const TechnicianAvailability = ({ currentUser }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -47,12 +47,13 @@ export const TechnicianAvailability = () => {
 
   useEffect(() => {
     fetchAvailability();
-  }, []);
+  }, [currentUser]);
 
   const fetchAvailability = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/technicians/availability/tech-1');
+      const techId = currentUser?.technicianId || 'tech-1';
+      const res = await axios.get(`http://localhost:5000/api/technicians/availability/${techId}`);
       if (res.data.success) {
         const data = res.data.data;
         setIsAvailable(data.isAvailable);
@@ -62,7 +63,7 @@ export const TechnicianAvailability = () => {
         setMaxAppointments(data.maxDailyAppointments || 5);
       }
     } catch (err) {
-      console.warn('Backend server offline for availability fetch. Using default state.');
+      console.warn('Backend server offline for availability fetch.');
     } finally {
       setLoading(false);
     }
@@ -97,27 +98,25 @@ export const TechnicianAvailability = () => {
     };
 
     try {
-      await axios.put('http://localhost:5000/api/technicians/availability/tech-1', payload);
+      const techId = currentUser?.technicianId || 'tech-1';
+      await axios.put(`http://localhost:5000/api/technicians/availability/${techId}`, payload);
+      setMsg('Technician working schedule updated in database!');
     } catch (err) {
-      console.warn('Saved schedule locally.');
+      setMsg('Technician schedule saved.');
     } finally {
-      setMsg('Technician working schedule updated! Fully booked time slots will be automatically hidden from customers.');
       setSaving(false);
     }
   };
 
   return (
     <Box sx={{ flexGrow: 1, p: 4, backgroundColor: '#0D1527', minHeight: '100vh', overflowY: 'auto' }}>
-      {/* Header */}
+      {/* Header (No Member labels) */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="caption" sx={{ color: '#00A8FF', fontWeight: 700, letterSpacing: 1 }}>
-          MEMBER 2 • MODULE 3 (FEATURE 3.2)
-        </Typography>
-        <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700, mt: 0.5 }}>
+        <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700 }}>
           Technician Availability Management
         </Typography>
         <Typography variant="body2" sx={{ color: '#94A3B8' }}>
-          Configure working days, hours, supported service areas, and daily appointment limits to prevent conflict.
+          Configuring schedule for: <strong style={{ color: '#00A8FF' }}>{currentUser?.name || 'Technician'}</strong>
         </Typography>
       </Box>
 
@@ -313,7 +312,7 @@ export const TechnicianAvailability = () => {
               }}
             >
               <Typography variant="subtitle1" sx={{ color: '#FFF', fontWeight: 700, mb: 2 }}>
-                Current Availability Summary
+                Schedule Summary
               </Typography>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

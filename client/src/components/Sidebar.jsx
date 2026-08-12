@@ -13,17 +13,17 @@ import {
 import {
   PlusCircle,
   Calendar,
-  MessageSquare,
   ClipboardList,
-  Clock,
-  DollarSign,
   Shield,
   UserCheck,
   Activity,
-  Sliders
+  Sliders,
+  LogOut
 } from 'lucide-react';
 
-export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
+export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
+  const isCustomer = currentUser?.role === 'CUSTOMER';
+
   return (
     <Box
       sx={{
@@ -59,77 +59,51 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
             Tech<span style={{ color: '#00A8FF' }}>Aid</span>
           </Typography>
           <Typography variant="caption" sx={{ color: '#64748B', display: 'block', fontSize: '0.7rem' }}>
-            CSE471 • Member 2
+            IT Support Platform
           </Typography>
         </Box>
       </Box>
 
-      {/* Role Switcher Pill */}
+      {/* Current Active Account Card */}
       <Box
         sx={{
           backgroundColor: '#172036',
-          p: 0.5,
+          p: 1.5,
           borderRadius: 2,
           display: 'flex',
+          flexDirection: 'column',
           mb: 3,
           border: '1px solid #2A364F'
         }}
       >
-        <Button
-          fullWidth
+        <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block' }}>
+          LOGGED IN AS
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 700, mt: 0.2 }}>
+          {currentUser?.name || 'User'}
+        </Typography>
+        <Chip
+          label={currentUser?.role === 'CUSTOMER' ? 'Customer Account' : `${currentUser?.specialty || 'Technician'}`}
           size="small"
-          onClick={() => {
-            setUserRole('CUSTOMER');
-            if (activeTab === 'tech-availability' || activeTab === 'tech-dashboard') {
-              setActiveTab('new-request');
-            }
-          }}
           sx={{
-            backgroundColor: userRole === 'CUSTOMER' ? '#00A8FF' : 'transparent',
-            color: userRole === 'CUSTOMER' ? '#0D1527' : '#94A3B8',
-            fontSize: '0.75rem',
-            py: 0.5,
-            fontWeight: 700,
-            '&:hover': {
-              backgroundColor: userRole === 'CUSTOMER' ? '#00A8FF' : 'rgba(255,255,255,0.05)'
-            }
+            mt: 0.8,
+            backgroundColor: currentUser?.role === 'CUSTOMER' ? 'rgba(0, 168, 255, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+            color: currentUser?.role === 'CUSTOMER' ? '#00A8FF' : '#10B981',
+            fontSize: '0.68rem',
+            fontWeight: 700
           }}
-        >
-          Customer
-        </Button>
-        <Button
-          fullWidth
-          size="small"
-          onClick={() => {
-            setUserRole('TECHNICIAN');
-            if (activeTab === 'new-request' || activeTab === 'appointments') {
-              setActiveTab('tech-dashboard');
-            }
-          }}
-          sx={{
-            backgroundColor: userRole === 'TECHNICIAN' ? '#00A8FF' : 'transparent',
-            color: userRole === 'TECHNICIAN' ? '#0D1527' : '#94A3B8',
-            fontSize: '0.75rem',
-            py: 0.5,
-            fontWeight: 700,
-            '&:hover': {
-              backgroundColor: userRole === 'TECHNICIAN' ? '#00A8FF' : 'rgba(255,255,255,0.05)'
-            }
-          }}
-        >
-          Technician
-        </Button>
+        />
       </Box>
 
       {/* Navigation Links */}
       <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, px: 1, mb: 1 }}>
-        {userRole === 'CUSTOMER' ? 'CUSTOMER FEATURES' : 'TECHNICIAN FEATURES'}
+        {isCustomer ? 'CUSTOMER DASHBOARD' : 'TECHNICIAN PORTAL'}
       </Typography>
 
       <List disablePadding>
-        {userRole === 'CUSTOMER' ? (
+        {isCustomer ? (
           <>
-            {/* Module 1 */}
+            {/* New Request */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'new-request'}
@@ -145,11 +119,11 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
                 <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'new-request' ? '#00A8FF' : '#94A3B8' }}>
                   <PlusCircle size={18} />
                 </ListItemIcon>
-                <ListItemText primary="New request" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+                <ListItemText primary="New Request" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
 
-            {/* Module 2 */}
+            {/* Appointments */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'appointments'}
@@ -165,11 +139,11 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
                 <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'appointments' ? '#00A8FF' : '#94A3B8' }}>
                   <Calendar size={18} />
                 </ListItemIcon>
-                <ListItemText primary="Appointments" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+                <ListItemText primary="Book Appointment" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
 
-            {/* Module 3 Feature 4 */}
+            {/* Track Progress */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'progress-tracker'}
@@ -191,6 +165,7 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
           </>
         ) : (
           <>
+            {/* Technician Job Requests */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'tech-dashboard'}
@@ -210,7 +185,7 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
               </ListItemButton>
             </ListItem>
 
-            {/* Module 3 Feature 3 */}
+            {/* Technician Availability Config */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'tech-availability'}
@@ -230,7 +205,7 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
               </ListItemButton>
             </ListItem>
 
-            {/* Module 3 Feature 4 Status Control */}
+            {/* Progress Status Tracker */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={activeTab === 'progress-tracker'}
@@ -253,18 +228,23 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole, setUserRole }) => {
         )}
       </List>
 
-      <Box sx={{ mt: 'auto', p: 1.5, backgroundColor: '#172036', borderRadius: 2, border: '1px solid #1E293B' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <UserCheck size={18} color="#00A8FF" />
-          <Typography variant="body2" sx={{ fontWeight: 600, color: '#FFF' }}>
-            {userRole === 'CUSTOMER' ? 'Mehedi Hasan' : 'Rafiq Ahmed (Tech)'}
-          </Typography>
-        </Box>
-        <Chip
-          label={userRole === 'CUSTOMER' ? 'Member 2 (ID: 23201345)' : 'Verified Technician'}
-          size="small"
-          sx={{ mt: 1, backgroundColor: 'rgba(0, 168, 255, 0.15)', color: '#00A8FF', fontSize: '0.68rem', fontWeight: 700 }}
-        />
+      {/* Logout Button */}
+      <Box sx={{ mt: 'auto', pt: 2 }}>
+        <Button
+          fullWidth
+          onClick={onLogout}
+          startIcon={<LogOut size={18} />}
+          sx={{
+            color: '#EF4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            py: 1,
+            fontWeight: 700,
+            '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
+          }}
+        >
+          Sign Out
+        </Button>
       </Box>
     </Box>
   );

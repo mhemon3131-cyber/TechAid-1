@@ -44,25 +44,9 @@ const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-// Default Mock Progress Data Fallback
-const DEFAULT_PROGRESS = {
-  trackingId: 'REQ-2026-8942',
-  deviceCategory: 'Laptop',
-  title: 'Laptop won\'t turn on after update',
-  currentStatus: 'IN_PROGRESS',
-  currentStageIndex: 3,
-  stages: ['PENDING', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'ON_THE_WAY', 'COMPLETED'],
-  logs: [
-    { status: 'PENDING', note: 'Service request created by customer.', timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
-    { status: 'ASSIGNED', note: 'Assigned to Technician Rafiq Ahmed.', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-    { status: 'ACCEPTED', note: 'Technician accepted the job.', timestamp: new Date(Date.now() - 3600000 * 1).toISOString() },
-    { status: 'IN_PROGRESS', note: 'Technician is diagnosing hardware issue.', timestamp: new Date().toISOString() }
-  ]
-};
-
-export const ServiceProgressTracker = () => {
+export const ServiceProgressTracker = ({ currentUser }) => {
   const [trackingIdInput, setTrackingIdInput] = useState('REQ-2026-8942');
-  const [progressData, setProgressData] = useState(DEFAULT_PROGRESS);
+  const [progressData, setProgressData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
@@ -90,13 +74,8 @@ export const ServiceProgressTracker = () => {
         setProgressData(res.data.data);
       }
     } catch (err) {
-      // Automatic seamless fallback if server is offline or request id is searched
-      console.warn('Backend server response fallback for progress tracking.');
-      const stagesOrder = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'ON_THE_WAY', 'COMPLETED'];
-      setProgressData({
-        ...DEFAULT_PROGRESS,
-        trackingId: idToFetch.toUpperCase()
-      });
+      setError(err.response?.data?.message || 'Service request tracking ID not found in database.');
+      setProgressData(null);
     } finally {
       setLoading(false);
     }
@@ -107,39 +86,27 @@ export const ServiceProgressTracker = () => {
     setUpdating(true);
     setMsg('');
     setError('');
-    const stagesOrder = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'ON_THE_WAY', 'COMPLETED'];
-    const newIdx = stagesOrder.indexOf(nextStatus);
-
     try {
-      await axios.put(`http://localhost:5000/api/requests/${progressData.trackingId}/status`, {
+      const res = await axios.put(`http://localhost:5000/api/requests/${progressData.trackingId}/status`, {
         status: nextStatus,
         note: `Technician updated stage to ${nextStatus}.`
       });
+      if (res.data.success) {
+        setMsg(`Service progress stage updated to ${nextStatus} in Prisma database.`);
+        fetchProgress(progressData.trackingId);
+      }
     } catch (err) {
-      // Local state fallback update
+      setError('Failed to update stage in database.');
     } finally {
-      setProgressData((prev) => ({
-        ...prev,
-        currentStatus: nextStatus,
-        currentStageIndex: newIdx,
-        logs: [
-          ...prev.logs,
-          { status: nextStatus, note: `Status updated to ${nextStatus}.`, timestamp: new Date().toISOString() }
-        ]
-      }));
-      setMsg(`Service request status successfully advanced to ${nextStatus}!`);
       setUpdating(false);
     }
   };
 
   return (
     <Box sx={{ flexGrow: 1, p: 4, backgroundColor: '#0D1527', minHeight: '100vh', overflowY: 'auto' }}>
-      {/* Header */}
+      {/* Header (No Member labels) */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="caption" sx={{ color: '#00A8FF', fontWeight: 700, letterSpacing: 1 }}>
-          MEMBER 2 • MODULE 3 (FEATURE 3.2)
-        </Typography>
-        <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700, mt: 0.5 }}>
+        <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700 }}>
           Service Progress Tracking System
         </Typography>
         <Typography variant="body2" sx={{ color: '#94A3B8' }}>
@@ -251,7 +218,7 @@ export const ServiceProgressTracker = () => {
                               sx={{
                                 width: 42,
                                 height: 42,
-                                backgroundColor: isCompleted ? '#10B981' : isActive ? '#00A8FF' : '#0F1F38',
+                                backgroundColor: isCompleted ? '#10B981' : isActive ? '#00A8FF' : '#0F172A',
                                 color: isCompleted || isActive ? '#0D1527' : '#94A3B8',
                                 border: isActive ? '3px solid #38BDF8' : '1px solid #2A364F',
                                 boxShadow: isActive ? '0 0 12px rgba(0, 168, 255, 0.5)' : 'none'
@@ -281,10 +248,10 @@ export const ServiceProgressTracker = () => {
 
               <Divider sx={{ borderColor: '#2A364F', my: 3 }} />
 
-              {/* Status Advancement Controls (For Evaluation & Technician Update Demo) */}
+              {/* Status Advancement Controls */}
               <Box sx={{ backgroundColor: '#0F172A', p: 2.5, borderRadius: 2, border: '1px solid #2A364F' }}>
                 <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600, mb: 1.5 }}>
-                  Advance Progress Stage (Demo / Evaluator Control):
+                  Advance Progress Stage (Real DB Update):
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   {stagesList.map((stg) => (

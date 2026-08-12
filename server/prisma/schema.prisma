@@ -11,6 +11,7 @@ model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
+  password  String   @default("123456")
   role      String   @default("CUSTOMER") // CUSTOMER, TECHNICIAN, ADMIN
   phone     String?
   avatar    String?
@@ -24,17 +25,17 @@ model User {
 model Technician {
   id                    String        @id @default(uuid())
   userId                String        @unique
-  user                  User          @relation(fields: [userId], references: [id])
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                  String
   specialty             String        // e.g. Laptop & Desktop Specialist
   rating                Float         @default(4.9)
   distanceKm            Float         @default(2.1)
   isAvailable           Boolean       @default(true)
   avatar                String?
-  availableDays         String        @default("Mon,Tue,Wed,Thu,Fri") // Module 3 Feature 3
-  workingHours          String        @default("09:00 AM - 06:00 PM") // Module 3 Feature 3
-  serviceAreas          String        @default("Gulshan, Banani, Dhanmondi, Uttara") // Module 3 Feature 3
-  maxDailyAppointments  Int           @default(5) // Module 3 Feature 3
+  availableDays         String        @default("Mon,Tue,Wed,Thu,Fri")
+  workingHours          String        @default("09:00 AM - 06:00 PM")
+  serviceAreas          String        @default("Gulshan, Banani, Dhanmondi, Uttara")
+  maxDailyAppointments  Int           @default(5)
   appointments          Appointment[]
 }
 
@@ -52,7 +53,7 @@ model ServiceRequest {
   estimatedCost   String          @default("৳800 - 1,500")
   attachments     Attachment[]
   appointment     Appointment?
-  statusLogs      StatusHistory[] // Module 3 Feature 4 (Progress Tracking)
+  statusLogs      StatusHistory[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt @default(now())
 }
@@ -77,17 +78,17 @@ model Attachment {
 }
 
 model Appointment {
-  id               String         @id @default(uuid())
-  serviceRequestId String?        @unique
+  id               String          @id @default(uuid())
+  serviceRequestId String?         @unique
   serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
   customerId       String
-  customer         User           @relation("CustomerAppointments", fields: [customerId], references: [id])
+  customer         User            @relation("CustomerAppointments", fields: [customerId], references: [id])
   technicianId     String
-  technician       Technician     @relation(fields: [technicianId], references: [id])
-  date             String         // e.g. Mon Jul 13, 2026
-  timeSlot         String         // e.g. 10:00 am, 11:30 am
-  serviceType      String         // Remote support, Home visit, Service center
-  status           String         @default("PENDING") // PENDING, APPROVED, REJECTED, RESCHEDULED
-  estimatedCost    String         @default("৳800 - 1,500")
-  createdAt        DateTime       @default(now())
+  technician       Technician      @relation(fields: [technicianId], references: [id])
+  date             String          // e.g. Mon Jul 13, 2026
+  timeSlot         String          // e.g. 10:00 am, 11:30 am
+  serviceType      String          // Remote support, Home visit, Service center
+  status           String          @default("PENDING") // PENDING, APPROVED, REJECTED, RESCHEDULED
+  estimatedCost    String          @default("৳800 - 1,500")
+  createdAt        DateTime        @default(now())
 }
