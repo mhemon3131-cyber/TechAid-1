@@ -37,6 +37,16 @@ export const Auth = ({ onLoginSuccess }) => {
     'Networking & Internet Consultant'
   ];
 
+  // Helper to derive a clean user name if blank
+  const getDerivedName = (inputName, inputEmail) => {
+    if (inputName && inputName.trim()) return inputName.trim();
+    if (inputEmail && inputEmail.includes('@')) {
+      const prefix = inputEmail.split('@')[0];
+      return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    }
+    return 'Customer';
+  };
+
   // Submit Login
   const handleLogin = async (overrideEmail = null, overrideRole = null) => {
     setLoading(true);
@@ -55,9 +65,10 @@ export const Auth = ({ onLoginSuccess }) => {
         onLoginSuccess(res.data.user);
       }
     } catch (err) {
-      // Fallback local authentication
+      // Fallback local authentication using exact derived name
+      const userName = getDerivedName(name, targetEmail);
       const fallbackUser = targetRole === 'CUSTOMER'
-        ? { id: `usr-${Date.now()}`, name: name || 'Customer User', email: targetEmail, role: 'CUSTOMER', avatar: 'CU' }
+        ? { id: `usr-${Date.now()}`, name: userName, email: targetEmail, role: 'CUSTOMER', avatar: userName.slice(0, 2).toUpperCase() }
         : targetEmail.includes('sara')
           ? { id: 'usr-3', name: 'Sara Noor', email: 'sara@techaid.com', role: 'TECHNICIAN', avatar: 'SN', technicianId: 'tech-2', specialty: 'Smartphone Repair' }
           : { id: 'usr-2', name: 'Rafiq Ahmed', email: 'rafiq@techaid.com', role: 'TECHNICIAN', avatar: 'RA', technicianId: 'tech-1', specialty: 'Laptop Specialist' };
@@ -68,7 +79,7 @@ export const Auth = ({ onLoginSuccess }) => {
     }
   };
 
-  // Submit Registration (Saves to DB and Local Registered List)
+  // Submit Registration
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Please fill in your name, email, and password.');
@@ -79,21 +90,24 @@ export const Auth = ({ onLoginSuccess }) => {
     setError('');
     setSuccessMsg('');
 
+    const cleanName = name.trim();
+    const cleanEmail = email.toLowerCase().trim();
+
     const newTechProfile = {
       id: `tech-${Date.now()}`,
       userId: `usr-${Date.now()}`,
-      name: name.trim(),
+      name: cleanName,
       specialty: roleTab === 'TECHNICIAN' ? specialty : 'General Repair',
       rating: 4.8,
       distanceKm: 2.5,
       isAvailable: true,
-      avatar: name.slice(0, 2).toUpperCase()
+      avatar: cleanName.slice(0, 2).toUpperCase()
     };
 
     try {
       const payload = {
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
+        name: cleanName,
+        email: cleanEmail,
         password: password.trim(),
         role: roleTab,
         specialty: roleTab === 'TECHNICIAN' ? specialty : null
@@ -102,7 +116,6 @@ export const Auth = ({ onLoginSuccess }) => {
       const res = await axios.post('http://localhost:5000/api/auth/register', payload);
 
       if (res.data.success) {
-        // Save technician profile into persistent list so it shows in booking list
         if (roleTab === 'TECHNICIAN') {
           const existingTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
           localStorage.setItem('techaid_registered_techs', JSON.stringify([...existingTechs, newTechProfile]));
@@ -111,7 +124,7 @@ export const Auth = ({ onLoginSuccess }) => {
         setSuccessMsg(`Account created successfully for ${res.data.user.name}! Saved in database.`);
         setTimeout(() => {
           onLoginSuccess(res.data.user);
-        }, 1200);
+        }, 1000);
       }
     } catch (err) {
       if (roleTab === 'TECHNICIAN') {
@@ -121,12 +134,12 @@ export const Auth = ({ onLoginSuccess }) => {
 
       const mockNewUser = {
         id: newTechProfile.userId,
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
+        name: cleanName,
+        email: cleanEmail,
         role: roleTab,
         avatar: newTechProfile.avatar,
-        technicianId: newTechProfile.id,
-        specialty: newTechProfile.specialty
+        technicianId: roleTab === 'TECHNICIAN' ? newTechProfile.id : null,
+        specialty: roleTab === 'TECHNICIAN' ? newTechProfile.specialty : null
       };
       onLoginSuccess(mockNewUser);
     } finally {
@@ -283,7 +296,7 @@ export const Auth = ({ onLoginSuccess }) => {
                 size="small"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. John Doe"
+                placeholder="e.g. Alex"
                 sx={{
                   mb: 2,
                   '& .MuiOutlinedInput-root': {

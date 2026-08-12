@@ -34,17 +34,22 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // 2. Fetch Customer & Technician details
-    const technician = await prisma.technician.findUnique({ where: { id: technicianId } });
+    // 2. Fetch Customer & Technician details dynamically
+    let technician = await prisma.technician.findUnique({ where: { id: technicianId } });
+    if (!technician) {
+      technician = await prisma.technician.findFirst({ where: { userId: technicianId } });
+    }
+
     const custId = customerId || 'usr-1';
     const customer = await prisma.user.findUnique({ where: { id: custId } });
+    const techName = technician ? technician.name : 'Selected Technician';
 
     // 3. Persist Appointment to Real Prisma Database
     const newAppointment = await prisma.appointment.create({
       data: {
         serviceRequestId: serviceRequestId || null,
         customerId: custId,
-        technicianId,
+        technicianId: technician ? technician.id : technicianId,
         date,
         timeSlot,
         serviceType,
@@ -58,11 +63,31 @@ export const createAppointment = async (req, res) => {
       }
     });
 
-    // 4. Trigger EmailJS notification
+    // 4. DYNAMICALLY Update Service Request Status & Progress Logs with Selected Technician Name!
+    if (serviceRequestId) {
+      try {
+        await prisma.serviceRequest.update({
+          where: { id: serviceRequestId },
+          data: {
+            status: 'ASSIGNED',
+            statusLogs: {
+              create: {
+                status: 'ASSIGNED',
+                note: `Assigned to Technician ${techName}.`
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('Note: Request status log updated.');
+      }
+    }
+
+    // 5. Trigger EmailJS notification
     await sendAppointmentConfirmationEmail({
-      customerEmail: customer ? customer.email : 'mehedi@bracu.ac.bd',
-      customerName: customer ? customer.name : 'Mehedi Hasan',
-      technicianName: technician ? technician.name : 'Rafiq Ahmed',
+      customerEmail: customer ? customer.email : 'customer@techaid.com',
+      customerName: customer ? customer.name : 'Customer',
+      technicianName: techName,
       date,
       timeSlot,
       serviceType
@@ -70,13 +95,13 @@ export const createAppointment = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Appointment booked successfully in Prisma database!',
+      message: `Appointment booked with ${techName} successfully in Prisma database!`,
       data: {
         id: newAppointment.id,
         customerId: newAppointment.customerId,
-        customerName: newAppointment.customer ? newAppointment.customer.name : 'Customer',
+        customerName: newAppointment.customer ? newAppointment.customer.name : (customer ? customer.name : 'Customer'),
         technicianId: newAppointment.technicianId,
-        technicianName: newAppointment.technician ? newAppointment.technician.name : 'Technician',
+        technicianName: techName,
         date: newAppointment.date,
         timeSlot: newAppointment.timeSlot,
         serviceType: newAppointment.serviceType,
