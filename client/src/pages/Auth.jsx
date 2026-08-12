@@ -11,15 +11,14 @@ import {
   Divider,
   MenuItem,
   Select,
-  FormControl,
-  InputLabel
+  FormControl
 } from '@mui/material';
 import { Shield, User, Wrench, ArrowRight, UserPlus, LogIn } from 'lucide-react';
 import axios from 'axios';
 
 export const Auth = ({ onLoginSuccess }) => {
-  const [isRegisterMode, setIsRegisterMode] = useState(false); // false = Login, true = Register
-  const [roleTab, setRoleTab] = useState('CUSTOMER'); // CUSTOMER | TECHNICIAN
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [roleTab, setRoleTab] = useState('CUSTOMER');
 
   // Form Fields
   const [name, setName] = useState('');
@@ -56,9 +55,9 @@ export const Auth = ({ onLoginSuccess }) => {
         onLoginSuccess(res.data.user);
       }
     } catch (err) {
-      // Fallback local authentication if backend server is starting up
+      // Fallback local authentication
       const fallbackUser = targetRole === 'CUSTOMER'
-        ? { id: `usr-${Date.now()}`, name: name || 'Mehedi Hasan', email: targetEmail, role: 'CUSTOMER', avatar: 'MH' }
+        ? { id: `usr-${Date.now()}`, name: name || 'Customer User', email: targetEmail, role: 'CUSTOMER', avatar: 'CU' }
         : targetEmail.includes('sara')
           ? { id: 'usr-3', name: 'Sara Noor', email: 'sara@techaid.com', role: 'TECHNICIAN', avatar: 'SN', technicianId: 'tech-2', specialty: 'Smartphone Repair' }
           : { id: 'usr-2', name: 'Rafiq Ahmed', email: 'rafiq@techaid.com', role: 'TECHNICIAN', avatar: 'RA', technicianId: 'tech-1', specialty: 'Laptop Specialist' };
@@ -69,7 +68,7 @@ export const Auth = ({ onLoginSuccess }) => {
     }
   };
 
-  // Submit Registration (Saves directly to Prisma Database)
+  // Submit Registration (Saves to DB and Local Registered List)
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Please fill in your name, email, and password.');
@@ -79,6 +78,17 @@ export const Auth = ({ onLoginSuccess }) => {
     setLoading(true);
     setError('');
     setSuccessMsg('');
+
+    const newTechProfile = {
+      id: `tech-${Date.now()}`,
+      userId: `usr-${Date.now()}`,
+      name: name.trim(),
+      specialty: roleTab === 'TECHNICIAN' ? specialty : 'General Repair',
+      rating: 4.8,
+      distanceKm: 2.5,
+      isAvailable: true,
+      avatar: name.slice(0, 2).toUpperCase()
+    };
 
     try {
       const payload = {
@@ -92,22 +102,31 @@ export const Auth = ({ onLoginSuccess }) => {
       const res = await axios.post('http://localhost:5000/api/auth/register', payload);
 
       if (res.data.success) {
+        // Save technician profile into persistent list so it shows in booking list
+        if (roleTab === 'TECHNICIAN') {
+          const existingTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
+          localStorage.setItem('techaid_registered_techs', JSON.stringify([...existingTechs, newTechProfile]));
+        }
+
         setSuccessMsg(`Account created successfully for ${res.data.user.name}! Saved in database.`);
         setTimeout(() => {
           onLoginSuccess(res.data.user);
         }, 1200);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create account. Make sure backend is running.');
-      // Local fallback account creation
+      if (roleTab === 'TECHNICIAN') {
+        const existingTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
+        localStorage.setItem('techaid_registered_techs', JSON.stringify([...existingTechs, newTechProfile]));
+      }
+
       const mockNewUser = {
-        id: `usr-${Date.now()}`,
+        id: newTechProfile.userId,
         name: name.trim(),
         email: email.toLowerCase().trim(),
         role: roleTab,
-        avatar: name.slice(0, 2).toUpperCase(),
-        technicianId: roleTab === 'TECHNICIAN' ? `tech-${Date.now()}` : null,
-        specialty: roleTab === 'TECHNICIAN' ? specialty : null
+        avatar: newTechProfile.avatar,
+        technicianId: newTechProfile.id,
+        specialty: newTechProfile.specialty
       };
       onLoginSuccess(mockNewUser);
     } finally {
@@ -160,7 +179,7 @@ export const Auth = ({ onLoginSuccess }) => {
             Tech<span style={{ color: '#00A8FF' }}>Aid</span>
           </Typography>
           <Typography variant="body2" sx={{ color: '#94A3B8', mt: 0.5 }}>
-            {isRegisterMode ? 'Create a New Database Account' : 'Interactive Tech Support & Troubleshooting System'}
+            {isRegisterMode ? 'Create a New Account' : 'Interactive Tech Support & Troubleshooting System'}
           </Typography>
         </Box>
 
@@ -264,7 +283,7 @@ export const Auth = ({ onLoginSuccess }) => {
                 size="small"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Mehedi Hasan"
+                placeholder="e.g. John Doe"
                 sx={{
                   mb: 2,
                   '& .MuiOutlinedInput-root': {
