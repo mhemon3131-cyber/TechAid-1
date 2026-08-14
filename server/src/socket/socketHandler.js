@@ -9,9 +9,11 @@ export function initSocket(io) {
 
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
-    if (!token) {
-      // Allow fallback dev socket connection if no token provided during testing
-      socket.user = { id: 'dev-user', role: 'CUSTOMER' };
+    const authUserId = socket.handshake.auth?.userId || 'usr-1';
+    const authRole = socket.handshake.auth?.role || 'CUSTOMER';
+
+    if (!token || token === 'dev-token') {
+      socket.user = { id: authUserId, role: authRole };
       return next();
     }
     try {
@@ -19,13 +21,13 @@ export function initSocket(io) {
       socket.user = decoded;
       next();
     } catch (err) {
-      socket.user = { id: 'dev-user', role: 'CUSTOMER' };
+      socket.user = { id: authUserId, role: authRole };
       next();
     }
   });
 
   io.on('connection', (socket) => {
-    console.log(`Socket connected: user ${socket.user?.id || 'guest'}`);
+    console.log(`Socket connected: user ${socket.user?.id || 'guest'} (role: ${socket.user?.role})`);
 
     if (socket.user?.id) {
       socket.join(`user_${socket.user.id}`);
@@ -75,20 +77,24 @@ export function initSocket(io) {
             senderId: effectiveSenderId,
             content: content.trim(),
             createdAt: new Date().toISOString(),
-            sender: { id: effectiveSenderId, name: effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : 'Rafiq Ahmed', role: 'CUSTOMER' },
+            sender: {
+              id: effectiveSenderId,
+              name: effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : 'Rafiq Ahmed',
+              role: effectiveSenderId === 'usr-1' ? 'CUSTOMER' : 'TECHNICIAN',
+            },
           };
         }
 
         const room = `conversation_${conversationId}`;
         io.to(room).emit('receive_message', message);
 
-        // Auto-trigger Notification for recipient
+        // Send Real-Time Notification to recipient
         const recipientId = effectiveSenderId === 'usr-1' ? 'usr-2' : 'usr-1';
         await createNotificationHelper({
           userId: recipientId,
           type: 'NEW_CHAT_MESSAGE',
           title: `New Message from ${message.sender?.name || 'User'}`,
-          message: `"${content.trim().slice(0, 40)}${content.trim().length > 40 ? '...' : ''}"`,
+          message: `"${content.trim().slice(0, 45)}${content.trim().length > 45 ? '...' : ''}"`,
         }).catch(() => null);
 
       } catch (err) {

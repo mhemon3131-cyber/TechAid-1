@@ -16,7 +16,7 @@ export default function ChatBox({ conversationId, currentUserId }) {
     setLoading(true);
     axios
       .get(`http://localhost:5000/api/conversations/${conversationId}/messages`)
-      .then((res) => setMessages(res.data))
+      .then((res) => setMessages(res.data || []))
       .catch(() => setMessages([]))
       .finally(() => setLoading(false));
 
@@ -26,13 +26,19 @@ export default function ChatBox({ conversationId, currentUserId }) {
     const handleReceive = (message) => {
       if (String(message.conversationId) === String(conversationId)) {
         setMessages((prev) => {
-          if (prev.some((m) => m.id === message.id || (m.content === message.content && m.senderId === message.senderId && Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 2000))) {
-            return prev;
-          }
+          const exists = prev.some(
+            (m) =>
+              (m.id && message.id && String(m.id) === String(message.id)) ||
+              (m.content === message.content &&
+                String(m.senderId) === String(message.senderId) &&
+                Math.abs(new Date(m.createdAt || Date.now()) - new Date(message.createdAt || Date.now())) < 3000)
+          );
+          if (exists) return prev;
           return [...prev, message];
         });
       }
     };
+
     socket.on('receive_message', handleReceive);
 
     return () => {
@@ -72,10 +78,10 @@ export default function ChatBox({ conversationId, currentUserId }) {
                 No messages yet. Start the conversation below.
               </Typography>
             )}
-            {messages.map((m) => {
+            {messages.map((m, idx) => {
               const mine = String(m.senderId) === String(currentUserId || 'usr-1');
               return (
-                <Box key={m.id || `${m.senderId}_${m.createdAt}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+                <Box key={m.id || `msg_${idx}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 0.3, px: 0.5, fontSize: 11 }}>
                     {mine ? 'You' : (m.sender?.name || 'Technician')}
                   </Typography>

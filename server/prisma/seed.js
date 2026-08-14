@@ -131,6 +131,18 @@ async function main() {
     }
   });
 
+  // 6. Initial Sample Conversation
+  await prisma.conversation.upsert({
+    where: { serviceRequestId: sampleRequest.id },
+    update: {},
+    create: {
+      id: 'conv_req-101',
+      serviceRequestId: sampleRequest.id,
+      customerId: customerUser.id,
+      technicianId: rafiqUser.id,
+    }
+  });
+
   console.log('Database seeded with real records successfully!', { customerUser, rafiqTech, saraTech });
 }
 

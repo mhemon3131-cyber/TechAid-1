@@ -4,9 +4,12 @@ let socket = null;
 
 export function getSocket() {
   if (!socket) {
-    const token = localStorage.getItem('token') || '';
+    const savedUser = localStorage.getItem('techaid_user');
+    const user = savedUser ? JSON.parse(savedUser) : { id: 'usr-1', role: 'CUSTOMER' };
+    const token = localStorage.getItem('token') || 'dev-token';
+
     socket = io('http://localhost:5000', {
-      auth: { token },
+      auth: { token, userId: user.id, role: user.role },
       autoConnect: true,
     });
   }
