@@ -1,6 +1,6 @@
 import express from 'express';
 import { getOrCreateConversation, getMessages, listUserConversations } from '../controllers/conversationController.js';
-import { startCall, endCall } = from '../controllers/callController.js';
+import { startCall, endCall } from '../controllers/callController.js';
 
 const router = express.Router();
 

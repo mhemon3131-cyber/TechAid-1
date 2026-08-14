@@ -1,6 +1,6 @@
 import { prisma } from '../db.js';
 import { getIO } from '../socket/socketHandler.js';
-import { sendEmailNotification } = from '../services/emailService.js';
+import { sendEmailNotification } from '../services/emailService.js';
 
 export async function createNotificationHelper({ userId, type, title, message, userEmail, actionUrl, actionText }) {
   try {
