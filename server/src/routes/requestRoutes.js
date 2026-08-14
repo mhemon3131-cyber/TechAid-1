@@ -4,13 +4,15 @@ import {
   getAllServiceRequests,
   getRequestByTrackingId,
   getServiceProgress,
-  updateServiceStatus
+  updateServiceStatus,
+  getEmergencyQueue
 } from '../controllers/requestController.js';
 
 const router = express.Router();
 
 router.post('/', createServiceRequest);
 router.get('/', getAllServiceRequests);
+router.get('/emergency/queue', getEmergencyQueue);
 router.get('/:trackingId', getRequestByTrackingId);
 router.get('/:trackingId/progress', getServiceProgress);
 router.put('/:id/status', updateServiceStatus);

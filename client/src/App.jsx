@@ -8,6 +8,8 @@ import { AppointmentBooking } from './pages/AppointmentBooking';
 import { TechnicianDashboard } from './pages/TechnicianDashboard';
 import { TechnicianAvailability } from './pages/TechnicianAvailability';
 import { ServiceProgressTracker } from './pages/ServiceProgressTracker';
+import ChatPage from './pages/ChatPage';
+import EmergencyQueue from './pages/EmergencyQueue';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -53,7 +55,7 @@ export default function App() {
           onLogout={handleLogout}
         />
 
-        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+        <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
           {/* Module 1: Service Request Creation */}
           {activeTab === 'new-request' && (
             <CreateRequest
@@ -66,6 +68,12 @@ export default function App() {
           {activeTab === 'appointments' && (
             <AppointmentBooking currentUser={currentUser} />
           )}
+
+          {/* Module 2 & 3: Real-Time Communication System (Chat/Calls) */}
+          {activeTab === 'chat' && <ChatPage />}
+
+          {/* Module 3: Emergency Support Queue */}
+          {activeTab === 'emergency-queue' && <EmergencyQueue />}
 
           {/* Module 3 Feature 4: Service Progress Tracking */}
           {activeTab === 'progress-tracker' && (

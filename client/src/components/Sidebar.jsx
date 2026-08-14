@@ -15,10 +15,11 @@ import {
   Calendar,
   ClipboardList,
   Shield,
-  UserCheck,
   Activity,
   Sliders,
-  LogOut
+  LogOut,
+  MessageSquare,
+  AlertTriangle
 } from 'lucide-react';
 
 export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
@@ -143,6 +144,26 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
               </ListItemButton>
             </ListItem>
 
+            {/* Live Chat (Member 3) */}
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={activeTab === 'chat'}
+                onClick={() => setActiveTab('chat')}
+                sx={{
+                  borderRadius: 2,
+                  color: activeTab === 'chat' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'chat' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'chat' ? '4px solid #00A8FF' : '4px solid transparent',
+                  '&:hover': { backgroundColor: '#172036' }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'chat' ? '#00A8FF' : '#94A3B8' }}>
+                  <MessageSquare size={18} />
+                </ListItemIcon>
+                <ListItemText primary="Live Chat & Calls" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+
             {/* Track Progress */}
             <ListItem disablePadding sx={{ mb: 1 }}>
               <ListItemButton
@@ -182,6 +203,46 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                   <ClipboardList size={18} />
                 </ListItemIcon>
                 <ListItemText primary="Job Requests" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+
+            {/* Emergency Queue (Member 3) */}
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={activeTab === 'emergency-queue'}
+                onClick={() => setActiveTab('emergency-queue')}
+                sx={{
+                  borderRadius: 2,
+                  color: activeTab === 'emergency-queue' ? '#FFFFFF' : '#EF4444',
+                  backgroundColor: activeTab === 'emergency-queue' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'emergency-queue' ? '4px solid #EF4444' : '4px solid transparent',
+                  '&:hover': { backgroundColor: '#172036' }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: '#EF4444' }}>
+                  <AlertTriangle size={18} />
+                </ListItemIcon>
+                <ListItemText primary="Emergency Queue" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+
+            {/* Live Chat (Member 3) */}
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={activeTab === 'chat'}
+                onClick={() => setActiveTab('chat')}
+                sx={{
+                  borderRadius: 2,
+                  color: activeTab === 'chat' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'chat' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'chat' ? '4px solid #00A8FF' : '4px solid transparent',
+                  '&:hover': { backgroundColor: '#172036' }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'chat' ? '#00A8FF' : '#94A3B8' }}>
+                  <MessageSquare size={18} />
+                </ListItemIcon>
+                <ListItemText primary="Live Chat & Calls" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
 
