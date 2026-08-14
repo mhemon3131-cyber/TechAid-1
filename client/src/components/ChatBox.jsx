@@ -26,8 +26,9 @@ export default function ChatBox({ conversationId, currentUserId }) {
     const handleReceive = (message) => {
       if (String(message.conversationId) === String(conversationId)) {
         setMessages((prev) => {
-          // Deduplicate if already present by id
-          if (prev.some((m) => m.id === message.id)) return prev;
+          if (prev.some((m) => m.id === message.id || (m.content === message.content && m.senderId === message.senderId && Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 2000))) {
+            return prev;
+          }
           return [...prev, message];
         });
       }
@@ -46,25 +47,15 @@ export default function ChatBox({ conversationId, currentUserId }) {
   const sendMessage = () => {
     if (!draft.trim()) return;
 
-    const newMsg = {
-      id: `local_${Date.now()}`,
-      conversationId,
-      senderId: currentUserId || 'usr-1',
-      content: draft.trim(),
-      createdAt: new Date().toISOString(),
-      sender: { id: currentUserId || 'usr-1', name: 'You', role: 'CUSTOMER' },
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
+    const content = draft.trim();
+    setDraft('');
 
     const socket = getSocket();
     socket.emit('send_message', {
       conversationId,
-      content: draft.trim(),
+      content,
       senderId: currentUserId || 'usr-1',
     });
-
-    setDraft('');
   };
 
   return (
@@ -84,7 +75,7 @@ export default function ChatBox({ conversationId, currentUserId }) {
             {messages.map((m) => {
               const mine = String(m.senderId) === String(currentUserId || 'usr-1');
               return (
-                <Box key={m.id || Math.random()} sx={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+                <Box key={m.id || `${m.senderId}_${m.createdAt}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 0.3, px: 0.5, fontSize: 11 }}>
                     {mine ? 'You' : (m.sender?.name || 'Technician')}
                   </Typography>

@@ -11,17 +11,17 @@ import {
   ListItemIcon,
   Button,
   Divider,
-  Chip,
-  Paper,
+  Snackbar,
+  Alert,
   Stack
 } from '@mui/material';
 import {
   Bell,
   CheckCircle,
-  Clock,
   AlertCircle,
   Calendar,
-  CheckCheck
+  CheckCheck,
+  MessageSquare
 } from 'lucide-react';
 import { getSocket } from '../socket/socket';
 import axios from 'axios';
@@ -46,6 +46,7 @@ export default function NotificationBell({ currentUser }) {
     }
   ]);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [toast, setToast] = useState({ open: false, title: '', message: '' });
 
   const userId = currentUser?.id || 'usr-1';
 
@@ -66,7 +67,9 @@ export default function NotificationBell({ currentUser }) {
     const socket = getSocket();
     const handleNewNotif = (notif) => {
       setNotifications((prev) => [notif, ...prev]);
+      setToast({ open: true, title: notif.title, message: notif.message });
     };
+
     socket.on('new_notification', handleNewNotif);
 
     return () => {
@@ -96,6 +99,28 @@ export default function NotificationBell({ currentUser }) {
           <Bell size={20} />
         </Badge>
       </IconButton>
+
+      {/* Floating Real-time Toast Alert */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={() => setToast({ ...toast, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setToast({ ...toast, open: false })}
+          severity="info"
+          icon={<Bell size={18} color="#00A8FF" />}
+          sx={{ bgcolor: '#0F172A', color: '#FFF', border: '1px solid #00A8FF', borderRadius: 2 }}
+        >
+          <Typography variant="subtitle2" fontWeight={700}>
+            {toast.title}
+          </Typography>
+          <Typography variant="caption" color="#94A3B8">
+            {toast.message}
+          </Typography>
+        </Alert>
+      </Snackbar>
 
       <Popover
         open={Boolean(anchorEl)}
@@ -159,6 +184,8 @@ export default function NotificationBell({ currentUser }) {
                     <Calendar size={18} color="#F59E0B" />
                   ) : n.type === 'EMERGENCY_ALERT' ? (
                     <AlertCircle size={18} color="#EF4444" />
+                  ) : n.type === 'NEW_CHAT_MESSAGE' ? (
+                    <MessageSquare size={18} color="#00A8FF" />
                   ) : (
                     <CheckCircle size={18} color="#10B981" />
                   )}

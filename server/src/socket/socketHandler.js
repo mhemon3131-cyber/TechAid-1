@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
+import { createNotificationHelper } from '../controllers/notificationController.js';
 
 let ioInstance = null;
 
@@ -74,12 +75,22 @@ export function initSocket(io) {
             senderId: effectiveSenderId,
             content: content.trim(),
             createdAt: new Date().toISOString(),
-            sender: { id: effectiveSenderId, name: 'User', role: 'CUSTOMER' },
+            sender: { id: effectiveSenderId, name: effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : 'Rafiq Ahmed', role: 'CUSTOMER' },
           };
         }
 
         const room = `conversation_${conversationId}`;
         io.to(room).emit('receive_message', message);
+
+        // Auto-trigger Notification for recipient
+        const recipientId = effectiveSenderId === 'usr-1' ? 'usr-2' : 'usr-1';
+        await createNotificationHelper({
+          userId: recipientId,
+          type: 'NEW_CHAT_MESSAGE',
+          title: `New Message from ${message.sender?.name || 'User'}`,
+          message: `"${content.trim().slice(0, 40)}${content.trim().length > 40 ? '...' : ''}"`,
+        }).catch(() => null);
+
       } catch (err) {
         console.error('send_message error:', err);
       }
