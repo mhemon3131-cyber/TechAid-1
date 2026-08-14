@@ -23,46 +23,46 @@ model User {
 }
 
 model Technician {
-  id                    String        @id @default(uuid())
-  userId                String        @unique
-  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name                  String
-  specialty             String        // e.g. Laptop & Desktop Specialist
-  rating                Float         @default(4.9)
-  distanceKm            Float         @default(2.1)
-  isAvailable           Boolean       @default(true)
-  avatar                String?
-  availableDays         String        @default("Mon,Tue,Wed,Thu,Fri")
-  workingHours          String        @default("09:00 AM - 06:00 PM")
-  serviceAreas          String        @default("Gulshan, Banani, Dhanmondi, Uttara")
-  maxDailyAppointments  Int           @default(5)
-  appointments          Appointment[]
+  id                   String        @id @default(uuid())
+  userId               String        @unique
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String
+  specialty            String // e.g. Laptop & Desktop Specialist
+  rating               Float         @default(4.9)
+  distanceKm           Float         @default(2.1)
+  isAvailable          Boolean       @default(true)
+  avatar               String?
+  availableDays        String        @default("Mon,Tue,Wed,Thu,Fri")
+  workingHours         String        @default("09:00 AM - 06:00 PM")
+  serviceAreas         String        @default("Gulshan, Banani, Dhanmondi, Uttara")
+  maxDailyAppointments Int           @default(5)
+  appointments         Appointment[]
 }
 
 model ServiceRequest {
-  id              String          @id @default(uuid())
-  trackingId      String          @unique // e.g. REQ-2026-8942
-  customerId      String
-  customer        User            @relation("CustomerRequests", fields: [customerId], references: [id])
-  deviceCategory  String          // Laptop, Desktop, Phone, Printer, Internet
-  title           String
-  description     String
-  urgency         String          // Low, Moderate, Critical
-  serviceMethod   String          // Live Chat, Video Call, Home Visit
-  status          String          @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
-  estimatedCost   String          @default("৳800 - 1,500")
-  attachments     Attachment[]
-  appointment     Appointment?
-  statusLogs      StatusHistory[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt @default(now())
+  id             String          @id @default(uuid())
+  trackingId     String          @unique // e.g. REQ-2026-8942
+  customerId     String
+  customer       User            @relation("CustomerRequests", fields: [customerId], references: [id])
+  deviceCategory String // Laptop, Desktop, Phone, Printer, Internet
+  title          String
+  description    String
+  urgency        String // Low, Moderate, Critical
+  serviceMethod  String // Live Chat, Video Call, Home Visit
+  status         String          @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
+  estimatedCost  String          @default("৳800 - 1,500")
+  attachments    Attachment[]
+  appointment    Appointment?
+  statusLogs     StatusHistory[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now()) @updatedAt
 }
 
 model StatusHistory {
   id               String         @id @default(uuid())
   serviceRequestId String
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
-  status           String         // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
+  status           String // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
   note             String?
   createdAt        DateTime       @default(now())
 }
@@ -72,7 +72,7 @@ model Attachment {
   serviceRequestId String
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
   fileUrl          String
-  fileType         String         // IMAGE, SCREENSHOT, VOICE, VIDEO
+  fileType         String // IMAGE, SCREENSHOT, VOICE, VIDEO
   fileName         String
   createdAt        DateTime       @default(now())
 }
@@ -85,10 +85,92 @@ model Appointment {
   customer         User            @relation("CustomerAppointments", fields: [customerId], references: [id])
   technicianId     String
   technician       Technician      @relation(fields: [technicianId], references: [id])
-  date             String          // e.g. Mon Jul 13, 2026
-  timeSlot         String          // e.g. 10:00 am, 11:30 am
-  serviceType      String          // Remote support, Home visit, Service center
+  date             String // e.g. Mon Jul 13, 2026
+  timeSlot         String // e.g. 10:00 am, 11:30 am
+  serviceType      String // Remote support, Home visit, Service center
   status           String          @default("PENDING") // PENDING, APPROVED, REJECTED, RESCHEDULED
   estimatedCost    String          @default("৳800 - 1,500")
   createdAt        DateTime        @default(now())
+}
+
+model TechnicianLocation {
+  id           String   @id @default(uuid())
+  technicianId String   @unique
+  latitude     Float
+  longitude    Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ServiceRequestLocation {
+  id               String   @id @default(uuid())
+  serviceRequestId String   @unique
+  latitude         Float
+  longitude        Float
+  address          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model TechnicianAssignment {
+  id               String   @id @default(uuid())
+
+  // Kon service request-er jonno technician suggest hoyeche
+  serviceRequestId String
+
+  // Kon technician suggest hoyeche
+  technicianId     String
+
+  // Automatic matching scores
+  expertiseScore    Float
+  availabilityScore Float
+  proximityScore    Float
+  ratingScore       Float
+  workloadScore     Float
+  totalScore        Float
+
+  // Customer theke technician distance
+  distanceKm Float?
+
+  // ======================================================
+  // AUTO SELECTED FREE SCHEDULE
+  //
+  // Customer date/time select korbe na.
+  // Backend technician-er appointments check kore
+  // first suitable free slot automatically choose korbe.
+  // ======================================================
+
+  assignedDate     String?
+  assignedTimeSlot String?
+
+  // 1st technician = attempt 1
+  // Reject hole next technician = attempt 2
+  attempt Int @default(1)
+
+  // PENDING_CUSTOMER_APPROVAL
+  // ACCEPTED
+  // REASSIGNED
+  status String @default("PENDING_CUSTOMER_APPROVAL")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serviceRequestId, attempt])
+  @@index([serviceRequestId])
+  @@index([technicianId])
+}
+
+
+model TechnicianPricing {
+  id           String @id @default(uuid())
+  technicianId String @unique
+
+  liveChatFee  Float @default(500)
+  videoCallFee Float @default(700)
+  homeVisitFee Float @default(1200)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([technicianId])
 }

@@ -1,88 +1,323 @@
 import React, { useState } from 'react';
-import { Box, ThemeProvider, CssBaseline } from '@mui/material';
+
+import {
+  Box,
+  ThemeProvider,
+  CssBaseline
+} from '@mui/material';
+
 import { theme } from './theme';
+
 import { Auth } from './pages/Auth';
 import { Sidebar } from './components/Sidebar';
+
 import { CreateRequest } from './pages/CreateRequest';
 import { AppointmentBooking } from './pages/AppointmentBooking';
 import { TechnicianDashboard } from './pages/TechnicianDashboard';
 import { TechnicianAvailability } from './pages/TechnicianAvailability';
 import { ServiceProgressTracker } from './pages/ServiceProgressTracker';
 
+import { TechnicianAssignment } from './pages/TechnicianAssignment';
+
+// MEMBER 4 - manual technician search
+import { TechnicianSearch } from './pages/TechnicianSearch';
+
+
 export default function App() {
+
+  // ========================================================
+  // CURRENT USER
+  // ========================================================
+
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('techaid_user');
-    return saved ? JSON.parse(saved) : null;
+
+    const saved =
+      localStorage.getItem(
+        'techaid_user'
+      );
+
+    return saved
+      ? JSON.parse(saved)
+      : null;
   });
 
-  const [activeTab, setActiveTab] = useState('new-request');
+
+  // ========================================================
+  // ACTIVE PAGE
+  // ========================================================
+
+  const [
+    activeTab,
+    setActiveTab
+  ] = useState('new-request');
+
+
+  // ========================================================
+  // LOGIN
+  // ========================================================
 
   const handleLoginSuccess = (user) => {
+
     setCurrentUser(user);
-    localStorage.setItem('techaid_user', JSON.stringify(user));
-    if (user.role === 'TECHNICIAN') {
-      setActiveTab('tech-dashboard');
+
+    localStorage.setItem(
+      'techaid_user',
+      JSON.stringify(user)
+    );
+
+
+    if (
+      user.role === 'TECHNICIAN'
+    ) {
+
+      setActiveTab(
+        'tech-dashboard'
+      );
+
     } else {
-      setActiveTab('new-request');
+
+      setActiveTab(
+        'new-request'
+      );
     }
   };
 
+
+  // ========================================================
+  // LOGOUT
+  // ========================================================
+
   const handleLogout = () => {
+
     setCurrentUser(null);
-    localStorage.removeItem('techaid_user');
+
+    localStorage.removeItem(
+      'techaid_user'
+    );
+
+    setActiveTab(
+      'new-request'
+    );
   };
 
-  // If user is not logged in, render real Login page
+
+  // ========================================================
+  // LOGIN PAGE
+  // ========================================================
+
   if (!currentUser) {
+
     return (
+
       <ThemeProvider theme={theme}>
+
         <CssBaseline />
-        <Auth onLoginSuccess={handleLoginSuccess} />
+
+        <Auth
+          onLoginSuccess={
+            handleLoginSuccess
+          }
+        />
+
       </ThemeProvider>
     );
   }
 
+
+  // ========================================================
+  // MAIN APP
+  // ========================================================
+
   return (
+
     <ThemeProvider theme={theme}>
+
       <CssBaseline />
-      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0D1527' }}>
+
+      <Box
+        sx={{
+          display:
+            'flex',
+
+          minHeight:
+            '100vh',
+
+          backgroundColor:
+            '#0D1527'
+        }}
+      >
+
+        {/* =================================================
+            SIDEBAR
+        ================================================= */}
+
         <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          currentUser={currentUser}
-          onLogout={handleLogout}
+          activeTab={
+            activeTab
+          }
+
+          setActiveTab={
+            setActiveTab
+          }
+
+          currentUser={
+            currentUser
+          }
+
+          onLogout={
+            handleLogout
+          }
         />
 
-        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-          {/* Module 1: Service Request Creation */}
-          {activeTab === 'new-request' && (
+
+        {/* =================================================
+            CONTENT
+        ================================================= */}
+
+        <Box
+          sx={{
+            flexGrow:
+              1,
+
+            overflow:
+              'hidden'
+          }}
+        >
+
+          {/* ===============================================
+              CUSTOMER - NEW REQUEST
+          =============================================== */}
+
+          {activeTab ===
+            'new-request' && (
+
             <CreateRequest
-              currentUser={currentUser}
-              onNavigateToAppointment={() => setActiveTab('appointments')}
+              currentUser={
+                currentUser
+              }
+
+              onNavigateToAppointment={() =>
+                setActiveTab(
+                  'appointments'
+                )
+              }
             />
+
           )}
 
-          {/* Module 2: Appointment Scheduling */}
-          {activeTab === 'appointments' && (
-            <AppointmentBooking currentUser={currentUser} />
+
+          {/* ===============================================
+              MEMBER 4 - AUTO ASSIGNMENT
+          =============================================== */}
+
+          {activeTab ===
+            'technician-assignment' && (
+
+            <TechnicianAssignment
+              currentUser={
+                currentUser
+              }
+
+              // Manual Search button
+              onSearchTechnicians={() =>
+                setActiveTab(
+                  'technician-search'
+                )
+              }
+            />
+
           )}
 
-          {/* Module 3 Feature 4: Service Progress Tracking */}
-          {activeTab === 'progress-tracker' && (
-            <ServiceProgressTracker currentUser={currentUser} />
+
+          {/* ===============================================
+              MEMBER 4 - MANUAL TECHNICIAN SEARCH
+          =============================================== */}
+
+          {activeTab ===
+            'technician-search' && (
+
+            <TechnicianSearch
+              currentUser={
+                currentUser
+              }
+
+              onBack={() =>
+                setActiveTab(
+                  'technician-assignment'
+                )
+              }
+            />
+
           )}
 
-          {/* Technician Dashboard Console */}
-          {activeTab === 'tech-dashboard' && (
-            <TechnicianDashboard currentUser={currentUser} />
+
+          {/* ===============================================
+              CUSTOMER - APPOINTMENTS
+          =============================================== */}
+
+          {activeTab ===
+            'appointments' && (
+
+            <AppointmentBooking
+              currentUser={
+                currentUser
+              }
+            />
+
           )}
 
-          {/* Module 3 Feature 3: Technician Availability Management */}
-          {activeTab === 'tech-availability' && (
-            <TechnicianAvailability currentUser={currentUser} />
+
+          {/* ===============================================
+              CUSTOMER - PROGRESS
+          =============================================== */}
+
+          {activeTab ===
+            'progress-tracker' && (
+
+            <ServiceProgressTracker
+              currentUser={
+                currentUser
+              }
+            />
+
           )}
+
+
+          {/* ===============================================
+              TECHNICIAN JOB REQUESTS
+          =============================================== */}
+
+          {activeTab ===
+            'tech-dashboard' && (
+
+            <TechnicianDashboard
+              currentUser={
+                currentUser
+              }
+            />
+
+          )}
+
+
+          {/* ===============================================
+              TECHNICIAN AVAILABILITY
+          =============================================== */}
+
+          {activeTab ===
+            'tech-availability' && (
+
+            <TechnicianAvailability
+              currentUser={
+                currentUser
+              }
+            />
+
+          )}
+
         </Box>
+
       </Box>
+
     </ThemeProvider>
   );
 }
