@@ -24,8 +24,12 @@ export default function ChatBox({ conversationId, currentUserId }) {
     socket.emit('join_conversation', { conversationId });
 
     const handleReceive = (message) => {
-      if (message.conversationId === conversationId) {
-        setMessages((prev) => [...prev, message]);
+      if (String(message.conversationId) === String(conversationId)) {
+        setMessages((prev) => {
+          // Deduplicate if already present by id
+          if (prev.some((m) => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
       }
     };
     socket.on('receive_message', handleReceive);
@@ -41,8 +45,25 @@ export default function ChatBox({ conversationId, currentUserId }) {
 
   const sendMessage = () => {
     if (!draft.trim()) return;
+
+    const newMsg = {
+      id: `local_${Date.now()}`,
+      conversationId,
+      senderId: currentUserId || 'usr-1',
+      content: draft.trim(),
+      createdAt: new Date().toISOString(),
+      sender: { id: currentUserId || 'usr-1', name: 'You', role: 'CUSTOMER' },
+    };
+
+    setMessages((prev) => [...prev, newMsg]);
+
     const socket = getSocket();
-    socket.emit('send_message', { conversationId, content: draft.trim(), senderId: currentUserId });
+    socket.emit('send_message', {
+      conversationId,
+      content: draft.trim(),
+      senderId: currentUserId || 'usr-1',
+    });
+
     setDraft('');
   };
 
