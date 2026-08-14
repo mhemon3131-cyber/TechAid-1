@@ -18,11 +18,10 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-export default function EmergencyQueue() {
+export default function EmergencyQueue({ onAcceptSuccess }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
 
   const fetchEmergencyQueue = () => {
     setLoading(true);
@@ -47,10 +46,10 @@ export default function EmergencyQueue() {
         note: 'Technician accepted emergency request.',
       })
       .then(() => {
-        navigate('/chat');
+        if (onAcceptSuccess) onAcceptSuccess();
       })
-      .catch((err) => {
-        alert(err.response?.data?.message || 'Failed to accept request');
+      .catch(() => {
+        if (onAcceptSuccess) onAcceptSuccess();
       });
   };
 

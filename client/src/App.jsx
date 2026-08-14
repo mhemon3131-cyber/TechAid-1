@@ -73,7 +73,9 @@ export default function App() {
           {activeTab === 'chat' && <ChatPage />}
 
           {/* Module 3: Emergency Support Queue */}
-          {activeTab === 'emergency-queue' && <EmergencyQueue />}
+          {activeTab === 'emergency-queue' && (
+            <EmergencyQueue onAcceptSuccess={() => setActiveTab('chat')} />
+          )}
 
           {/* Module 3 Feature 4: Service Progress Tracking */}
           {activeTab === 'progress-tracker' && (
