@@ -4,7 +4,7 @@ import SendIcon from '@mui/icons-material/Send';
 import { getSocket } from '../socket/socket';
 import axios from 'axios';
 
-export default function ChatBox({ conversationId, currentUser, partnerName }) {
+export default function ChatBox({ conversationId, currentUser, partnerName, onMessageSent }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -66,11 +66,16 @@ export default function ChatBox({ conversationId, currentUser, partnerName }) {
       senderId: activeUserId,
       senderName: activeUserName,
     });
+
+    if (onMessageSent) {
+      onMessageSent(conversationId);
+    }
   };
 
   return (
-    <Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: 420, p: 2, borderRadius: 3, bgcolor: 'background.paper' }}>
-      <Box sx={{ flex: 1, overflowY: 'auto', mb: 1, pr: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      {/* Scrollable Messages Container */}
+      <Box sx={{ flex: 1, overflowY: 'auto', mb: 1.5, pr: 1, minHeight: 0 }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
             <CircularProgress size={24} />
@@ -119,7 +124,8 @@ export default function ChatBox({ conversationId, currentUser, partnerName }) {
         )}
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      {/* Input Bar Fixed inside ChatBox container */}
+      <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: '1px solid #334155' }}>
         <TextField
           fullWidth
           size="small"
@@ -132,6 +138,6 @@ export default function ChatBox({ conversationId, currentUser, partnerName }) {
           <SendIcon />
         </IconButton>
       </Box>
-    </Paper>
+    </Box>
   );
 }

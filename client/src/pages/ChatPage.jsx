@@ -74,7 +74,7 @@ export default function ChatPage({ currentUser }) {
   const activeUser = currentUser || { id: 'usr-1', name: 'Mehedi Hasan', role: 'CUSTOMER' };
   const isTechnician = activeUser.role === 'TECHNICIAN';
 
-  const fetchConversations = () => {
+  const fetchConversations = (preferredConvId = null) => {
     axios
       .get('http://localhost:5000/api/conversations', {
         headers: {
@@ -84,9 +84,17 @@ export default function ChatPage({ currentUser }) {
         },
       })
       .then((res) => {
-        setConversations(res.data || []);
-        if (res.data && res.data.length > 0 && !selectedConv) {
-          setSelectedConv(res.data[0]);
+        const list = res.data || [];
+        setConversations(list);
+
+        // Keep current selected conversation selected without resetting to Rafiq!
+        const activeId = preferredConvId || selectedConv?.id;
+        if (activeId) {
+          const match = list.find((c) => c.id === activeId);
+          if (match) setSelectedConv(match);
+          else if (list.length > 0) setSelectedConv(list[0]);
+        } else if (list.length > 0) {
+          setSelectedConv(list[0]);
         }
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to list conversations'))
@@ -98,7 +106,7 @@ export default function ChatPage({ currentUser }) {
 
     const socket = getSocket();
     const handleNewMsgEvent = () => {
-      fetchConversations();
+      fetchConversations(selectedConv?.id);
     };
 
     socket.on('new_conversation_message', handleNewMsgEvent);
@@ -108,7 +116,25 @@ export default function ChatPage({ currentUser }) {
       socket.off('new_conversation_message', handleNewMsgEvent);
       socket.off('receive_message', handleNewMsgEvent);
     };
-  }, [activeUser.id, activeUser.role, activeUser.name]);
+  }, [activeUser.id, activeUser.role, activeUser.name, selectedConv?.id]);
+
+  const handleSelectConv = (c) => {
+    setSelectedConv(c);
+    // Move selected conversation to position #1 at top of active list
+    setConversations((prev) => {
+      const filtered = prev.filter((item) => item.id !== c.id);
+      return [c, ...filtered];
+    });
+  };
+
+  const handleMoveToTop = (convId) => {
+    setConversations((prev) => {
+      const match = prev.find((item) => item.id === convId);
+      if (!match) return prev;
+      const filtered = prev.filter((item) => item.id !== convId);
+      return [match, ...filtered];
+    });
+  };
 
   const filteredConversations = conversations.filter((c) => {
     const partnerName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
@@ -228,19 +254,25 @@ export default function ChatPage({ currentUser }) {
                   <ListItemButton
                     key={c.id}
                     selected={isSelected}
-                    onClick={() => setSelectedConv(c)}
-                    sx={{ borderRadius: 2, mb: 1, p: 1.5 }}
+                    onClick={() => handleSelectConv(c)}
+                    sx={{
+                      borderRadius: 2,
+                      mb: 1,
+                      p: 1.5,
+                      borderLeft: isSelected ? '4px solid #00A8FF' : '4px solid transparent',
+                      bgcolor: isSelected ? 'rgba(0, 168, 255, 0.15) !important' : 'transparent',
+                    }}
                   >
                     <ListItemAvatar>
                       <Badge color="success" variant="dot" overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-                        <Avatar sx={{ bgcolor: isSelected ? 'primary.main' : 'grey.400', fontWeight: 700 }}>
+                        <Avatar sx={{ bgcolor: isSelected ? 'primary.main' : 'grey.600', fontWeight: 700 }}>
                           {avatarText}
                         </Avatar>
                       </Badge>
                     </ListItemAvatar>
                     <ListItemText
                       primary={
-                        <Typography variant="subtitle2" fontWeight={700} noWrap>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: isSelected ? '#00A8FF' : 'text.primary' }} noWrap>
                           {name}
                         </Typography>
                       }
@@ -283,8 +315,13 @@ export default function ChatPage({ currentUser }) {
                 </Stack>
               </Stack>
 
-              <Box sx={{ flex: 1 }}>
-                <ChatBox conversationId={selectedConv.id} currentUser={activeUser} partnerName={partnerName} />
+              <Box sx={{ flex: 1, minHeight: 0 }}>
+                <ChatBox
+                  conversationId={selectedConv.id}
+                  currentUser={activeUser}
+                  partnerName={partnerName}
+                  onMessageSent={(convId) => handleMoveToTop(convId)}
+                />
               </Box>
             </Paper>
           ) : (
