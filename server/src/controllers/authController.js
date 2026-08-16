@@ -109,7 +109,7 @@ export const loginUser = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        phone: user.phone || '+880 1712-345678',
+        phone: user.phone || '',
         role: user.role,
         avatar: user.avatar || user.name.slice(0, 2).toUpperCase(),
         technicianId: user.technician ? user.technician.id : null,

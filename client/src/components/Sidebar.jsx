@@ -186,7 +186,7 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
               <Phone size={18} color="#00A8FF" />
               <Box>
                 <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>Phone Number</Typography>
-                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{currentUser?.phone || '+880 1712-345678'}</Typography>
+                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{currentUser?.phone || 'Not provided'}</Typography>
               </Box>
             </Box>
 
