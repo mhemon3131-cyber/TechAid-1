@@ -25,6 +25,7 @@ import StarIcon from '@mui/icons-material/Star';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import PersonIcon from '@mui/icons-material/Person';
 import ChatBox from '../components/ChatBox';
 import JitsiCallModal from '../components/JitsiCallModal';
 import { getSocket } from '../socket/socket';
@@ -63,7 +64,7 @@ const TECHNICIAN_PROFILES = {
   },
 };
 
-export default function ChatPage() {
+export default function ChatPage({ currentUser }) {
   const [conversations, setConversations] = useState([]);
   const [selectedConv, setSelectedConv] = useState(null);
   const [search, setSearch] = useState('');
@@ -71,25 +72,27 @@ export default function ChatPage() {
   const [error, setError] = useState('');
   const [callModal, setCallModal] = useState({ open: false, roomName: '', callType: 'VIDEO' });
 
-  // Currently logged in customer (e.g. Mehedi Hasan / Luban)
-  const currentUserId = 'usr-1';
+  const activeUser = currentUser || { id: 'usr-1', name: 'Luban', role: 'CUSTOMER' };
+  const isTechnician = activeUser.role === 'TECHNICIAN';
 
   useEffect(() => {
     setLoading(true);
     axios
-      .get('http://localhost:5000/api/conversations', { headers: { 'user-id': currentUserId } })
+      .get('http://localhost:5000/api/conversations', {
+        headers: { 'user-id': activeUser.id, 'user-role': activeUser.role },
+      })
       .then((res) => {
-        setConversations(res.data);
-        if (res.data.length > 0) {
+        setConversations(res.data || []);
+        if (res.data && res.data.length > 0) {
           setSelectedConv(res.data[0]);
         }
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to list conversations'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeUser.id, activeUser.role]);
 
   const filteredConversations = conversations.filter((c) => {
-    const partnerName = c.technician?.name || c.customer?.name || '';
+    const partnerName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
     const reqTitle = c.serviceRequest?.title || '';
     const q = search.toLowerCase();
     return partnerName.toLowerCase().includes(q) || reqTitle.toLowerCase().includes(q);
@@ -108,26 +111,41 @@ export default function ChatPage() {
       });
   };
 
-  // Helper to simulate technician response live for demonstration
-  const handleSimulateTechReply = () => {
+  // Helper to simulate partner message live for demonstration
+  const handleSimulatePartnerReply = () => {
     if (!selectedConv) return;
-    const techId = selectedConv.technicianId || 'usr-2';
-    const techProfile = TECHNICIAN_PROFILES[techId] || TECHNICIAN_PROFILES['usr-2'];
+    
+    // If logged in as Technician (e.g. Sara Noor), simulate Customer Luban replying
+    // If logged in as Customer (e.g. Luban), simulate Technician replying
+    const senderId = isTechnician ? (selectedConv.customerId || 'usr-1') : (selectedConv.technicianId || 'usr-2');
 
-    const replies = [
-      `I am reviewing your diagnostics now. Please keep your device connected to power.`,
-      `Got your message! I will send you the step-by-step resolution link right away.`,
-      `Thank you for providing the details! I am initiating remote diagnostics.`,
+    const customerReplies = [
+      `Thanks for checking! The charging light turns on, but screen stays black.`,
+      `Yes, I can try holding the power button for 10 seconds now.`,
+      `Could you let me know how long the diagnostics will take?`,
     ];
+    const techReplies = [
+      `I am reviewing your diagnostics now. Please keep your device connected.`,
+      `Got your message! I will send you the step-by-step resolution link.`,
+      `Thank you for providing the details! I am initiating remote support.`,
+    ];
+
+    const replies = isTechnician ? customerReplies : techReplies;
     const replyText = replies[Math.floor(Math.random() * replies.length)];
 
     const socket = getSocket();
     socket.emit('send_message', {
       conversationId: selectedConv.id,
       content: replyText,
-      senderId: techId,
+      senderId,
     });
   };
+
+  const partnerName = selectedConv
+    ? isTechnician
+      ? selectedConv.customer?.name || 'Luban (Customer)'
+      : selectedConv.technician?.name || 'Technician'
+    : 'Conversation Partner';
 
   const selectedTechProfile = selectedConv
     ? TECHNICIAN_PROFILES[selectedConv.technicianId] || {
@@ -149,7 +167,9 @@ export default function ChatPage() {
           REAL TIME COMMUNICATION
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Communicate with technicians in real-time via text chat, voice call, or video session.
+          {isTechnician
+            ? 'Technician Console — Communicate with assigned customers in real-time.'
+            : 'Customer Portal — Communicate with assigned technicians in real-time.'}
         </Typography>
       </Box>
 
@@ -175,15 +195,15 @@ export default function ChatPage() {
             />
 
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 1, px: 1 }}>
-              ACTIVE CHATS ({filteredConversations.length})
+              {isTechnician ? 'CUSTOMER CHATS' : 'TECHNICIAN CHATS'} ({filteredConversations.length})
             </Typography>
 
             <List sx={{ flex: 1, overflowY: 'auto' }} disablePadding>
               {filteredConversations.map((c) => {
-                const tech = c.technician?.name || 'Technician';
+                const name = isTechnician ? (c.customer?.name || 'Luban (Customer)') : (c.technician?.name || 'Technician');
                 const isSelected = selectedConv?.id === c.id;
                 const lastMsg = c.messages?.[0]?.content || 'Start conversation...';
-                const avatarText = c.technician?.avatar || tech.slice(0, 2).toUpperCase();
+                const avatarText = name.slice(0, 2).toUpperCase();
 
                 return (
                   <ListItemButton
@@ -202,7 +222,7 @@ export default function ChatPage() {
                     <ListItemText
                       primary={
                         <Typography variant="subtitle2" fontWeight={700} noWrap>
-                          {tech}
+                          {name}
                         </Typography>
                       }
                       secondary={
@@ -225,14 +245,14 @@ export default function ChatPage() {
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Box>
                   <Typography variant="h6" fontWeight={700}>
-                    {selectedConv.technician?.name || 'Technician'}
+                    {partnerName}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Request #{selectedConv.serviceRequest?.id || selectedConv.serviceRequestId} · {selectedConv.serviceRequest?.deviceCategory || 'Laptop'}
+                    Request #{selectedConv.serviceRequest?.id || selectedConv.serviceRequestId} · {selectedConv.serviceRequest?.deviceCategory || 'Device'}
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Button variant="outlined" color="secondary" size="small" startIcon={<SmartToyIcon />} onClick={handleSimulateTechReply}>
+                  <Button variant="outlined" color="secondary" size="small" startIcon={<SmartToyIcon />} onClick={handleSimulatePartnerReply}>
                     Simulate Reply
                   </Button>
                   <Button variant="outlined" size="small" startIcon={<CallIcon />} onClick={() => handleStartCall('VOICE')}>
@@ -245,74 +265,115 @@ export default function ChatPage() {
               </Stack>
 
               <Box sx={{ flex: 1 }}>
-                <ChatBox conversationId={selectedConv.id} currentUserId={currentUserId} />
+                <ChatBox conversationId={selectedConv.id} currentUser={activeUser} partnerName={partnerName} />
               </Box>
             </Paper>
           ) : (
             <Paper variant="outlined" sx={{ p: 4, borderRadius: 3, textAlign: 'center', height: 600, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <Typography color="text.secondary">Select a technician conversation to start chatting.</Typography>
+              <Typography color="text.secondary">Select a conversation to start chatting.</Typography>
             </Paper>
           )}
         </Grid>
 
-        {/* Right Column: Dynamic Technician Details Panel (Figma Page 2 Alignment) */}
+        {/* Right Column: Dynamic Profile Details Panel (Figma Page 2 Alignment) */}
         <Grid item xs={12} md={3}>
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, height: 600 }}>
             <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-              Technician Details
+              {isTechnician ? 'Customer Details' : 'Technician Details'}
             </Typography>
 
-            <Stack spacing={2.5}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}>
-                  {selectedTechProfile.avatar}
-                </Avatar>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    {selectedTechProfile.name}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {selectedTechProfile.specialty}
-                  </Typography>
-                  <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
-                    <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
-                    <Typography variant="caption" fontWeight={700}>
-                      {selectedTechProfile.rating} ({selectedTechProfile.reviews} reviews)
+            {isTechnician ? (
+              // Customer Details view for Technician
+              <Stack spacing={2.5}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'secondary.main', fontSize: 22, fontWeight: 700 }}>
+                    {(selectedConv?.customer?.name || 'Luban').slice(0, 2).toUpperCase()}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {selectedConv?.customer?.name || 'Luban (Customer)'}
                     </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {selectedConv?.customer?.email || 'customer@techaid.com'}
+                    </Typography>
+                    <Chip label="Verified Customer" size="small" color="success" variant="outlined" sx={{ mt: 0.5, fontWeight: 700 }} />
+                  </Box>
+                </Stack>
+
+                <Divider />
+
+                <Stack spacing={1.5}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                    SERVICE REQUEST ISSUE
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: '#0D1527' }}>
+                    <Typography variant="subtitle2" fontWeight={700} color="primary.main">
+                      {selectedConv?.serviceRequest?.title || 'Device Technical Issue'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      {selectedConv?.serviceRequest?.description || 'Customer reported device issue requiring assistance.'}
+                    </Typography>
+                  </Paper>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                    <Chip label={`Urgency: ${selectedConv?.serviceRequest?.urgency || 'Critical'}`} size="small" color="error" />
+                    <Chip label={`Category: ${selectedConv?.serviceRequest?.deviceCategory || 'Phone'}`} size="small" variant="outlined" />
+                  </Stack>
+                </Stack>
+              </Stack>
+            ) : (
+              // Technician Details view for Customer
+              <Stack spacing={2.5}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}>
+                    {selectedTechProfile.avatar}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {selectedTechProfile.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {selectedTechProfile.specialty}
+                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
+                      <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                      <Typography variant="caption" fontWeight={700}>
+                        {selectedTechProfile.rating} ({selectedTechProfile.reviews} reviews)
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Stack>
+
+                <Divider />
+
+                <Stack spacing={1.5}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <CheckCircleIcon color="success" fontSize="small" />
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>{selectedTechProfile.completedJobs}</strong> Completed Jobs
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <AccessTimeIcon color="action" fontSize="small" />
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>{selectedTechProfile.responseTime}</strong> Response Time
+                    </Typography>
+                  </Stack>
+                </Stack>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 1 }}>
+                    SKILLS & EXPERTISE
+                  </Typography>
+                  <Stack direction="row" flexWrap="wrap" gap={0.8}>
+                    {selectedTechProfile.skills.map((s, i) => (
+                      <Chip key={i} label={s} size="small" variant="outlined" />
+                    ))}
                   </Stack>
                 </Box>
               </Stack>
-
-              <Divider />
-
-              <Stack spacing={1.5}>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <CheckCircleIcon color="success" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>{selectedTechProfile.completedJobs}</strong> Completed Jobs
-                  </Typography>
-                </Stack>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <AccessTimeIcon color="action" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>{selectedTechProfile.responseTime}</strong> Response Time
-                  </Typography>
-                </Stack>
-              </Stack>
-
-              <Divider />
-
-              <Box>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 1 }}>
-                  SKILLS & EXPERTISE
-                </Typography>
-                <Stack direction="row" flexWrap="wrap" gap={0.8}>
-                  {selectedTechProfile.skills.map((s, i) => (
-                    <Chip key={i} label={s} size="small" variant="outlined" />
-                  ))}
-                </Stack>
-              </Box>
-            </Stack>
+            )}
           </Paper>
         </Grid>
       </Grid>

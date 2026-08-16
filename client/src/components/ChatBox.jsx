@@ -4,11 +4,13 @@ import SendIcon from '@mui/icons-material/Send';
 import { getSocket } from '../socket/socket';
 import axios from 'axios';
 
-export default function ChatBox({ conversationId, currentUserId }) {
+export default function ChatBox({ conversationId, currentUser, partnerName }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef(null);
+
+  const activeUserId = currentUser?.id || 'usr-1';
 
   useEffect(() => {
     if (!conversationId) return;
@@ -60,7 +62,7 @@ export default function ChatBox({ conversationId, currentUserId }) {
     socket.emit('send_message', {
       conversationId,
       content,
-      senderId: currentUserId || 'usr-1',
+      senderId: activeUserId,
     });
   };
 
@@ -79,15 +81,15 @@ export default function ChatBox({ conversationId, currentUserId }) {
               </Typography>
             )}
             {messages.map((m, idx) => {
-              const mine = String(m.senderId) === String(currentUserId || 'usr-1');
-              const senderName = mine
-                ? 'Luban (Customer)'
-                : (m.sender?.name || (m.senderId === 'usr-2' ? 'Rafiq Ahmed' : m.senderId === 'usr-3' ? 'Sara Noor' : 'Alex'));
+              const mine = String(m.senderId) === String(activeUserId);
+              const headerName = mine
+                ? 'You'
+                : (m.sender?.name || partnerName || 'Partner');
 
               return (
                 <Box key={m.id || `msg_${idx}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
                   <Typography variant="caption" sx={{ mb: 0.4, px: 0.8, fontSize: 11, fontWeight: 700, color: mine ? '#38BDF8' : '#94A3B8' }}>
-                    {senderName}
+                    {headerName}
                   </Typography>
                   <Paper
                     elevation={0}

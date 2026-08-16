@@ -70,7 +70,7 @@ export default function App() {
           )}
 
           {/* Module 2 & 3: Real-Time Communication System (Chat/Calls) */}
-          {activeTab === 'chat' && <ChatPage />}
+          {activeTab === 'chat' && <ChatPage currentUser={currentUser} />}
 
           {/* Module 3: Emergency Support Queue */}
           {activeTab === 'emergency-queue' && (
