@@ -25,7 +25,6 @@ import StarIcon from '@mui/icons-material/Star';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
-import PersonIcon from '@mui/icons-material/Person';
 import ChatBox from '../components/ChatBox';
 import JitsiCallModal from '../components/JitsiCallModal';
 import { getSocket } from '../socket/socket';
@@ -72,14 +71,18 @@ export default function ChatPage({ currentUser }) {
   const [error, setError] = useState('');
   const [callModal, setCallModal] = useState({ open: false, roomName: '', callType: 'VIDEO' });
 
-  const activeUser = currentUser || { id: 'usr-1', name: 'Luban', role: 'CUSTOMER' };
+  const activeUser = currentUser || { id: 'usr-1', name: 'Mehedi Hasan', role: 'CUSTOMER' };
   const isTechnician = activeUser.role === 'TECHNICIAN';
 
   useEffect(() => {
     setLoading(true);
     axios
       .get('http://localhost:5000/api/conversations', {
-        headers: { 'user-id': activeUser.id, 'user-role': activeUser.role },
+        headers: {
+          'user-id': activeUser.id,
+          'user-role': activeUser.role,
+          'user-name': activeUser.name || 'User',
+        },
       })
       .then((res) => {
         setConversations(res.data || []);
@@ -89,7 +92,7 @@ export default function ChatPage({ currentUser }) {
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to list conversations'))
       .finally(() => setLoading(false));
-  }, [activeUser.id, activeUser.role]);
+  }, [activeUser.id, activeUser.role, activeUser.name]);
 
   const filteredConversations = conversations.filter((c) => {
     const partnerName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
@@ -115,18 +118,17 @@ export default function ChatPage({ currentUser }) {
   const handleSimulatePartnerReply = () => {
     if (!selectedConv) return;
     
-    // If logged in as Technician (e.g. Sara Noor), simulate Customer Luban replying
-    // If logged in as Customer (e.g. Luban), simulate Technician replying
     const senderId = isTechnician ? (selectedConv.customerId || 'usr-1') : (selectedConv.technicianId || 'usr-2');
+    const partnerName = isTechnician ? (selectedConv.customer?.name || 'Customer') : (selectedConv.technician?.name || 'Technician');
 
     const customerReplies = [
-      `Thanks for checking! The charging light turns on, but screen stays black.`,
-      `Yes, I can try holding the power button for 10 seconds now.`,
-      `Could you let me know how long the diagnostics will take?`,
+      `Thanks for checking! The power LED lights up, but screen stays black.`,
+      `Yes, holding the power button for 10 seconds resolved the display delay!`,
+      `Could you let me know when you will be available for home visit?`,
     ];
     const techReplies = [
       `I am reviewing your diagnostics now. Please keep your device connected.`,
-      `Got your message! I will send you the step-by-step resolution link.`,
+      `Got your message! I will send you the resolution steps right away.`,
       `Thank you for providing the details! I am initiating remote support.`,
     ];
 
@@ -138,12 +140,13 @@ export default function ChatPage({ currentUser }) {
       conversationId: selectedConv.id,
       content: replyText,
       senderId,
+      senderName: partnerName,
     });
   };
 
   const partnerName = selectedConv
     ? isTechnician
-      ? selectedConv.customer?.name || 'Luban (Customer)'
+      ? selectedConv.customer?.name || 'Customer'
       : selectedConv.technician?.name || 'Technician'
     : 'Conversation Partner';
 
@@ -200,9 +203,9 @@ export default function ChatPage({ currentUser }) {
 
             <List sx={{ flex: 1, overflowY: 'auto' }} disablePadding>
               {filteredConversations.map((c) => {
-                const name = isTechnician ? (c.customer?.name || 'Luban (Customer)') : (c.technician?.name || 'Technician');
+                const name = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
                 const isSelected = selectedConv?.id === c.id;
-                const lastMsg = c.messages?.[0]?.content || 'Start conversation...';
+                const lastMsg = c.messages?.[c.messages.length - 1]?.content || 'Start conversation...';
                 const avatarText = name.slice(0, 2).toUpperCase();
 
                 return (
@@ -287,11 +290,11 @@ export default function ChatPage({ currentUser }) {
               <Stack spacing={2.5}>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Avatar sx={{ width: 56, height: 56, bgcolor: 'secondary.main', fontSize: 22, fontWeight: 700 }}>
-                    {(selectedConv?.customer?.name || 'Luban').slice(0, 2).toUpperCase()}
+                    {(selectedConv?.customer?.name || 'Customer').slice(0, 2).toUpperCase()}
                   </Avatar>
                   <Box>
                     <Typography variant="subtitle2" fontWeight={700}>
-                      {selectedConv?.customer?.name || 'Luban (Customer)'}
+                      {selectedConv?.customer?.name || 'Customer'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block">
                       {selectedConv?.customer?.email || 'customer@techaid.com'}

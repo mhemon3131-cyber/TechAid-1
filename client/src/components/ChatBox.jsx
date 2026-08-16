@@ -11,6 +11,7 @@ export default function ChatBox({ conversationId, currentUser, partnerName }) {
   const bottomRef = useRef(null);
 
   const activeUserId = currentUser?.id || 'usr-1';
+  const activeUserName = currentUser?.name || 'User';
 
   useEffect(() => {
     if (!conversationId) return;
@@ -63,6 +64,7 @@ export default function ChatBox({ conversationId, currentUser, partnerName }) {
       conversationId,
       content,
       senderId: activeUserId,
+      senderName: activeUserName,
     });
   };
 

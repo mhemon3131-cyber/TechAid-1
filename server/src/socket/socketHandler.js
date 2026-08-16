@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { createNotificationHelper } from '../controllers/notificationController.js';
+import { saveInMemoryMessage } from '../controllers/conversationController.js';
 
 let ioInstance = null;
 
@@ -49,11 +50,12 @@ export function initSocket(io) {
       }
     });
 
-    socket.on('send_message', async ({ conversationId, content, senderId }) => {
+    socket.on('send_message', async ({ conversationId, content, senderId, senderName }) => {
       try {
         if (!content || !content.trim()) return;
 
         const effectiveSenderId = senderId || socket.user?.id || 'usr-1';
+        const effectiveSenderName = senderName || (effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : effectiveSenderId === 'usr-siri' || effectiveSenderId.includes('siri') ? 'Siri' : 'Technician');
         let message = null;
 
         if (prisma) {
@@ -79,21 +81,24 @@ export function initSocket(io) {
             createdAt: new Date().toISOString(),
             sender: {
               id: effectiveSenderId,
-              name: effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : 'Rafiq Ahmed',
-              role: effectiveSenderId === 'usr-1' ? 'CUSTOMER' : 'TECHNICIAN',
+              name: effectiveSenderName,
+              role: socket.user?.role || 'CUSTOMER',
             },
           };
         }
+
+        // Save into isolated in-memory store so page refresh retains conversation history
+        saveInMemoryMessage(message);
 
         const room = `conversation_${conversationId}`;
         io.to(room).emit('receive_message', message);
 
         // Send Real-Time Notification to recipient
-        const recipientId = effectiveSenderId === 'usr-1' ? 'usr-2' : 'usr-1';
+        const recipientId = socket.user?.role === 'TECHNICIAN' ? 'usr-1' : 'usr-2';
         await createNotificationHelper({
           userId: recipientId,
           type: 'NEW_CHAT_MESSAGE',
-          title: `New Message from ${message.sender?.name || 'User'}`,
+          title: `New Message from ${effectiveSenderName}`,
           message: `"${content.trim().slice(0, 45)}${content.trim().length > 45 ? '...' : ''}"`,
         }).catch(() => null);
 
