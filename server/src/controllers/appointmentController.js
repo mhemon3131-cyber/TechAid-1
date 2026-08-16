@@ -1,6 +1,7 @@
 // Module 2 Controller: Real Database Appointment Scheduling System
 import { PrismaClient } from '@prisma/client';
 import { sendAppointmentConfirmationEmail } from '../utils/emailService.js';
+import { createNotificationHelper } from './notificationController.js';
 
 const prisma = new PrismaClient();
 
@@ -83,7 +84,22 @@ export const createAppointment = async (req, res) => {
       }
     }
 
-    // 5. Trigger EmailJS notification
+    // 5. Trigger Isolated Notifications to Customer and Technician
+    await createNotificationHelper({
+      userId: custId,
+      type: 'APPOINTMENT_REMINDER',
+      title: 'Appointment Booked Successfully',
+      message: `Your appointment with ${techName} is confirmed for ${date} at ${timeSlot}.`
+    }).catch(() => null);
+
+    await createNotificationHelper({
+      userId: technician ? technician.id : technicianId,
+      type: 'APPOINTMENT_REMINDER',
+      title: 'New Appointment Assigned',
+      message: `New appointment booked by ${customer ? customer.name : 'Customer'} for ${date} at ${timeSlot}.`
+    }).catch(() => null);
+
+    // 6. Trigger EmailJS notification
     await sendAppointmentConfirmationEmail({
       customerEmail: customer ? customer.email : 'customer@techaid.com',
       customerName: customer ? customer.name : 'Customer',

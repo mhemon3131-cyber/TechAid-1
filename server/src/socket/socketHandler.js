@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { createNotificationHelper } from '../controllers/notificationController.js';
-import { saveInMemoryMessage, registerDynamicConversation } from '../controllers/conversationController.js';
+import { saveInMemoryMessage, registerDynamicConversation, normalizeConvId } from '../controllers/conversationController.js';
 
 let ioInstance = null;
 
@@ -40,11 +40,15 @@ export function initSocket(io) {
     socket.on('join_conversation', async ({ conversationId }) => {
       try {
         if (!conversationId) return;
-        const room = `conversation_${conversationId}`;
-        socket.join(room);
-        socket.currentRoom = room;
+        const normId = normalizeConvId(conversationId);
+        const room1 = `conversation_${conversationId}`;
+        const room2 = `conversation_${normId}`;
 
-        io.to(room).emit('user_online', { userId: socket.user?.id });
+        socket.join(room1);
+        socket.join(room2);
+        socket.currentRoom = room2;
+
+        io.to(room1).to(room2).emit('user_online', { userId: socket.user?.id });
       } catch (err) {
         console.error('join_conversation error:', err);
       }
@@ -54,6 +58,7 @@ export function initSocket(io) {
       try {
         if (!content || !content.trim()) return;
 
+        const normId = normalizeConvId(conversationId);
         const effectiveSenderId = senderId || socket.user?.id || 'usr-1';
         const effectiveSenderName = senderName || (effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : 'User');
         let message = null;
@@ -61,7 +66,7 @@ export function initSocket(io) {
         if (prisma) {
           message = await prisma.message.create({
             data: {
-              conversationId,
+              conversationId: normId,
               senderId: effectiveSenderId,
               content: content.trim(),
             },
@@ -75,7 +80,7 @@ export function initSocket(io) {
         if (!message) {
           message = {
             id: `msg_${Date.now()}`,
-            conversationId,
+            conversationId: normId,
             senderId: effectiveSenderId,
             content: content.trim(),
             createdAt: new Date().toISOString(),
@@ -87,17 +92,30 @@ export function initSocket(io) {
           };
         }
 
-        // Save message and register conversation dynamically for recipient technician/customer
+        // Save message using canonical normalized ID
         saveInMemoryMessage(message);
 
-        const room = `conversation_${conversationId}`;
-        io.to(room).emit('receive_message', message);
+        const room1 = `conversation_${conversationId}`;
+        const room2 = `conversation_${normId}`;
+        io.to(room1).to(room2).emit('receive_message', message);
 
         // Notify technician live via Socket event
-        io.to('role_TECHNICIAN').emit('new_conversation_message', { conversationId, message });
+        io.to('role_TECHNICIAN').emit('new_conversation_message', { conversationId: normId, message });
 
-        // Send Real-Time Notification to recipient
-        const recipientId = socket.user?.role === 'TECHNICIAN' ? 'usr-1' : 'usr-4';
+        // Send Real-Time Notification strictly to conversation recipient (Not everyone!)
+        let recipientId = null;
+        if (normId) {
+          const parts = normId.split('_');
+          if (parts.length >= 3) {
+            const custId = parts[1];
+            const techId = parts[2];
+            recipientId = (effectiveSenderId === custId) ? techId : custId;
+          }
+        }
+        if (!recipientId) {
+          recipientId = (socket.user?.role === 'TECHNICIAN') ? 'usr-1' : 'usr-4';
+        }
+
         await createNotificationHelper({
           userId: recipientId,
           type: 'NEW_CHAT_MESSAGE',
@@ -111,7 +129,8 @@ export function initSocket(io) {
     });
 
     socket.on('typing', ({ conversationId, isTyping }) => {
-      const room = `conversation_${conversationId}`;
+      const normId = normalizeConvId(conversationId);
+      const room = `conversation_${normId}`;
       socket.to(room).emit('typing', { userId: socket.user?.id, isTyping });
     });
 

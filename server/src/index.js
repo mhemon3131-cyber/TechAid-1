@@ -12,7 +12,7 @@ import { initSocket } from './socket/socketHandler.js';
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 5000;
+const PORT = 1257; // Last 4 digits of Student ID: 24141257
 
 // Socket.IO Setup
 const io = new SocketIOServer(server, {
@@ -40,6 +40,8 @@ app.get('/', (req, res) => {
   res.json({
     project: 'TechAid - Interactive Tech Support & Troubleshooting System',
     status: 'Backend API Server Running with Prisma & Socket.IO Persistence',
+    studentId: '24141257',
+    port: PORT,
     modulesImplemented: [
       'Auth: Customer & Technician Login API',
       'Module 1: Service Request Creation & Cloudinary Upload',
@@ -52,7 +54,7 @@ app.get('/', (req, res) => {
 server.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(` TechAid Backend Server listening on port ${PORT}`);
-  console.log(` Base URL: http://localhost:${PORT}`);
+  console.log(` Base URL: http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
   console.log(` Database: Prisma ORM & Socket.IO Real-Time Engine Active`);
   console.log(`====================================================`);
 });

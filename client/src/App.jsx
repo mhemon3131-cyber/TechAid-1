@@ -18,6 +18,7 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState('new-request');
+  const [activeConvId, setActiveConvId] = useState(null);
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
@@ -32,6 +33,14 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('techaid_user');
+  };
+
+  const handleEmergencyAccepted = (reqItem) => {
+    const custId = reqItem?.customer?.id || reqItem?.customerId || 'usr-1';
+    const techId = currentUser?.id || 'usr-2';
+    const targetConvId = `conv_${custId}_${techId}`;
+    setActiveConvId(targetConvId);
+    setActiveTab('chat');
   };
 
   // If user is not logged in, render real Login page
@@ -70,11 +79,18 @@ export default function App() {
           )}
 
           {/* Module 2 & 3: Real-Time Communication System (Chat/Calls) */}
-          {activeTab === 'chat' && <ChatPage currentUser={currentUser} />}
+          {activeTab === 'chat' && (
+            <ChatPage
+              currentUser={currentUser}
+              initialConvId={activeConvId}
+            />
+          )}
 
           {/* Module 3: Emergency Support Queue */}
           {activeTab === 'emergency-queue' && (
-            <EmergencyQueue onAcceptSuccess={() => setActiveTab('chat')} />
+            <EmergencyQueue
+              onAcceptSuccess={(reqItem) => handleEmergencyAccepted(reqItem)}
+            />
           )}
 
           {/* Module 3 Feature 4: Service Progress Tracking */}

@@ -18,7 +18,7 @@ export default function ChatBox({ conversationId, currentUser, partnerName, onMe
 
     setLoading(true);
     axios
-      .get(`http://localhost:5000/api/conversations/${conversationId}/messages`)
+      .get(`http://localhost:1257/api/conversations/${conversationId}/messages`)
       .then((res) => setMessages(res.data || []))
       .catch(() => setMessages([]))
       .finally(() => setLoading(false));

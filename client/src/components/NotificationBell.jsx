@@ -27,7 +27,10 @@ import { getSocket } from '../socket/socket';
 import axios from 'axios';
 
 export default function NotificationBell({ currentUser }) {
-  const [notifications, setNotifications] = useState([
+  const isTechnician = currentUser?.role === 'TECHNICIAN';
+  const userId = currentUser?.id || 'usr-1';
+
+  const customerDefaultNotifs = [
     {
       id: 'notif-1',
       title: 'Service Request Accepted',
@@ -39,20 +42,41 @@ export default function NotificationBell({ currentUser }) {
     {
       id: 'notif-2',
       title: 'Upcoming Appointment Reminder',
-      message: 'Reminder: Home Visit appointment scheduled for Mon Jul 13 at 10:00 AM.',
+      message: 'Reminder: Home Visit appointment scheduled for tomorrow at 10:00 AM.',
       type: 'APPOINTMENT_REMINDER',
       isRead: false,
       createdAt: new Date(Date.now() - 3600000).toISOString()
     }
-  ]);
+  ];
+
+  const technicianDefaultNotifs = [
+    {
+      id: 'notif-tech-1',
+      title: 'Emergency Support Queue Alert',
+      message: 'New Critical emergency request submitted by customer Siri.',
+      type: 'EMERGENCY_ALERT',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'notif-tech-2',
+      title: 'New Service Job Assigned',
+      message: 'You have been assigned to Service Request #REQ-2026-8942.',
+      type: 'APPOINTMENT_REMINDER',
+      isRead: false,
+      createdAt: new Date(Date.now() - 1800000).toISOString()
+    }
+  ];
+
+  const [notifications, setNotifications] = useState(
+    isTechnician ? technicianDefaultNotifs : customerDefaultNotifs
+  );
   const [anchorEl, setAnchorEl] = useState(null);
   const [toast, setToast] = useState({ open: false, title: '', message: '' });
 
-  const userId = currentUser?.id || 'usr-1';
-
   const fetchNotifications = () => {
     axios
-      .get('http://localhost:5000/api/notifications', { headers: { 'user-id': userId } })
+      .get('http://localhost:1257/api/notifications', { headers: { 'user-id': userId } })
       .then((res) => {
         if (res.data && res.data.length > 0) {
           setNotifications(res.data);

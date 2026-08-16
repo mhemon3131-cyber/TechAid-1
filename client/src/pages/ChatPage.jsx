@@ -63,7 +63,7 @@ const TECHNICIAN_PROFILES = {
   },
 };
 
-export default function ChatPage({ currentUser }) {
+export default function ChatPage({ currentUser, initialConvId }) {
   const [conversations, setConversations] = useState([]);
   const [selectedConv, setSelectedConv] = useState(null);
   const [search, setSearch] = useState('');
@@ -76,7 +76,7 @@ export default function ChatPage({ currentUser }) {
 
   const fetchConversations = (preferredConvId = null) => {
     axios
-      .get('http://localhost:5000/api/conversations', {
+      .get('http://localhost:1257/api/conversations', {
         headers: {
           'user-id': activeUser.id,
           'user-role': activeUser.role,
@@ -85,16 +85,20 @@ export default function ChatPage({ currentUser }) {
       })
       .then((res) => {
         const list = res.data || [];
-        setConversations(list);
-
-        // Keep current selected conversation selected without resetting to Rafiq!
-        const activeId = preferredConvId || selectedConv?.id;
+        const activeId = preferredConvId || initialConvId || selectedConv?.id;
         if (activeId) {
           const match = list.find((c) => c.id === activeId);
-          if (match) setSelectedConv(match);
-          else if (list.length > 0) setSelectedConv(list[0]);
-        } else if (list.length > 0) {
-          setSelectedConv(list[0]);
+          if (match) {
+            setSelectedConv(match);
+            const rest = list.filter((c) => c.id !== activeId);
+            setConversations([match, ...rest]);
+          } else {
+            setConversations(list);
+            if (list.length > 0) setSelectedConv(list[0]);
+          }
+        } else {
+          setConversations(list);
+          if (list.length > 0) setSelectedConv(list[0]);
         }
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to list conversations'))
@@ -146,7 +150,7 @@ export default function ChatPage({ currentUser }) {
   const handleStartCall = (type) => {
     if (!selectedConv) return;
     axios
-      .post(`http://localhost:5000/api/conversations/${selectedConv.id}/calls`, { callType: type })
+      .post(`http://localhost:1257/api/conversations/${selectedConv.id}/calls`, { callType: type })
       .then((res) => {
         setCallModal({ open: true, roomName: res.data.roomName, callType: type });
       })
@@ -303,9 +307,6 @@ export default function ChatPage({ currentUser }) {
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Button variant="outlined" color="secondary" size="small" startIcon={<SmartToyIcon />} onClick={handleSimulatePartnerReply}>
-                    Simulate Reply
-                  </Button>
                   <Button variant="outlined" size="small" startIcon={<CallIcon />} onClick={() => handleStartCall('VOICE')}>
                     Voice Call
                   </Button>
@@ -333,7 +334,7 @@ export default function ChatPage({ currentUser }) {
 
         {/* Right Column: Dynamic Profile Details Panel (Figma Page 2 Alignment) */}
         <Grid item xs={12} md={3}>
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, height: 600 }}>
+          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, height: 600, overflowY: 'auto', overflowX: 'hidden' }}>
             <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
               {isTechnician ? 'Customer Details' : 'Technician Details'}
             </Typography>
@@ -341,15 +342,15 @@ export default function ChatPage({ currentUser }) {
             {isTechnician ? (
               // Customer Details view for Technician
               <Stack spacing={2.5}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'secondary.main', fontSize: 22, fontWeight: 700 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar sx={{ width: 48, height: 48, bgcolor: 'secondary.main', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
                     {(selectedConv?.customer?.name || 'Customer').slice(0, 2).toUpperCase()}
                   </Avatar>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight={700}>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="subtitle2" fontWeight={700} noWrap>
                       {selectedConv?.customer?.name || 'Customer'}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block">
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ wordBreak: 'break-all' }}>
                       {selectedConv?.customer?.email || 'customer@techaid.com'}
                     </Typography>
                     <Chip label="Verified Customer" size="small" color="success" variant="outlined" sx={{ mt: 0.5, fontWeight: 700 }} />
@@ -363,31 +364,31 @@ export default function ChatPage({ currentUser }) {
                     SERVICE REQUEST ISSUE
                   </Typography>
                   <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: '#0D1527' }}>
-                    <Typography variant="subtitle2" fontWeight={700} color="primary.main">
+                    <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ wordBreak: 'break-word' }}>
                       {selectedConv?.serviceRequest?.title || 'Device Technical Issue'}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', wordBreak: 'break-word' }}>
                       {selectedConv?.serviceRequest?.description || 'Customer reported device issue requiring assistance.'}
                     </Typography>
                   </Paper>
-                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                    <Chip label={`Urgency: ${selectedConv?.serviceRequest?.urgency || 'Critical'}`} size="small" color="error" />
-                    <Chip label={`Category: ${selectedConv?.serviceRequest?.deviceCategory || 'Phone'}`} size="small" variant="outlined" />
+                  <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
+                    <Chip label={`Urgency: ${selectedConv?.serviceRequest?.urgency || 'Critical'}`} size="small" color="error" sx={{ maxWidth: '100%' }} />
+                    <Chip label={`Category: ${selectedConv?.serviceRequest?.deviceCategory || 'Laptop'}`} size="small" variant="outlined" sx={{ maxWidth: '100%' }} />
                   </Stack>
                 </Stack>
               </Stack>
             ) : (
               // Technician Details view for Customer
               <Stack spacing={2.5}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar sx={{ width: 48, height: 48, bgcolor: 'primary.main', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
                     {selectedTechProfile.avatar}
                   </Avatar>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight={700}>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="subtitle2" fontWeight={700} noWrap>
                       {selectedTechProfile.name}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block">
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ wordBreak: 'break-word' }}>
                       {selectedTechProfile.specialty}
                     </Typography>
                     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
@@ -424,7 +425,7 @@ export default function ChatPage({ currentUser }) {
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={0.8}>
                     {selectedTechProfile.skills.map((s, i) => (
-                      <Chip key={i} label={s} size="small" variant="outlined" />
+                      <Chip key={i} label={s} size="small" variant="outlined" sx={{ maxWidth: '100%' }} />
                     ))}
                   </Stack>
                 </Box>

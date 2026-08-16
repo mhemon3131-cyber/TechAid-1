@@ -1,41 +1,66 @@
-import { prisma, mockDatabase } from '../db.js';
+import { prisma } from '../db.js';
 
 // In-memory isolated message & conversation registries
 const inMemoryMessages = {};
 const dynamicConversations = {};
 
+export function normalizeConvId(convId) {
+  if (!convId) return 'conv_usr-1_usr-2';
+  if (convId.includes('mehedi')) {
+    return convId.replace('mehedi', 'usr-1');
+  }
+  return convId;
+}
+
 export function registerDynamicConversation({ id, serviceRequestId, customerId, customerName, customerEmail, technicianId, technicianName, deviceCategory, title }) {
-  if (!dynamicConversations[id]) {
-    dynamicConversations[id] = {
-      id,
-      serviceRequestId: serviceRequestId || `req_${id}`,
-      customerId,
-      technicianId,
-      customer: { id: customerId, name: customerName || 'Customer', email: customerEmail || 'customer@techaid.com' },
-      technician: { id: technicianId, name: technicianName || 'Technician', email: 'tech@techaid.com' },
-      serviceRequest: { id: serviceRequestId || `req_${id}`, title: title || 'Technical Issue', deviceCategory: deviceCategory || 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical' },
+  const normId = normalizeConvId(id);
+
+  if (!dynamicConversations[normId]) {
+    dynamicConversations[normId] = {
+      id: normId,
+      serviceRequestId: serviceRequestId || `req_${normId}`,
+      customerId: customerId || 'usr-1',
+      technicianId: technicianId || 'usr-2',
+      customer: { id: customerId || 'usr-1', name: customerName || 'Customer', email: customerEmail || 'customer@techaid.com' },
+      technician: { id: technicianId || 'usr-2', name: technicianName || 'Technician', email: 'tech@techaid.com' },
+      serviceRequest: { id: serviceRequestId || `req_${normId}`, title: title || 'Technical Issue', deviceCategory: deviceCategory || 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical' },
       createdAt: new Date().toISOString(),
     };
   } else {
-    if (customerName) dynamicConversations[id].customer.name = customerName;
-    if (customerEmail) dynamicConversations[id].customer.email = customerEmail;
+    if (customerName) dynamicConversations[normId].customer.name = customerName;
+    if (customerEmail) dynamicConversations[normId].customer.email = customerEmail;
   }
-  return dynamicConversations[id];
+
+  // Also mirror alias for conv_mehedi_... compatibility
+  if (id !== normId) {
+    dynamicConversations[id] = dynamicConversations[normId];
+  }
+
+  return dynamicConversations[normId];
 }
 
 export function saveInMemoryMessage(msg) {
-  if (!inMemoryMessages[msg.conversationId]) {
-    inMemoryMessages[msg.conversationId] = [];
+  const normId = normalizeConvId(msg.conversationId);
+  const rawId = msg.conversationId;
+
+  if (!inMemoryMessages[normId]) inMemoryMessages[normId] = [];
+  if (!inMemoryMessages[rawId]) inMemoryMessages[rawId] = inMemoryMessages[normId];
+
+  // Prevent duplicates
+  const exists = inMemoryMessages[normId].some(
+    (m) => m.id === msg.id || (m.content === msg.content && m.senderId === msg.senderId && Math.abs(new Date(m.createdAt) - new Date(msg.createdAt)) < 2000)
+  );
+
+  if (!exists) {
+    inMemoryMessages[normId].push(msg);
   }
-  inMemoryMessages[msg.conversationId].push(msg);
 
   // Auto-register dynamic conversation if not present
-  if (!dynamicConversations[msg.conversationId]) {
-    const parts = msg.conversationId.split('_');
+  if (!dynamicConversations[normId]) {
     const custId = msg.sender?.role === 'CUSTOMER' ? msg.senderId : 'usr-1';
-    const techId = msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'usr-4';
+    const techId = msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'usr-2';
     registerDynamicConversation({
-      id: msg.conversationId,
+      id: normId,
       customerId: custId,
       customerName: msg.sender?.role === 'CUSTOMER' ? msg.sender.name : 'Customer',
       technicianId: techId,
@@ -46,7 +71,10 @@ export function saveInMemoryMessage(msg) {
 
 export async function getOrCreateConversation(req, res) {
   try {
-    const { serviceRequestId } = req.params;
+    const { serviceRequestId } = req.body;
+    if (!serviceRequestId) {
+      return res.status(400).json({ error: 'serviceRequestId is required' });
+    }
 
     let conversation = null;
     if (prisma) {
@@ -84,18 +112,42 @@ export async function getOrCreateConversation(req, res) {
 export async function getMessages(req, res) {
   try {
     const { id } = req.params;
+    const normId = normalizeConvId(id);
+
     let messages = [];
 
     if (prisma) {
       messages = await prisma.message.findMany({
-        where: { conversationId: id },
+        where: { OR: [{ conversationId: id }, { conversationId: normId }] },
         orderBy: { createdAt: 'asc' },
         include: { sender: { select: { id: true, name: true, role: true } } },
       }).catch(() => []);
     }
 
     if (messages.length === 0) {
-      messages = inMemoryMessages[id] || [];
+      messages = inMemoryMessages[normId] || inMemoryMessages[id] || [];
+    }
+
+    if (messages.length === 0) {
+      messages = [
+        {
+          id: 'm-1',
+          conversationId: normId,
+          senderId: 'usr-1',
+          content: 'Hello Rafiq, my laptop screen stays black after turning it on.',
+          createdAt: new Date(Date.now() - 300000).toISOString(),
+          sender: { id: 'usr-1', name: 'Mehedi Hasan', role: 'CUSTOMER' }
+        },
+        {
+          id: 'm-2',
+          conversationId: normId,
+          senderId: 'usr-2',
+          content: 'Hello Mehedi! Does the power LED light up when you press the power button?',
+          createdAt: new Date(Date.now() - 240000).toISOString(),
+          sender: { id: 'usr-2', name: 'Rafiq Ahmed', role: 'TECHNICIAN' }
+        }
+      ];
+      inMemoryMessages[normId] = messages;
     }
 
     res.json(messages);
@@ -132,16 +184,15 @@ export async function listUserConversations(req, res) {
     }
 
     if (userRole === 'TECHNICIAN') {
-      // Find all dynamic conversations registered for this technician (by userId or technicianId like usr-2, usr-3, usr-4)
       const isAlex = userId === 'usr-4' || userName.toLowerCase().includes('alex');
       const isSara = userId === 'usr-3' || userName.toLowerCase().includes('sara');
       const techId = isAlex ? 'usr-4' : isSara ? 'usr-3' : 'usr-2';
       const techName = isAlex ? 'Alex' : isSara ? 'Sara Noor' : 'Rafiq Ahmed';
 
-      // Always seed Mehedi Hasan and any registered customer conversations for this technician
+      // Always seed Mehedi Hasan with CANONICAL ID: conv_usr-1_${techId}
       const defaultMehediConv = registerDynamicConversation({
-        id: `conv_mehedi_${techId}`,
-        serviceRequestId: `req_mehedi_${techId}`,
+        id: `conv_usr-1_${techId}`,
+        serviceRequestId: `req_usr-1_${techId}`,
         customerId: 'usr-1',
         customerName: 'Mehedi Hasan',
         customerEmail: 'mehedi@bracu.ac.bd',
@@ -156,10 +207,20 @@ export async function listUserConversations(req, res) {
         (c) => c.technicianId === techId || c.technicianId === userId || c.technician?.name?.toLowerCase().includes(techName.toLowerCase())
       );
 
-      conversations = techConvs.map((c) => ({
-        ...c,
-        messages: inMemoryMessages[c.id] || c.messages || [{ content: 'Conversation active', createdAt: new Date().toISOString() }],
-      }));
+      // Deduplicate conversations by ID
+      const uniqueMap = {};
+      techConvs.forEach((c) => {
+        const normId = normalizeConvId(c.id);
+        if (!uniqueMap[normId]) {
+          uniqueMap[normId] = {
+            ...c,
+            id: normId,
+            messages: inMemoryMessages[normId] || inMemoryMessages[c.id] || c.messages || [{ content: 'Conversation active', createdAt: new Date().toISOString() }],
+          };
+        }
+      });
+
+      conversations = Object.values(uniqueMap);
 
     } else {
       // Customer perspective: generate private conversations strictly scoped to THIS customer ID & Name!
@@ -198,10 +259,14 @@ export async function listUserConversations(req, res) {
         deviceCategory: 'Internet',
       });
 
-      conversations = [tech1Conv, tech2Conv, tech3Conv].map((c) => ({
-        ...c,
-        messages: inMemoryMessages[c.id] || [{ content: `Hello ${safeUserName}! How can I assist you with your issue today?`, createdAt: new Date().toISOString() }],
-      }));
+      conversations = [tech1Conv, tech2Conv, tech3Conv].map((c) => {
+        const normId = normalizeConvId(c.id);
+        return {
+          ...c,
+          id: normId,
+          messages: inMemoryMessages[normId] || inMemoryMessages[c.id] || [{ content: `Hello ${safeUserName}! How can I assist you with your issue today?`, createdAt: new Date().toISOString() }],
+        };
+      });
     }
 
     res.json(conversations);
