@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { createServiceRequest } from '../services/api';
 
-export const CreateRequest = ({ onNavigateToAppointment }) => {
+export const CreateRequest = ({ currentUser, onNavigateToAppointment }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,12 +37,10 @@ export const CreateRequest = ({ onNavigateToAppointment }) => {
 
   // Form State
   const [deviceCategory, setDeviceCategory] = useState('Laptop');
-  const [description, setDescription] = useState('Laptop won\'t turn on after the last update, black screen even when plugged in...');
-  const [urgency, setUrgency] = useState('Critical');
-  const [serviceMethod, setServiceMethod] = useState('Live Chat');
-  const [attachments, setAttachments] = useState([
-    { name: 'error_screen.jpg', type: 'IMAGE', url: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=500' }
-  ]);
+  const [description, setDescription] = useState('');
+  const [urgency, setUrgency] = useState('Moderate');
+  const [serviceMethod, setServiceMethod] = useState('Home Visit');
+  const [attachments, setAttachments] = useState([]);
 
   const categories = [
     { label: 'Laptop', icon: <Laptop size={20} /> },
@@ -76,13 +74,19 @@ export const CreateRequest = ({ onNavigateToAppointment }) => {
   };
 
   const handleSubmit = async () => {
+    if (!description.trim()) {
+      setError('Please describe your technical issue before submitting.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
       const payload = {
+        customerId: currentUser?.id || 'usr-1',
         deviceCategory,
-        title: `${deviceCategory} Support: ${description.slice(0, 30)}...`,
-        description,
+        title: `${deviceCategory} Issue: ${description.slice(0, 35)}...`,
+        description: description.trim(),
         urgency,
         serviceMethod,
         attachments
@@ -91,17 +95,12 @@ export const CreateRequest = ({ onNavigateToAppointment }) => {
       const response = await createServiceRequest(payload);
       if (response.success) {
         setSubmittedData(response.data);
+        localStorage.setItem('techaid_active_request', JSON.stringify(response.data));
+        localStorage.setItem('techaid_active_tracking_id', response.data.trackingId);
       }
     } catch (err) {
-      // Automatic fallback if backend is starting up or offline
-      const mockTrackingId = `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-      setSubmittedData({
-        trackingId: mockTrackingId,
-        deviceCategory,
-        urgency,
-        serviceMethod,
-        status: 'PENDING'
-      });
+      const errMsg = err.response?.data?.message || 'Failed to submit service request.';
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

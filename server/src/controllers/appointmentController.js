@@ -44,10 +44,28 @@ export const createAppointment = async (req, res) => {
     const customer = await prisma.user.findUnique({ where: { id: custId } });
     const techName = technician ? technician.name : 'Selected Technician';
 
-    // 3. Persist Appointment to Real Prisma Database
+    // 3. Resolve active Service Request if not explicitly provided
+    let targetServiceRequestId = serviceRequestId || null;
+    if (!targetServiceRequestId) {
+      const latestReq = await prisma.serviceRequest.findFirst({
+        where: { customerId: custId },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (latestReq) {
+        // Only link if this request doesn't already have an appointment
+        const existingApp = await prisma.appointment.findUnique({
+          where: { serviceRequestId: latestReq.id }
+        });
+        if (!existingApp) {
+          targetServiceRequestId = latestReq.id;
+        }
+      }
+    }
+
+    // 4. Persist Appointment to Real Prisma Database
     const newAppointment = await prisma.appointment.create({
       data: {
-        serviceRequestId: serviceRequestId || null,
+        serviceRequestId: targetServiceRequestId,
         customerId: custId,
         technicianId: technician ? technician.id : technicianId,
         date,
@@ -63,17 +81,17 @@ export const createAppointment = async (req, res) => {
       }
     });
 
-    // 4. DYNAMICALLY Update Service Request Status & Progress Logs with Selected Technician Name!
-    if (serviceRequestId) {
+    // 5. Update Service Request Status to ASSIGNED with Technician Name
+    if (targetServiceRequestId) {
       try {
         await prisma.serviceRequest.update({
-          where: { id: serviceRequestId },
+          where: { id: targetServiceRequestId },
           data: {
             status: 'ASSIGNED',
             statusLogs: {
               create: {
                 status: 'ASSIGNED',
-                note: `Assigned to Technician ${techName}.`
+                note: `Assigned to Technician ${techName}. Appointment scheduled for ${date} at ${timeSlot}.`
               }
             }
           }
@@ -83,7 +101,7 @@ export const createAppointment = async (req, res) => {
       }
     }
 
-    // 5. Trigger EmailJS notification
+    // 6. Trigger EmailJS notification
     await sendAppointmentConfirmationEmail({
       customerEmail: customer ? customer.email : 'customer@techaid.com',
       customerName: customer ? customer.name : 'Customer',
@@ -124,7 +142,17 @@ export const getAppointments = async (req, res) => {
     const { technicianId, customerId, date } = req.query;
     
     const whereClause = {};
-    if (technicianId) whereClause.technicianId = technicianId;
+    if (technicianId) {
+      // Support querying either technician.id or technician.userId
+      const techRecord = await prisma.technician.findFirst({
+        where: { OR: [{ id: technicianId }, { userId: technicianId }] }
+      });
+      if (techRecord) {
+        whereClause.technicianId = techRecord.id;
+      } else {
+        whereClause.technicianId = technicianId;
+      }
+    }
     if (customerId) whereClause.customerId = customerId;
     if (date) whereClause.date = date;
 
@@ -141,10 +169,11 @@ export const getAppointments = async (req, res) => {
     const formatted = appointments.map(app => ({
       id: app.id,
       serviceRequestId: app.serviceRequestId,
-      requestTitle: app.serviceRequest ? app.serviceRequest.title : 'Laptop Technical Service',
-      requestDescription: app.serviceRequest ? app.serviceRequest.description : 'Customer requested technical troubleshooting.',
-      urgency: app.serviceRequest ? app.serviceRequest.urgency : 'Critical',
-      deviceCategory: app.serviceRequest ? app.serviceRequest.deviceCategory : 'Laptop',
+      requestTitle: app.serviceRequest ? app.serviceRequest.title : `${app.serviceType} Request`,
+      requestDescription: app.serviceRequest ? app.serviceRequest.description : 'Customer requested technical assistance.',
+      urgency: app.serviceRequest ? app.serviceRequest.urgency : 'Moderate',
+      deviceCategory: app.serviceRequest ? app.serviceRequest.deviceCategory : 'General',
+      trackingId: app.serviceRequest ? app.serviceRequest.trackingId : null,
       customerId: app.customerId,
       customerName: app.customer ? app.customer.name : 'Customer',
       customerPhone: app.customer ? app.customer.phone : '+8801700000000',
@@ -176,7 +205,11 @@ export const updateAppointmentStatus = async (req, res) => {
     const { id } = req.params;
     const { status, newDate, newTimeSlot } = req.body;
 
-    const existing = await prisma.appointment.findUnique({ where: { id } });
+    const existing = await prisma.appointment.findUnique({
+      where: { id },
+      include: { technician: true, serviceRequest: true, customer: true }
+    });
+    
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Appointment not found in database.' });
     }
@@ -189,8 +222,51 @@ export const updateAppointmentStatus = async (req, res) => {
     const updated = await prisma.appointment.update({
       where: { id },
       data: updateData,
-      include: { customer: true, technician: true }
+      include: { customer: true, technician: true, serviceRequest: true }
     });
+
+    // Automatically update the linked Service Request Status in real time
+    if (existing.serviceRequestId) {
+      let targetReqStatus = null;
+      let logNote = null;
+      const techName = existing.technician?.name || 'Technician';
+
+      if (status === 'APPROVED' || status === 'ACCEPTED') {
+        targetReqStatus = 'ACCEPTED';
+        logNote = `Technician ${techName} accepted the appointment.`;
+      } else if (status === 'IN_PROGRESS') {
+        targetReqStatus = 'IN_PROGRESS';
+        logNote = `Technician ${techName} is diagnosing hardware/software issue.`;
+      } else if (status === 'ON_THE_WAY') {
+        targetReqStatus = 'ON_THE_WAY';
+        logNote = `Technician ${techName} is on the way for home visit.`;
+      } else if (status === 'COMPLETED') {
+        targetReqStatus = 'COMPLETED';
+        logNote = `Service completed successfully by Technician ${techName}.`;
+      } else if (status === 'REJECTED' || status === 'CANCELLED') {
+        targetReqStatus = 'PENDING';
+        logNote = `Technician declined appointment. Re-queued for assignment.`;
+      }
+
+      if (targetReqStatus) {
+        try {
+          await prisma.serviceRequest.update({
+            where: { id: existing.serviceRequestId },
+            data: {
+              status: targetReqStatus,
+              statusLogs: {
+                create: {
+                  status: targetReqStatus,
+                  note: logNote
+                }
+              }
+            }
+          });
+        } catch (err) {
+          console.warn('Note: Could not cascade update to serviceRequest', err);
+        }
+      }
+    }
 
     res.json({
       success: true,
@@ -210,3 +286,4 @@ export const updateAppointmentStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Database error updating appointment.' });
   }
 };
+

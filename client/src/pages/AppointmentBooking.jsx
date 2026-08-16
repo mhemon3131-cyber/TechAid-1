@@ -23,32 +23,10 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-// Default Fallback Technicians
-const DEFAULT_TECHS = [
-  {
-    id: 'tech-1',
-    name: 'Rafiq Ahmed',
-    specialty: 'Laptop & Desktop Specialist',
-    rating: 4.9,
-    distanceKm: 2.1,
-    isAvailable: true,
-    avatar: 'RA'
-  },
-  {
-    id: 'tech-2',
-    name: 'Sara Noor',
-    specialty: 'Smartphone Repair & OS Recovery',
-    rating: 4.7,
-    distanceKm: 3.7,
-    isAvailable: true,
-    avatar: 'SN'
-  }
-];
-
 export const AppointmentBooking = ({ currentUser }) => {
   const [step, setStep] = useState(1);
-  const [technicians, setTechnicians] = useState(DEFAULT_TECHS);
-  const [selectedTech, setSelectedTech] = useState(DEFAULT_TECHS[0]);
+  const [technicians, setTechnicians] = useState([]);
+  const [selectedTech, setSelectedTech] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Slot selection state
@@ -105,29 +83,18 @@ export const AppointmentBooking = ({ currentUser }) => {
   }, [selectedTech?.id, selectedDate]);
 
   const fetchTechs = async () => {
-    const registeredTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
-
     try {
-      const res = await axios.get('http://localhost:5000/api/technicians');
+      const res = await axios.get('http://localhost:1345/api/technicians');
       if (res.data.success && res.data.data.length > 0) {
-        const combined = [...res.data.data];
-        registeredTechs.forEach(rt => {
-          if (!combined.some(t => t.name.toLowerCase() === rt.name.toLowerCase())) {
-            combined.push(rt);
-          }
-        });
-        setTechnicians(combined);
-        setSelectedTech(combined[0]);
+        setTechnicians(res.data.data);
+        setSelectedTech(res.data.data[0]);
+      } else {
+        setTechnicians([]);
+        setSelectedTech(null);
       }
     } catch (err) {
-      const combined = [...DEFAULT_TECHS];
-      registeredTechs.forEach(rt => {
-        if (!combined.some(t => t.name.toLowerCase() === rt.name.toLowerCase())) {
-          combined.push(rt);
-        }
-      });
-      setTechnicians(combined);
-      setSelectedTech(combined[0]);
+      setTechnicians([]);
+      setSelectedTech(null);
     }
   };
 
@@ -137,7 +104,7 @@ export const AppointmentBooking = ({ currentUser }) => {
     const key = `${selectedTech.id}_${formattedDate}`;
 
     try {
-      const res = await axios.get(`http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`);
+      const res = await axios.get(`http://localhost:1345/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`);
       if (res.data.success) {
         const taken = res.data.data
           .filter(app => app.status !== 'REJECTED' && app.technicianId === selectedTech.id && app.date === formattedDate)
@@ -176,36 +143,28 @@ export const AppointmentBooking = ({ currentUser }) => {
     const formattedDate = getFormattedDateStr(selectedDate);
 
     try {
+      const activeRequest = JSON.parse(localStorage.getItem('techaid_active_request') || 'null');
+
       const payload = {
-        technicianId: selectedTech ? selectedTech.id : 'tech-1',
+        technicianId: selectedTech ? selectedTech.id : null,
         date: formattedDate,
         timeSlot: selectedTimeSlot,
         serviceType,
         customerId: currentUser?.id || 'usr-1',
-        serviceRequestId: 'req-101'
+        serviceRequestId: activeRequest ? activeRequest.id : null
       };
 
-      const res = await axios.post('http://localhost:5000/api/appointments', payload);
+      const res = await axios.post('http://localhost:1345/api/appointments', payload);
       if (res.data.success) {
         setBookingSuccess(res.data.data);
-        // Add to booked map specifically for this technician and this date
         setBookedMap(prev => ({
           ...prev,
           [currentKey]: [...(prev[currentKey] || []), selectedTimeSlot]
         }));
       }
     } catch (err) {
-      setBookingSuccess({
-        id: `app-${Date.now()}`,
-        date: formattedDate,
-        timeSlot: selectedTimeSlot,
-        serviceType,
-        technicianName: selectedTech.name
-      });
-      setBookedMap(prev => ({
-        ...prev,
-        [currentKey]: [...(prev[currentKey] || []), selectedTimeSlot]
-      }));
+      const errorMsg = err.response?.data?.message || 'Failed to book appointment.';
+      setConflictError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -252,68 +211,76 @@ export const AppointmentBooking = ({ currentUser }) => {
           />
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {filteredTechs.map((tech) => (
-              <Paper
-                key={tech.id}
-                elevation={0}
-                onClick={() => setSelectedTech(tech)}
-                sx={{
-                  backgroundColor: '#172036',
-                  borderRadius: 3,
-                  p: 2.5,
-                  border: selectedTech?.id === tech.id ? '2px solid #00A8FF' : '1px solid #2A364F',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.2s',
-                  '&:hover': { borderColor: '#00A8FF' }
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar
-                    sx={{
-                      width: 52,
-                      height: 52,
-                      backgroundColor: '#0F172A',
-                      color: '#00A8FF',
-                      fontWeight: 700,
-                      border: '2px solid #00A8FF'
-                    }}
-                  >
-                    {tech.avatar}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ color: '#FFF', fontWeight: 700 }}>
-                      {tech.name}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#94A3B8' }}>
-                      {tech.specialty}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Star size={18} fill="#F59E0B" color="#F59E0B" />
-                    <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 700 }}>
-                      {tech.rating}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <MapPin size={16} color="#94A3B8" />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                      {tech.distanceKm} km
-                    </Typography>
-                  </Box>
-
-                  {tech.isAvailable && (
-                    <Chip label="Available today" size="small" sx={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10B981', fontWeight: 700 }} />
-                  )}
-                </Box>
+            {filteredTechs.length === 0 ? (
+              <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#172036', border: '1px dashed #2A364F', borderRadius: 3 }}>
+                <Typography variant="body1" sx={{ color: '#94A3B8' }}>
+                  No technicians found in database. Create a technician account to start booking appointments!
+                </Typography>
               </Paper>
-            ))}
+            ) : (
+              filteredTechs.map((tech) => (
+                <Paper
+                  key={tech.id}
+                  elevation={0}
+                  onClick={() => setSelectedTech(tech)}
+                  sx={{
+                    backgroundColor: '#172036',
+                    borderRadius: 3,
+                    p: 2.5,
+                    border: selectedTech?.id === tech.id ? '2px solid #00A8FF' : '1px solid #2A364F',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s',
+                    '&:hover': { borderColor: '#00A8FF' }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar
+                      sx={{
+                        width: 52,
+                        height: 52,
+                        backgroundColor: '#0F172A',
+                        color: '#00A8FF',
+                        fontWeight: 700,
+                        border: '2px solid #00A8FF'
+                      }}
+                    >
+                      {tech.avatar || tech.name?.slice(0, 2).toUpperCase()}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ color: '#FFF', fontWeight: 700 }}>
+                        {tech.name}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#94A3B8' }}>
+                        {tech.specialty}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Star size={18} fill="#F59E0B" color="#F59E0B" />
+                      <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 700 }}>
+                        {tech.rating || 4.8}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <MapPin size={16} color="#94A3B8" />
+                      <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                        {tech.distanceKm || 2.5} km
+                      </Typography>
+                    </Box>
+
+                    {tech.isAvailable && (
+                      <Chip label="Available" size="small" sx={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10B981', fontWeight: 700 }} />
+                    )}
+                  </Box>
+                </Paper>
+              ))
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>

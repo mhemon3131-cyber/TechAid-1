@@ -59,9 +59,8 @@ export const TechnicianDashboard = ({ currentUser }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch real appointments from Prisma DB filtering by currently logged in technician!
-      const techId = currentUser?.technicianId || 'tech-1';
-      const res = await axios.get(`http://localhost:5000/api/appointments?technicianId=${techId}`);
+      const techId = currentUser?.technicianId || currentUser?.id;
+      const res = await axios.get(`http://localhost:1345/api/appointments?technicianId=${techId}`);
       if (res.data.success) {
         setAppointments(res.data.data);
       }
@@ -76,7 +75,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
     setLoading(true);
     setMsg('');
     try {
-      const res = await axios.put(`http://localhost:5000/api/appointments/${id}/status`, { status, ...extraData });
+      const res = await axios.put(`http://localhost:1345/api/appointments/${id}/status`, { status, ...extraData });
       if (res.data.success) {
         setMsg(`Appointment ${status.toLowerCase()} successfully in Prisma database.`);
         fetchData();
@@ -201,50 +200,140 @@ export const TechnicianDashboard = ({ currentUser }) => {
                   </Box>
                 </Box>
 
-                {/* Action Buttons */}
-                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                  <Button
-                    onClick={() => setRescheduleTarget(app)}
-                    startIcon={<RefreshCw size={16} />}
-                    sx={{
-                      color: '#94A3B8',
-                      backgroundColor: '#0F172A',
-                      border: '1px solid #2A364F',
-                      px: 2.5,
-                      '&:hover': { backgroundColor: '#1E293B' }
-                    }}
-                  >
-                    Reschedule
-                  </Button>
+                {/* Action Buttons based on Status */}
+                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {app.status === 'PENDING' && (
+                    <>
+                      <Button
+                        size="small"
+                        onClick={() => setRescheduleTarget(app)}
+                        startIcon={<RefreshCw size={16} />}
+                        sx={{
+                          color: '#94A3B8',
+                          backgroundColor: '#0F172A',
+                          border: '1px solid #2A364F',
+                          px: 2,
+                          '&:hover': { backgroundColor: '#1E293B' }
+                        }}
+                      >
+                        Reschedule
+                      </Button>
 
-                  <Button
-                    onClick={() => handleStatusUpdate(app.id, 'REJECTED')}
-                    startIcon={<X size={16} />}
-                    sx={{
-                      color: '#EF4444',
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      px: 2.5,
-                      '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
-                    }}
-                  >
-                    Decline
-                  </Button>
+                      <Button
+                        size="small"
+                        onClick={() => handleStatusUpdate(app.id, 'REJECTED')}
+                        startIcon={<X size={16} />}
+                        sx={{
+                          color: '#EF4444',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          px: 2,
+                          '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
+                        }}
+                      >
+                        Decline
+                      </Button>
 
-                  <Button
-                    variant="contained"
-                    onClick={() => handleStatusUpdate(app.id, 'APPROVED')}
-                    startIcon={<Check size={16} />}
-                    sx={{
-                      backgroundColor: '#00A8FF',
-                      color: '#0D1527',
-                      fontWeight: 700,
-                      px: 3,
-                      '&:hover': { backgroundColor: '#38BDF8' }
-                    }}
-                  >
-                    Accept Appointment
-                  </Button>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => handleStatusUpdate(app.id, 'APPROVED')}
+                        startIcon={<Check size={16} />}
+                        sx={{
+                          backgroundColor: '#00A8FF',
+                          color: '#0D1527',
+                          fontWeight: 700,
+                          px: 2.5,
+                          '&:hover': { backgroundColor: '#38BDF8' }
+                        }}
+                      >
+                        Accept Appointment
+                      </Button>
+                    </>
+                  )}
+
+                  {(app.status === 'APPROVED' || app.status === 'ACCEPTED') && (
+                    <>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => handleStatusUpdate(app.id, 'IN_PROGRESS')}
+                        sx={{
+                          backgroundColor: '#3B82F6',
+                          color: '#FFF',
+                          fontWeight: 700,
+                          px: 2.5,
+                          '&:hover': { backgroundColor: '#2563EB' }
+                        }}
+                      >
+                        Start Diagnosing (In Progress)
+                      </Button>
+
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => handleStatusUpdate(app.id, 'ON_THE_WAY')}
+                        sx={{
+                          backgroundColor: '#F59E0B',
+                          color: '#0D1527',
+                          fontWeight: 700,
+                          px: 2.5,
+                          '&:hover': { backgroundColor: '#D97706' }
+                        }}
+                      >
+                        On the Way
+                      </Button>
+
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => handleStatusUpdate(app.id, 'COMPLETED')}
+                        sx={{
+                          backgroundColor: '#10B981',
+                          color: '#0D1527',
+                          fontWeight: 700,
+                          px: 2.5,
+                          '&:hover': { backgroundColor: '#059669' }
+                        }}
+                      >
+                        Mark Completed
+                      </Button>
+                    </>
+                  )}
+
+                  {(app.status === 'IN_PROGRESS' || app.status === 'ON_THE_WAY') && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={() => handleStatusUpdate(app.id, 'COMPLETED')}
+                      startIcon={<Check size={16} />}
+                      sx={{
+                        backgroundColor: '#10B981',
+                        color: '#0D1527',
+                        fontWeight: 700,
+                        px: 3,
+                        '&:hover': { backgroundColor: '#059669' }
+                      }}
+                    >
+                      Complete Service
+                    </Button>
+                  )}
+
+                  {app.status === 'COMPLETED' && (
+                    <Chip
+                      label="Service Completed"
+                      color="success"
+                      sx={{ fontWeight: 700, px: 1 }}
+                    />
+                  )}
+
+                  {app.status === 'REJECTED' && (
+                    <Chip
+                      label="Appointment Declined"
+                      color="error"
+                      sx={{ fontWeight: 700, px: 1 }}
+                    />
+                  )}
                 </Box>
               </Paper>
             </Grid>

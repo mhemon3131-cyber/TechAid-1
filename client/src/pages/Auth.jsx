@@ -22,8 +22,8 @@ export const Auth = ({ onLoginSuccess }) => {
 
   // Form Fields
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('mehedi@bracu.ac.bd');
-  const [password, setPassword] = useState('123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [specialty, setSpecialty] = useState('Laptop & Desktop Specialist');
   
   const [loading, setLoading] = useState(false);
@@ -49,15 +49,21 @@ export const Auth = ({ onLoginSuccess }) => {
 
   // Submit Login
   const handleLogin = async (overrideEmail = null, overrideRole = null) => {
-    setLoading(true);
-    setError('');
     const targetEmail = overrideEmail || email;
     const targetRole = overrideRole || roleTab;
 
+    if (!targetEmail.trim() || !password.trim()) {
+      setError('Please enter your email and password.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
-        email: targetEmail,
-        password,
+      const res = await axios.post('http://localhost:1345/api/auth/login', {
+        email: targetEmail.trim(),
+        password: password.trim(),
         role: targetRole
       });
 
@@ -65,15 +71,8 @@ export const Auth = ({ onLoginSuccess }) => {
         onLoginSuccess(res.data.user);
       }
     } catch (err) {
-      // Fallback local authentication using exact derived name
-      const userName = getDerivedName(name, targetEmail);
-      const fallbackUser = targetRole === 'CUSTOMER'
-        ? { id: `usr-${Date.now()}`, name: userName, email: targetEmail, role: 'CUSTOMER', avatar: userName.slice(0, 2).toUpperCase() }
-        : targetEmail.includes('sara')
-          ? { id: 'usr-3', name: 'Sara Noor', email: 'sara@techaid.com', role: 'TECHNICIAN', avatar: 'SN', technicianId: 'tech-2', specialty: 'Smartphone Repair' }
-          : { id: 'usr-2', name: 'Rafiq Ahmed', email: 'rafiq@techaid.com', role: 'TECHNICIAN', avatar: 'RA', technicianId: 'tech-1', specialty: 'Laptop Specialist' };
-      
-      onLoginSuccess(fallbackUser);
+      const serverErrMsg = err.response?.data?.message || 'Authentication failed. Please check your email and password.';
+      setError(serverErrMsg);
     } finally {
       setLoading(false);
     }
@@ -113,35 +112,17 @@ export const Auth = ({ onLoginSuccess }) => {
         specialty: roleTab === 'TECHNICIAN' ? specialty : null
       };
 
-      const res = await axios.post('http://localhost:5000/api/auth/register', payload);
+      const res = await axios.post('http://localhost:1345/api/auth/register', payload);
 
       if (res.data.success) {
-        if (roleTab === 'TECHNICIAN') {
-          const existingTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
-          localStorage.setItem('techaid_registered_techs', JSON.stringify([...existingTechs, newTechProfile]));
-        }
-
         setSuccessMsg(`Account created successfully for ${res.data.user.name}! Saved in database.`);
         setTimeout(() => {
           onLoginSuccess(res.data.user);
         }, 1000);
       }
     } catch (err) {
-      if (roleTab === 'TECHNICIAN') {
-        const existingTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
-        localStorage.setItem('techaid_registered_techs', JSON.stringify([...existingTechs, newTechProfile]));
-      }
-
-      const mockNewUser = {
-        id: newTechProfile.userId,
-        name: cleanName,
-        email: cleanEmail,
-        role: roleTab,
-        avatar: newTechProfile.avatar,
-        technicianId: roleTab === 'TECHNICIAN' ? newTechProfile.id : null,
-        specialty: roleTab === 'TECHNICIAN' ? newTechProfile.specialty : null
-      };
-      onLoginSuccess(mockNewUser);
+      const serverErrMsg = err.response?.data?.message || 'Registration failed. Please try again.';
+      setError(serverErrMsg);
     } finally {
       setLoading(false);
     }
@@ -235,7 +216,7 @@ export const Auth = ({ onLoginSuccess }) => {
               fullWidth
               onClick={() => {
                 setRoleTab('CUSTOMER');
-                if (!isRegisterMode) setEmail('mehedi@bracu.ac.bd');
+                setError('');
               }}
               startIcon={<User size={18} />}
               sx={{
@@ -255,7 +236,7 @@ export const Auth = ({ onLoginSuccess }) => {
               fullWidth
               onClick={() => {
                 setRoleTab('TECHNICIAN');
-                if (!isRegisterMode) setEmail('rafiq@techaid.com');
+                setError('');
               }}
               startIcon={<Wrench size={18} />}
               sx={{
@@ -410,69 +391,7 @@ export const Auth = ({ onLoginSuccess }) => {
           )}
         </Box>
 
-        {!isRegisterMode && (
-          <>
-            <Divider sx={{ borderColor: '#2A364F', my: 2.5 }}>
-              <Typography variant="caption" sx={{ color: '#64748B' }}>OR QUICK DEMO LOGIN</Typography>
-            </Divider>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Button
-                fullWidth
-                size="small"
-                onClick={() => handleLogin('mehedi@bracu.ac.bd', 'CUSTOMER')}
-                sx={{
-                  justifyContent: 'flex-start',
-                  backgroundColor: '#0F172A',
-                  color: '#38BDF8',
-                  border: '1px solid #2A364F',
-                  py: 0.8,
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  '&:hover': { backgroundColor: '#1E293B' }
-                }}
-              >
-                👤 Demo Login: Mehedi Hasan (Customer)
-              </Button>
-
-              <Button
-                fullWidth
-                size="small"
-                onClick={() => handleLogin('rafiq@techaid.com', 'TECHNICIAN')}
-                sx={{
-                  justifyContent: 'flex-start',
-                  backgroundColor: '#0F172A',
-                  color: '#10B981',
-                  border: '1px solid #2A364F',
-                  py: 0.8,
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  '&:hover': { backgroundColor: '#1E293B' }
-                }}
-              >
-                🔧 Demo Login: Rafiq Ahmed (Laptop Specialist Tech)
-              </Button>
-
-              <Button
-                fullWidth
-                size="small"
-                onClick={() => handleLogin('sara@techaid.com', 'TECHNICIAN')}
-                sx={{
-                  justifyContent: 'flex-start',
-                  backgroundColor: '#0F172A',
-                  color: '#F59E0B',
-                  border: '1px solid #2A364F',
-                  py: 0.8,
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  '&:hover': { backgroundColor: '#1E293B' }
-                }}
-              >
-                📱 Demo Login: Sara Noor (Smartphone Repair Tech)
-              </Button>
-            </Box>
-          </>
-        )}
       </Paper>
     </Box>
   );

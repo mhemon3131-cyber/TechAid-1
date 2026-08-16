@@ -45,12 +45,12 @@ const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
 }));
 
 export const ServiceProgressTracker = ({ currentUser }) => {
-  const [trackingIdInput, setTrackingIdInput] = useState('REQ-2026-8942');
+  const [trackingIdInput, setTrackingIdInput] = useState(() => {
+    return localStorage.getItem('techaid_active_tracking_id') || '';
+  });
   const [progressData, setProgressData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
-  const [msg, setMsg] = useState('');
 
   const stagesList = [
     { key: 'PENDING', label: 'Pending', icon: <Clock size={18} /> },
@@ -62,71 +62,53 @@ export const ServiceProgressTracker = ({ currentUser }) => {
   ];
 
   useEffect(() => {
-    fetchProgress('REQ-2026-8942');
-  }, []);
+    const activeTrackingId = localStorage.getItem('techaid_active_tracking_id');
+    if (activeTrackingId) {
+      setTrackingIdInput(activeTrackingId);
+      fetchProgress(activeTrackingId);
+    } else {
+      // Auto-discover latest service request from DB if any
+      fetchLatestRequest();
+    }
+  }, [currentUser]);
 
-  const fetchProgress = async (idToFetch) => {
-    setLoading(true);
-    setError('');
+  const fetchLatestRequest = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/requests/${idToFetch}/progress`);
-      if (res.data.success) {
-        setProgressData(res.data.data);
+      const res = await axios.get('http://localhost:1345/api/requests');
+      if (res.data.success && res.data.data.length > 0) {
+        // Find latest for current user or just the latest request
+        const userReq = res.data.data.find(r => r.customerId === currentUser?.id) || res.data.data[0];
+        if (userReq && userReq.trackingId) {
+          setTrackingIdInput(userReq.trackingId);
+          fetchProgress(userReq.trackingId);
+        }
       }
     } catch (err) {
-      // Local dynamic fallback with assigned technician name check
-      const registeredTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
-      const assignedTechName = registeredTechs.length > 0 ? registeredTechs[registeredTechs.length - 1].name : 'John Doe';
-      
-      const stagesOrder = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'ON_THE_WAY', 'COMPLETED'];
-      
-      setProgressData({
-        trackingId: idToFetch.toUpperCase(),
-        deviceCategory: 'Laptop',
-        title: 'Laptop Technical Troubleshooting',
-        currentStatus: 'ON_THE_WAY',
-        currentStageIndex: 4,
-        stages: stagesOrder,
-        logs: [
-          { status: 'PENDING', note: 'Service request created by customer.', timestamp: new Date(Date.now() - 3600000 * 4).toISOString() },
-          { status: 'ASSIGNED', note: `Assigned to Technician ${assignedTechName}.`, timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
-          { status: 'ACCEPTED', note: 'Technician accepted the job.', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-          { status: 'IN_PROGRESS', note: 'Technician is diagnosing hardware issue.', timestamp: new Date(Date.now() - 3600000 * 1).toISOString() },
-          { status: 'ON_THE_WAY', note: 'Technician updated stage to ON_THE_WAY.', timestamp: new Date().toISOString() }
-        ]
-      });
-    } finally {
-      setLoading(false);
+      console.warn('Could not auto-fetch latest request.');
     }
   };
 
-  const handleUpdateStatus = async (nextStatus) => {
-    if (!progressData) return;
-    setUpdating(true);
-    setMsg('');
-    setError('');
-    const stagesOrder = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'ON_THE_WAY', 'COMPLETED'];
-    const newIdx = stagesOrder.indexOf(nextStatus);
+  const fetchProgress = async (idToFetch) => {
+    if (!idToFetch || !idToFetch.trim()) {
+      setError('Please enter a valid Tracking ID to track progress.');
+      setProgressData(null);
+      return;
+    }
 
+    setLoading(true);
+    setError('');
     try {
-      await axios.put(`http://localhost:5000/api/requests/${progressData.trackingId}/status`, {
-        status: nextStatus,
-        note: `Technician updated stage to ${nextStatus}.`
-      });
+      const cleanId = idToFetch.trim().toUpperCase();
+      const res = await axios.get(`http://localhost:1345/api/requests/${cleanId}/progress`);
+      if (res.data.success) {
+        setProgressData(res.data.data);
+        localStorage.setItem('techaid_active_tracking_id', cleanId);
+      }
     } catch (err) {
-      console.warn('Updated progress locally.');
+      setProgressData(null);
+      setError(`No service request found for Tracking ID "${idToFetch}". Please verify your Tracking ID.`);
     } finally {
-      setProgressData((prev) => ({
-        ...prev,
-        currentStatus: nextStatus,
-        currentStageIndex: newIdx,
-        logs: [
-          ...prev.logs,
-          { status: nextStatus, note: `Technician updated stage to ${nextStatus}.`, timestamp: new Date().toISOString() }
-        ]
-      }));
-      setMsg(`Service progress stage updated to ${nextStatus} in Prisma database.`);
-      setUpdating(false);
+      setLoading(false);
     }
   };
 
@@ -160,9 +142,10 @@ export const ServiceProgressTracker = ({ currentUser }) => {
         <TextField
           fullWidth
           size="small"
-          placeholder="Enter Unique Tracking ID (e.g. REQ-2026-8942)..."
+          placeholder="Enter Unique Tracking ID (e.g. REQ-2026-XXXX)..."
           value={trackingIdInput}
           onChange={(e) => setTrackingIdInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && fetchProgress(trackingIdInput)}
           sx={{
             '& .MuiOutlinedInput-root': {
               color: '#FFF',
@@ -186,12 +169,6 @@ export const ServiceProgressTracker = ({ currentUser }) => {
           Track Request
         </Button>
       </Paper>
-
-      {msg && (
-        <Alert severity="success" sx={{ mb: 3, maxWidth: 900, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid #10B981' }}>
-          {msg}
-        </Alert>
-      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3, maxWidth: 900, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
@@ -219,6 +196,9 @@ export const ServiceProgressTracker = ({ currentUser }) => {
                   <Typography variant="caption" sx={{ color: '#64748B' }}>TRACKING NUMBER</Typography>
                   <Typography variant="h6" sx={{ color: '#00A8FF', fontWeight: 700 }}>
                     {progressData.trackingId}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#E2E8F0', mt: 0.5, fontWeight: 600 }}>
+                    {progressData.title || `${progressData.deviceCategory} Support Request`}
                   </Typography>
                 </Box>
                 <Chip
@@ -273,35 +253,6 @@ export const ServiceProgressTracker = ({ currentUser }) => {
                   })}
                 </Stepper>
               </Box>
-
-              <Divider sx={{ borderColor: '#2A364F', my: 3 }} />
-
-              {/* Status Advancement Controls */}
-              <Box sx={{ backgroundColor: '#0F172A', p: 2.5, borderRadius: 2, border: '1px solid #2A364F' }}>
-                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600, mb: 1.5 }}>
-                  Advance Progress Stage (Real DB Update):
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {stagesList.map((stg) => (
-                    <Button
-                      key={stg.key}
-                      size="small"
-                      disabled={updating || progressData.currentStatus === stg.key}
-                      onClick={() => handleUpdateStatus(stg.key)}
-                      sx={{
-                        backgroundColor: progressData.currentStatus === stg.key ? '#00A8FF' : '#172036',
-                        color: progressData.currentStatus === stg.key ? '#0D1527' : '#94A3B8',
-                        border: '1px solid #2A364F',
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                        '&:hover': { backgroundColor: '#00A8FF', color: '#0D1527' }
-                      }}
-                    >
-                      Set {stg.label}
-                    </Button>
-                  ))}
-                </Box>
-              </Box>
             </Paper>
           </Grid>
 
@@ -321,38 +272,50 @@ export const ServiceProgressTracker = ({ currentUser }) => {
               </Typography>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {progressData.logs.map((log, i) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2,
-                      p: 1.5,
-                      backgroundColor: '#0F172A',
-                      borderRadius: 2,
-                      borderLeft: '4px solid #00A8FF'
-                    }}
-                  >
-                    <CheckCircle2 size={20} color="#00A8FF" />
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>
-                        Stage: {log.status}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                        {log.note}
+                {progressData.logs && progressData.logs.length > 0 ? (
+                  progressData.logs.map((log, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        p: 1.5,
+                        backgroundColor: '#0F172A',
+                        borderRadius: 2,
+                        borderLeft: '4px solid #00A8FF'
+                      }}
+                    >
+                      <CheckCircle2 size={20} color="#00A8FF" />
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>
+                          Stage: {log.status}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                          {log.note || 'Status updated in system.'}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" sx={{ color: '#64748B' }}>
+                        {new Date(log.createdAt || log.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Typography>
                     </Box>
-                    <Typography variant="caption" sx={{ color: '#64748B' }}>
-                      {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Typography>
-                  </Box>
-                ))}
+                  ))
+                ) : (
+                  <Typography variant="body2" sx={{ color: '#94A3B8' }}>
+                    No activity logs recorded yet.
+                  </Typography>
+                )}
               </Box>
             </Paper>
           </Grid>
         </Grid>
-      ) : null}
+      ) : (
+        <Paper elevation={0} sx={{ p: 4, backgroundColor: '#172036', borderRadius: 3, border: '1px dashed #2A364F', maxWidth: 900, textAlign: 'center' }}>
+          <Typography variant="body1" sx={{ color: '#94A3B8' }}>
+            Enter your Service Request Tracking ID above and click <strong>Track Request</strong> to view its live progress.
+          </Typography>
+        </Paper>
+      )}
     </Box>
   );
 };
