@@ -45,9 +45,8 @@ const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
 }));
 
 export const ServiceProgressTracker = ({ currentUser }) => {
-  const [trackingIdInput, setTrackingIdInput] = useState(() => {
-    return localStorage.getItem('techaid_active_tracking_id') || '';
-  });
+  const [trackingIdInput, setTrackingIdInput] = useState('');
+  const [activeTrackingId, setActiveTrackingId] = useState('');
   const [progressData, setProgressData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -61,47 +60,60 @@ export const ServiceProgressTracker = ({ currentUser }) => {
     { key: 'COMPLETED', label: 'Completed', icon: <CheckCheck size={18} /> }
   ];
 
+  // Initial Load: Find current user's active request or saved tracking ID
   useEffect(() => {
-    const activeTrackingId = localStorage.getItem('techaid_active_tracking_id');
-    if (activeTrackingId) {
-      setTrackingIdInput(activeTrackingId);
-      fetchProgress(activeTrackingId);
+    const savedTrackingId = localStorage.getItem('techaid_active_tracking_id');
+    if (savedTrackingId) {
+      setTrackingIdInput(savedTrackingId);
+      setActiveTrackingId(savedTrackingId);
+      fetchProgress(savedTrackingId);
     } else {
-      // Auto-discover latest service request from DB if any
-      fetchLatestRequest();
+      fetchLatestUserRequest();
     }
+  }, [currentUser]);
 
-    // Real-Time Polling: Check for technician status updates every 3 seconds
+  // Background Polling: Periodically refresh active tracking ID every 2 seconds without touching search input
+  useEffect(() => {
+    if (!activeTrackingId) return;
+
     const interval = setInterval(() => {
-      const currentId = localStorage.getItem('techaid_active_tracking_id') || trackingIdInput;
-      if (currentId && currentId.trim()) {
-        fetchProgress(currentId, true);
-      }
-    }, 3000);
+      fetchProgress(activeTrackingId, true);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [currentUser, trackingIdInput]);
+  }, [activeTrackingId]);
 
-  const fetchLatestRequest = async () => {
+  const fetchLatestUserRequest = async () => {
     try {
       const res = await axios.get('http://localhost:1345/api/requests');
       if (res.data.success && res.data.data.length > 0) {
-        // Find latest for current user or just the latest request
         const userReq = res.data.data.find(r => r.customerId === currentUser?.id) || res.data.data[0];
         if (userReq && userReq.trackingId) {
           setTrackingIdInput(userReq.trackingId);
+          setActiveTrackingId(userReq.trackingId);
           fetchProgress(userReq.trackingId);
         }
       }
     } catch (err) {
-      console.warn('Could not auto-fetch latest request.');
+      console.warn('Could not auto-fetch request.');
     }
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    const cleanId = trackingIdInput.trim().toUpperCase();
+    if (!cleanId) {
+      setError('Please enter a Tracking ID to search.');
+      return;
+    }
+    setActiveTrackingId(cleanId);
+    fetchProgress(cleanId, false);
   };
 
   const fetchProgress = async (idToFetch, isSilent = false) => {
     if (!idToFetch || !idToFetch.trim()) {
       if (!isSilent) {
-        setError('Please enter a valid Tracking ID to track progress.');
+        setError('Please enter a valid Tracking ID.');
         setProgressData(null);
       }
       return;
@@ -165,7 +177,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
           placeholder="Enter Unique Tracking ID (e.g. REQ-2026-XXXX)..."
           value={trackingIdInput}
           onChange={(e) => setTrackingIdInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && fetchProgress(trackingIdInput)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(e)}
           sx={{
             '& .MuiOutlinedInput-root': {
               color: '#FFF',
@@ -176,7 +188,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
         />
         <Button
           variant="contained"
-          onClick={() => fetchProgress(trackingIdInput)}
+          onClick={handleSearchSubmit}
           startIcon={<Search size={18} />}
           sx={{
             backgroundColor: '#00A8FF',

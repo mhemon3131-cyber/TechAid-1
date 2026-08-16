@@ -71,17 +71,29 @@ export const TechnicianDashboard = ({ currentUser }) => {
     }
   };
 
-  const handleStatusUpdate = async (id, status, extraData = {}) => {
+  const handleStatusUpdate = async (id, status, extraData = {}, appItem = null) => {
     setLoading(true);
     setMsg('');
     try {
-      const res = await axios.put(`http://localhost:1345/api/appointments/${id}/status`, { status, ...extraData });
-      if (res.data.success) {
-        setMsg(`Appointment ${status.toLowerCase()} successfully in Prisma database.`);
-        fetchData();
+      await axios.put(`http://localhost:1345/api/appointments/${id}/status`, { status, ...extraData });
+
+      // Dual update: Directly synchronize service request status in database
+      const reqIdentifier = appItem?.trackingId || appItem?.serviceRequestId;
+      if (reqIdentifier) {
+        let reqStage = status;
+        if (status === 'APPROVED') reqStage = 'ACCEPTED';
+        try {
+          await axios.put(`http://localhost:1345/api/requests/${reqIdentifier}/status`, {
+            status: reqStage,
+            note: `Technician ${currentUser?.name || ''} updated status to ${reqStage}.`
+          });
+        } catch (e) {}
       }
+
+      setMsg(`Status updated to ${status} in database.`);
+      fetchData();
     } catch (err) {
-      setMsg('Failed to update appointment status.');
+      setMsg('Failed to update status.');
     } finally {
       setLoading(false);
       setRescheduleTarget(null);
@@ -94,7 +106,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
     handleStatusUpdate(rescheduleTarget.id, 'RESCHEDULED', {
       newDate: formattedDate,
       newTimeSlot: newTimeSlot
-    });
+    }, rescheduleTarget);
   };
 
   return (
@@ -160,8 +172,8 @@ export const TechnicianDashboard = ({ currentUser }) => {
                     label={app.status}
                     size="small"
                     sx={{
-                      backgroundColor: app.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.2)' : app.status === 'REJECTED' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                      color: app.status === 'APPROVED' ? '#10B981' : app.status === 'REJECTED' ? '#EF4444' : '#F59E0B',
+                      backgroundColor: app.status === 'APPROVED' || app.status === 'ACCEPTED' || app.status === 'IN_PROGRESS' || app.status === 'COMPLETED' ? 'rgba(16, 185, 129, 0.2)' : app.status === 'REJECTED' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                      color: app.status === 'APPROVED' || app.status === 'ACCEPTED' || app.status === 'IN_PROGRESS' || app.status === 'COMPLETED' ? '#10B981' : app.status === 'REJECTED' ? '#EF4444' : '#F59E0B',
                       fontWeight: 700
                     }}
                   />
@@ -221,7 +233,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
 
                       <Button
                         size="small"
-                        onClick={() => handleStatusUpdate(app.id, 'REJECTED')}
+                        onClick={() => handleStatusUpdate(app.id, 'REJECTED', {}, app)}
                         startIcon={<X size={16} />}
                         sx={{
                           color: '#EF4444',
@@ -237,7 +249,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
                       <Button
                         size="small"
                         variant="contained"
-                        onClick={() => handleStatusUpdate(app.id, 'APPROVED')}
+                        onClick={() => handleStatusUpdate(app.id, 'APPROVED', {}, app)}
                         startIcon={<Check size={16} />}
                         sx={{
                           backgroundColor: '#00A8FF',
@@ -257,7 +269,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
                       <Button
                         size="small"
                         variant="contained"
-                        onClick={() => handleStatusUpdate(app.id, 'IN_PROGRESS')}
+                        onClick={() => handleStatusUpdate(app.id, 'IN_PROGRESS', {}, app)}
                         sx={{
                           backgroundColor: '#3B82F6',
                           color: '#FFF',
@@ -272,7 +284,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
                       <Button
                         size="small"
                         variant="contained"
-                        onClick={() => handleStatusUpdate(app.id, 'ON_THE_WAY')}
+                        onClick={() => handleStatusUpdate(app.id, 'ON_THE_WAY', {}, app)}
                         sx={{
                           backgroundColor: '#F59E0B',
                           color: '#0D1527',
@@ -287,7 +299,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
                       <Button
                         size="small"
                         variant="contained"
-                        onClick={() => handleStatusUpdate(app.id, 'COMPLETED')}
+                        onClick={() => handleStatusUpdate(app.id, 'COMPLETED', {}, app)}
                         sx={{
                           backgroundColor: '#10B981',
                           color: '#0D1527',
@@ -305,7 +317,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
                     <Button
                       size="small"
                       variant="contained"
-                      onClick={() => handleStatusUpdate(app.id, 'COMPLETED')}
+                      onClick={() => handleStatusUpdate(app.id, 'COMPLETED', {}, app)}
                       startIcon={<Check size={16} />}
                       sx={{
                         backgroundColor: '#10B981',

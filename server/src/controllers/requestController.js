@@ -198,9 +198,22 @@ export const updateServiceStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: `Invalid status stage.` });
     }
 
+    const targetRequest = await prisma.serviceRequest.findFirst({
+      where: {
+        OR: [
+          { trackingId: id.toUpperCase() },
+          { id: id }
+        ]
+      }
+    });
+
+    if (!targetRequest) {
+      return res.status(404).json({ success: false, message: 'Request not found.' });
+    }
+
     // Update Request and append to StatusHistory table
     const updated = await prisma.serviceRequest.update({
-      where: { id },
+      where: { id: targetRequest.id },
       data: {
         status,
         statusLogs: {
