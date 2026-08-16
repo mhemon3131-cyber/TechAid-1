@@ -24,9 +24,44 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import StarIcon from '@mui/icons-material/Star';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import ChatBox from '../components/ChatBox';
 import JitsiCallModal from '../components/JitsiCallModal';
+import { getSocket } from '../socket/socket';
 import axios from 'axios';
+
+const TECHNICIAN_PROFILES = {
+  'usr-2': {
+    name: 'Rafiq Ahmed',
+    specialty: 'Laptop & Desktop Specialist',
+    rating: 4.9,
+    reviews: 124,
+    completedJobs: 93,
+    responseTime: '2 min',
+    avatar: 'RA',
+    skills: ['Motherboard Repair', 'OS Installation', 'Hardware Upgrade', 'Virus Removal'],
+  },
+  'usr-3': {
+    name: 'Sara Noor',
+    specialty: 'Smartphone Repair & OS Recovery',
+    rating: 4.7,
+    reviews: 89,
+    completedJobs: 67,
+    responseTime: '3 min',
+    avatar: 'SN',
+    skills: ['Screen Replacement', 'Battery Replacement', 'iOS Recovery', 'Android Flashing'],
+  },
+  'usr-4': {
+    name: 'Alex',
+    specialty: 'Network & Printer Specialist',
+    rating: 4.8,
+    reviews: 105,
+    completedJobs: 82,
+    responseTime: '1 min',
+    avatar: 'AL',
+    skills: ['Wi-Fi Setup', 'Router Config', 'Printer Maintenance', 'Network Security'],
+  },
+};
 
 export default function ChatPage() {
   const [conversations, setConversations] = useState([]);
@@ -36,7 +71,7 @@ export default function ChatPage() {
   const [error, setError] = useState('');
   const [callModal, setCallModal] = useState({ open: false, roomName: '', callType: 'VIDEO' });
 
-  // Currently logged in user (e.g. Mehedi Hasan)
+  // Currently logged in customer (e.g. Mehedi Hasan / Luban)
   const currentUserId = 'usr-1';
 
   useEffect(() => {
@@ -68,11 +103,44 @@ export default function ChatPage() {
         setCallModal({ open: true, roomName: res.data.roomName, callType: type });
       })
       .catch(() => {
-        // Fallback for dev testing
         const fallbackRoom = `techaid-${selectedConv.id}-${Date.now()}`;
         setCallModal({ open: true, roomName: fallbackRoom, callType: type });
       });
   };
+
+  // Helper to simulate technician response live for demonstration
+  const handleSimulateTechReply = () => {
+    if (!selectedConv) return;
+    const techId = selectedConv.technicianId || 'usr-2';
+    const techProfile = TECHNICIAN_PROFILES[techId] || TECHNICIAN_PROFILES['usr-2'];
+
+    const replies = [
+      `I am reviewing your diagnostics now. Please keep your device connected to power.`,
+      `Got your message! I will send you the step-by-step resolution link right away.`,
+      `Thank you for providing the details! I am initiating remote diagnostics.`,
+    ];
+    const replyText = replies[Math.floor(Math.random() * replies.length)];
+
+    const socket = getSocket();
+    socket.emit('send_message', {
+      conversationId: selectedConv.id,
+      content: replyText,
+      senderId: techId,
+    });
+  };
+
+  const selectedTechProfile = selectedConv
+    ? TECHNICIAN_PROFILES[selectedConv.technicianId] || {
+        name: selectedConv.technician?.name || 'Technician',
+        specialty: selectedConv.technician?.specialty || 'IT Support Specialist',
+        rating: selectedConv.technician?.rating || 4.9,
+        reviews: 100,
+        completedJobs: 75,
+        responseTime: '2 min',
+        avatar: (selectedConv.technician?.name || 'Tech').slice(0, 2).toUpperCase(),
+        skills: ['Hardware Repair', 'Software Troubleshooting', 'System Diagnostics'],
+      }
+    : TECHNICIAN_PROFILES['usr-2'];
 
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto', p: { xs: 2, md: 3 } }}>
@@ -112,9 +180,10 @@ export default function ChatPage() {
 
             <List sx={{ flex: 1, overflowY: 'auto' }} disablePadding>
               {filteredConversations.map((c) => {
-                const partner = c.technician?.name || c.customer?.name || 'Technician';
+                const tech = c.technician?.name || 'Technician';
                 const isSelected = selectedConv?.id === c.id;
                 const lastMsg = c.messages?.[0]?.content || 'Start conversation...';
+                const avatarText = c.technician?.avatar || tech.slice(0, 2).toUpperCase();
 
                 return (
                   <ListItemButton
@@ -126,14 +195,14 @@ export default function ChatPage() {
                     <ListItemAvatar>
                       <Badge color="success" variant="dot" overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
                         <Avatar sx={{ bgcolor: isSelected ? 'primary.main' : 'grey.400', fontWeight: 700 }}>
-                          {partner.slice(0, 2).toUpperCase()}
+                          {avatarText}
                         </Avatar>
                       </Badge>
                     </ListItemAvatar>
                     <ListItemText
                       primary={
                         <Typography variant="subtitle2" fontWeight={700} noWrap>
-                          {partner}
+                          {tech}
                         </Typography>
                       }
                       secondary={
@@ -156,13 +225,16 @@ export default function ChatPage() {
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Box>
                   <Typography variant="h6" fontWeight={700}>
-                    {selectedConv.technician?.name || selectedConv.customer?.name || 'Rafiq Ahmed'}
+                    {selectedConv.technician?.name || 'Technician'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     Request #{selectedConv.serviceRequest?.id || selectedConv.serviceRequestId} · {selectedConv.serviceRequest?.deviceCategory || 'Laptop'}
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
+                  <Button variant="outlined" color="secondary" size="small" startIcon={<SmartToyIcon />} onClick={handleSimulateTechReply}>
+                    Simulate Reply
+                  </Button>
                   <Button variant="outlined" size="small" startIcon={<CallIcon />} onClick={() => handleStartCall('VOICE')}>
                     Voice Call
                   </Button>
@@ -178,12 +250,12 @@ export default function ChatPage() {
             </Paper>
           ) : (
             <Paper variant="outlined" sx={{ p: 4, borderRadius: 3, textAlign: 'center', height: 600, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <Typography color="text.secondary">Select a conversation to start chatting.</Typography>
+              <Typography color="text.secondary">Select a technician conversation to start chatting.</Typography>
             </Paper>
           )}
         </Grid>
 
-        {/* Right Column: Technician Details Sidebar (Figma Page 2 Alignment) */}
+        {/* Right Column: Dynamic Technician Details Panel (Figma Page 2 Alignment) */}
         <Grid item xs={12} md={3}>
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, height: 600 }}>
             <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
@@ -193,19 +265,19 @@ export default function ChatPage() {
             <Stack spacing={2.5}>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}>
-                  RA
+                  {selectedTechProfile.avatar}
                 </Avatar>
                 <Box>
                   <Typography variant="subtitle2" fontWeight={700}>
-                    Rafiq Ahmed
+                    {selectedTechProfile.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Laptop & Desktop Specialist
+                    {selectedTechProfile.specialty}
                   </Typography>
                   <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
                     <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
                     <Typography variant="caption" fontWeight={700}>
-                      4.9 (124 reviews)
+                      {selectedTechProfile.rating} ({selectedTechProfile.reviews} reviews)
                     </Typography>
                   </Stack>
                 </Box>
@@ -217,13 +289,13 @@ export default function ChatPage() {
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <CheckCircleIcon color="success" fontSize="small" />
                   <Typography variant="body2" color="text.secondary">
-                    <strong>93</strong> Completed Jobs
+                    <strong>{selectedTechProfile.completedJobs}</strong> Completed Jobs
                   </Typography>
                 </Stack>
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <AccessTimeIcon color="action" fontSize="small" />
                   <Typography variant="body2" color="text.secondary">
-                    <strong>2 min</strong> Response Time
+                    <strong>{selectedTechProfile.responseTime}</strong> Response Time
                   </Typography>
                 </Stack>
               </Stack>
@@ -235,10 +307,9 @@ export default function ChatPage() {
                   SKILLS & EXPERTISE
                 </Typography>
                 <Stack direction="row" flexWrap="wrap" gap={0.8}>
-                  <Chip label="Motherboard Repair" size="small" variant="outlined" />
-                  <Chip label="OS Installation" size="small" variant="outlined" />
-                  <Chip label="Hardware Upgrade" size="small" variant="outlined" />
-                  <Chip label="Virus Removal" size="small" variant="outlined" />
+                  {selectedTechProfile.skills.map((s, i) => (
+                    <Chip key={i} label={s} size="small" variant="outlined" />
+                  ))}
                 </Stack>
               </Box>
             </Stack>

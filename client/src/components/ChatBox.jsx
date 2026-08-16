@@ -65,14 +65,14 @@ export default function ChatBox({ conversationId, currentUserId }) {
   };
 
   return (
-    <Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: 420, p: 2, borderRadius: 3 }}>
+    <Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: 420, p: 2, borderRadius: 3, bgcolor: 'background.paper' }}>
       <Box sx={{ flex: 1, overflowY: 'auto', mb: 1, pr: 1 }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
             <CircularProgress size={24} />
           </Box>
         ) : (
-          <Stack spacing={1.5}>
+          <Stack spacing={1.8}>
             {messages.length === 0 && (
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', pt: 4 }}>
                 No messages yet. Start the conversation below.
@@ -80,10 +80,14 @@ export default function ChatBox({ conversationId, currentUserId }) {
             )}
             {messages.map((m, idx) => {
               const mine = String(m.senderId) === String(currentUserId || 'usr-1');
+              const senderName = mine
+                ? 'Luban (Customer)'
+                : (m.sender?.name || (m.senderId === 'usr-2' ? 'Rafiq Ahmed' : m.senderId === 'usr-3' ? 'Sara Noor' : 'Alex'));
+
               return (
                 <Box key={m.id || `msg_${idx}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.3, px: 0.5, fontSize: 11 }}>
-                    {mine ? 'You' : (m.sender?.name || 'Technician')}
+                  <Typography variant="caption" sx={{ mb: 0.4, px: 0.8, fontSize: 11, fontWeight: 700, color: mine ? '#38BDF8' : '#94A3B8' }}>
+                    {senderName}
                   </Typography>
                   <Paper
                     elevation={0}
@@ -91,13 +95,15 @@ export default function ChatBox({ conversationId, currentUserId }) {
                       p: 1.5,
                       px: 2,
                       maxWidth: '75%',
-                      bgcolor: mine ? 'primary.main' : 'grey.200',
-                      color: mine ? 'primary.contrastText' : 'text.primary',
+                      bgcolor: mine ? '#00A8FF' : '#1E293B',
+                      color: mine ? '#0D1527' : '#F8FAFC',
                       borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      fontWeight: 500,
+                      fontWeight: 600,
+                      border: mine ? 'none' : '1px solid #334155',
+                      boxShadow: mine ? '0 2px 8px rgba(0,168,255,0.25)' : '0 2px 8px rgba(0,0,0,0.2)',
                     }}
                   >
-                    <Typography variant="body2" sx={{ wordBreak: 'break-word', lineHeight: 1.4 }}>
+                    <Typography variant="body2" sx={{ wordBreak: 'break-word', lineHeight: 1.4, fontSize: '0.88rem' }}>
                       {m.content}
                     </Typography>
                   </Paper>
