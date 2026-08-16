@@ -226,7 +226,25 @@ export const updateAppointmentStatus = async (req, res) => {
     });
 
     // Automatically update the linked Service Request Status in real time
-    if (existing.serviceRequestId) {
+    let targetReqId = existing.serviceRequestId;
+    if (!targetReqId && existing.customerId) {
+      const latestReq = await prisma.serviceRequest.findFirst({
+        where: { customerId: existing.customerId },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (latestReq) {
+        targetReqId = latestReq.id;
+        // Bind to appointment for future updates
+        try {
+          await prisma.appointment.update({
+            where: { id },
+            data: { serviceRequestId: targetReqId }
+          });
+        } catch (e) {}
+      }
+    }
+
+    if (targetReqId) {
       let targetReqStatus = null;
       let logNote = null;
       const techName = existing.technician?.name || 'Technician';
@@ -236,7 +254,7 @@ export const updateAppointmentStatus = async (req, res) => {
         logNote = `Technician ${techName} accepted the appointment.`;
       } else if (status === 'IN_PROGRESS') {
         targetReqStatus = 'IN_PROGRESS';
-        logNote = `Technician ${techName} is diagnosing hardware/software issue.`;
+        logNote = `Technician ${techName} started work and is diagnosing the issue.`;
       } else if (status === 'ON_THE_WAY') {
         targetReqStatus = 'ON_THE_WAY';
         logNote = `Technician ${techName} is on the way for home visit.`;
@@ -251,7 +269,7 @@ export const updateAppointmentStatus = async (req, res) => {
       if (targetReqStatus) {
         try {
           await prisma.serviceRequest.update({
-            where: { id: existing.serviceRequestId },
+            where: { id: targetReqId },
             data: {
               status: targetReqStatus,
               statusLogs: {

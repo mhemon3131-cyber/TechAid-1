@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -8,7 +8,13 @@ import {
   ListItemIcon,
   ListItemText,
   Button,
-  Chip
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  Avatar
 } from '@mui/material';
 import {
   PlusCircle,
@@ -18,11 +24,16 @@ import {
   UserCheck,
   Activity,
   Sliders,
-  LogOut
+  LogOut,
+  User,
+  Mail,
+  Phone,
+  Info
 } from 'lucide-react';
 
 export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
   const isCustomer = currentUser?.role === 'CUSTOMER';
+  const [profileOpen, setProfileOpen] = useState(false);
 
   return (
     <Box
@@ -64,7 +75,7 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
         </Box>
       </Box>
 
-      {/* Current Active Account Card */}
+      {/* Current Active Account Card with Clickable Profile Details */}
       <Box
         sx={{
           backgroundColor: '#172036',
@@ -82,18 +93,130 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
         <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 700, mt: 0.2 }}>
           {currentUser?.name || 'User'}
         </Typography>
-        <Chip
-          label={currentUser?.role === 'CUSTOMER' ? 'Customer Account' : `${currentUser?.specialty || 'Technician'}`}
+        
+        {/* Email & Phone Details preview */}
+        <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 0.3, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          {currentUser?.email || ''}
+        </Typography>
+        {currentUser?.phone && (
+          <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>
+            {currentUser?.phone}
+          </Typography>
+        )}
+
+        <Button
           size="small"
+          onClick={() => setProfileOpen(true)}
+          startIcon={<Info size={12} />}
           sx={{
-            mt: 0.8,
+            mt: 1,
             backgroundColor: currentUser?.role === 'CUSTOMER' ? 'rgba(0, 168, 255, 0.15)' : 'rgba(16, 185, 129, 0.15)',
             color: currentUser?.role === 'CUSTOMER' ? '#00A8FF' : '#10B981',
             fontSize: '0.68rem',
-            fontWeight: 700
+            fontWeight: 700,
+            textTransform: 'none',
+            justifyContent: 'flex-start',
+            py: 0.4,
+            px: 1,
+            borderRadius: 1.5,
+            '&:hover': {
+              backgroundColor: currentUser?.role === 'CUSTOMER' ? 'rgba(0, 168, 255, 0.25)' : 'rgba(16, 185, 129, 0.25)'
+            }
           }}
-        />
+        >
+          {currentUser?.role === 'CUSTOMER' ? 'Customer Account' : `${currentUser?.specialty || 'Technician'}`}
+        </Button>
       </Box>
+
+      {/* Profile Details Dialog Modal */}
+      <Dialog
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#172036',
+            color: '#FFF',
+            borderRadius: 3,
+            border: '1px solid #00A8FF',
+            p: 1.5,
+            minWidth: 360
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ backgroundColor: '#00A8FF', color: '#0D1527', fontWeight: 700 }}>
+            {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'US'}
+          </Avatar>
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#FFF' }}>
+              {currentUser?.name || 'User Profile'}
+            </Typography>
+            <Chip
+              label={currentUser?.role === 'CUSTOMER' ? 'Customer Account' : 'Technician Account'}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.65rem',
+                backgroundColor: 'rgba(0, 168, 255, 0.2)',
+                color: '#00A8FF',
+                fontWeight: 700
+              }}
+            />
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, backgroundColor: '#0F172A', borderRadius: 2 }}>
+              <User size={18} color="#00A8FF" />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>Full Name</Typography>
+                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{currentUser?.name}</Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, backgroundColor: '#0F172A', borderRadius: 2 }}>
+              <Mail size={18} color="#00A8FF" />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>Email Address</Typography>
+                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{currentUser?.email}</Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, backgroundColor: '#0F172A', borderRadius: 2 }}>
+              <Phone size={18} color="#00A8FF" />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>Phone Number</Typography>
+                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{currentUser?.phone || '+880 1712-345678'}</Typography>
+              </Box>
+            </Box>
+
+            {currentUser?.role === 'TECHNICIAN' && currentUser?.specialty && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, backgroundColor: '#0F172A', borderRadius: 2 }}>
+                <Shield size={18} color="#10B981" />
+                <Box>
+                  <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>Specialty</Typography>
+                  <Typography variant="body2" sx={{ color: '#10B981', fontWeight: 600 }}>{currentUser.specialty}</Typography>
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => setProfileOpen(false)}
+            sx={{
+              backgroundColor: '#00A8FF',
+              color: '#0D1527',
+              fontWeight: 700,
+              '&:hover': { backgroundColor: '#38BDF8' }
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Navigation Links */}
       <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, px: 1, mb: 1 }}>

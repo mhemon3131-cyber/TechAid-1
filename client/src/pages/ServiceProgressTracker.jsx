@@ -70,7 +70,17 @@ export const ServiceProgressTracker = ({ currentUser }) => {
       // Auto-discover latest service request from DB if any
       fetchLatestRequest();
     }
-  }, [currentUser]);
+
+    // Real-Time Polling: Check for technician status updates every 3 seconds
+    const interval = setInterval(() => {
+      const currentId = localStorage.getItem('techaid_active_tracking_id') || trackingIdInput;
+      if (currentId && currentId.trim()) {
+        fetchProgress(currentId, true);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [currentUser, trackingIdInput]);
 
   const fetchLatestRequest = async () => {
     try {
@@ -88,27 +98,37 @@ export const ServiceProgressTracker = ({ currentUser }) => {
     }
   };
 
-  const fetchProgress = async (idToFetch) => {
+  const fetchProgress = async (idToFetch, isSilent = false) => {
     if (!idToFetch || !idToFetch.trim()) {
-      setError('Please enter a valid Tracking ID to track progress.');
-      setProgressData(null);
+      if (!isSilent) {
+        setError('Please enter a valid Tracking ID to track progress.');
+        setProgressData(null);
+      }
       return;
     }
 
-    setLoading(true);
-    setError('');
+    if (!isSilent) {
+      setLoading(true);
+      setError('');
+    }
+
     try {
       const cleanId = idToFetch.trim().toUpperCase();
       const res = await axios.get(`http://localhost:1345/api/requests/${cleanId}/progress`);
       if (res.data.success) {
         setProgressData(res.data.data);
         localStorage.setItem('techaid_active_tracking_id', cleanId);
+        if (!isSilent) setError('');
       }
     } catch (err) {
-      setProgressData(null);
-      setError(`No service request found for Tracking ID "${idToFetch}". Please verify your Tracking ID.`);
+      if (!isSilent) {
+        setProgressData(null);
+        setError(`No service request found for Tracking ID "${idToFetch}". Please verify your Tracking ID.`);
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   };
 

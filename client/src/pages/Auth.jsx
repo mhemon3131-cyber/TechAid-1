@@ -23,6 +23,7 @@ export const Auth = ({ onLoginSuccess }) => {
   // Form Fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [specialty, setSpecialty] = useState('Laptop & Desktop Specialist');
   
@@ -107,6 +108,7 @@ export const Auth = ({ onLoginSuccess }) => {
       const payload = {
         name: cleanName,
         email: cleanEmail,
+        phone: phone.trim() || '+880 1712-345678',
         password: password.trim(),
         role: roleTab,
         specialty: roleTab === 'TECHNICIAN' ? specialty : null
@@ -308,6 +310,29 @@ export const Auth = ({ onLoginSuccess }) => {
               }
             }}
           />
+
+          {isRegisterMode && (
+            <>
+              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                Phone Number
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+880 17XX-XXXXXX"
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    color: '#FFF',
+                    backgroundColor: '#0F172A',
+                    '& fieldset': { borderColor: '#2A364F' }
+                  }
+                }}
+              />
+            </>
+          )}
 
           <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block', mb: 0.5 }}>
             Password
