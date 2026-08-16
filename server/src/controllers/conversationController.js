@@ -1,7 +1,48 @@
 import { prisma, mockDatabase } from '../db.js';
 
-// In-memory fallback message store per conversation ID to ensure isolation when Prisma DB is empty
+// In-memory isolated message & conversation registries
 const inMemoryMessages = {};
+const dynamicConversations = {};
+
+export function registerDynamicConversation({ id, serviceRequestId, customerId, customerName, customerEmail, technicianId, technicianName, deviceCategory, title }) {
+  if (!dynamicConversations[id]) {
+    dynamicConversations[id] = {
+      id,
+      serviceRequestId: serviceRequestId || `req_${id}`,
+      customerId,
+      technicianId,
+      customer: { id: customerId, name: customerName || 'Customer', email: customerEmail || 'customer@techaid.com' },
+      technician: { id: technicianId, name: technicianName || 'Technician', email: 'tech@techaid.com' },
+      serviceRequest: { id: serviceRequestId || `req_${id}`, title: title || 'Technical Issue', deviceCategory: deviceCategory || 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical' },
+      createdAt: new Date().toISOString(),
+    };
+  } else {
+    if (customerName) dynamicConversations[id].customer.name = customerName;
+    if (customerEmail) dynamicConversations[id].customer.email = customerEmail;
+  }
+  return dynamicConversations[id];
+}
+
+export function saveInMemoryMessage(msg) {
+  if (!inMemoryMessages[msg.conversationId]) {
+    inMemoryMessages[msg.conversationId] = [];
+  }
+  inMemoryMessages[msg.conversationId].push(msg);
+
+  // Auto-register dynamic conversation if not present
+  if (!dynamicConversations[msg.conversationId]) {
+    const parts = msg.conversationId.split('_');
+    const custId = msg.sender?.role === 'CUSTOMER' ? msg.senderId : 'usr-1';
+    const techId = msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'usr-4';
+    registerDynamicConversation({
+      id: msg.conversationId,
+      customerId: custId,
+      customerName: msg.sender?.role === 'CUSTOMER' ? msg.sender.name : 'Customer',
+      technicianId: techId,
+      technicianName: msg.sender?.role === 'TECHNICIAN' ? msg.sender.name : 'Technician',
+    });
+  }
+}
 
 export async function getOrCreateConversation(req, res) {
   try {
@@ -21,19 +62,13 @@ export async function getOrCreateConversation(req, res) {
     }
 
     if (!conversation) {
-      const reqInfo = mockDatabase.serviceRequests.find((r) => r.id === serviceRequestId) || {
-        id: serviceRequestId,
-        customerId: 'usr-1',
-        technicianId: 'usr-2',
-      };
-
-      conversation = {
+      conversation = dynamicConversations[`conv_${serviceRequestId}`] || {
         id: `conv_${serviceRequestId}`,
         serviceRequestId,
-        customerId: reqInfo.customerId || 'usr-1',
-        technicianId: reqInfo.technicianId || 'usr-2',
-        customer: { id: reqInfo.customerId || 'usr-1', name: 'Customer', email: 'customer@techaid.com' },
-        technician: { id: reqInfo.technicianId || 'usr-2', name: 'Technician', email: 'tech@techaid.com' },
+        customerId: 'usr-1',
+        technicianId: 'usr-2',
+        customer: { id: 'usr-1', name: 'Customer', email: 'customer@techaid.com' },
+        technician: { id: 'usr-2', name: 'Technician', email: 'tech@techaid.com' },
         serviceRequest: { id: serviceRequestId, title: 'Technical Support Request', deviceCategory: 'Laptop' },
         createdAt: new Date().toISOString(),
       };
@@ -70,17 +105,10 @@ export async function getMessages(req, res) {
   }
 }
 
-export function saveInMemoryMessage(msg) {
-  if (!inMemoryMessages[msg.conversationId]) {
-    inMemoryMessages[msg.conversationId] = [];
-  }
-  inMemoryMessages[msg.conversationId].push(msg);
-}
-
 export async function listUserConversations(req, res) {
   try {
     const userId = req.headers['user-id'] || 'usr-1';
-    const userName = req.headers['user-name'] || (userId === 'usr-1' ? 'Mehedi Hasan' : 'Customer');
+    const userName = req.headers['user-name'] || 'User';
     const userRole = req.headers['user-role'] || 'CUSTOMER';
 
     let conversations = [];
@@ -88,7 +116,7 @@ export async function listUserConversations(req, res) {
     if (prisma) {
       conversations = await prisma.conversation.findMany({
         where: userRole === 'TECHNICIAN'
-          ? { technicianId: userId }
+          ? { OR: [{ technicianId: userId }, { technician: { name: { contains: userName, mode: 'insensitive' } } }] }
           : { customerId: userId },
         include: {
           serviceRequest: { select: { id: true, title: true, deviceCategory: true, status: true, urgency: true, description: true } },
@@ -103,73 +131,77 @@ export async function listUserConversations(req, res) {
       }).catch(() => []);
     }
 
-    if (conversations.length === 0) {
-      if (userRole === 'TECHNICIAN') {
-        // Technician perspective: list unique Customer conversations assigned to this technician!
-        // Tech Sara Noor (usr-3), Tech Alex (usr-4), Tech Rafiq (usr-2)
-        const techName = userId === 'usr-3' ? 'Sara Noor' : userId === 'usr-4' ? 'Alex' : 'Rafiq Ahmed';
+    if (userRole === 'TECHNICIAN') {
+      // Find all dynamic conversations registered for this technician (by userId or technicianId like usr-2, usr-3, usr-4)
+      const isAlex = userId === 'usr-4' || userName.toLowerCase().includes('alex');
+      const isSara = userId === 'usr-3' || userName.toLowerCase().includes('sara');
+      const techId = isAlex ? 'usr-4' : isSara ? 'usr-3' : 'usr-2';
+      const techName = isAlex ? 'Alex' : isSara ? 'Sara Noor' : 'Rafiq Ahmed';
 
-        conversations = [
-          {
-            id: `conv_mehedi_${userId}`,
-            serviceRequestId: `req_mehedi_${userId}`,
-            customerId: 'usr-1',
-            technicianId: userId,
-            serviceRequest: { id: `req_mehedi_${userId}`, title: 'Laptop & Hardware Repair', deviceCategory: 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical', description: 'Hardware diagnostics requested.' },
-            customer: { id: 'usr-1', name: 'Mehedi Hasan', email: 'mehedi@bracu.ac.bd', phone: '+8801700000000' },
-            technician: { id: userId, name: techName, email: `${techName.toLowerCase().replace(' ', '')}@techaid.com` },
-            messages: inMemoryMessages[`conv_mehedi_${userId}`] || [{ content: 'Hello Mehedi! How can I assist you today?', createdAt: new Date().toISOString() }],
-          },
-          {
-            id: `conv_siri_${userId}`,
-            serviceRequestId: `req_siri_${userId}`,
-            customerId: 'usr-siri',
-            technicianId: userId,
-            serviceRequest: { id: `req_siri_${userId}`, title: 'Smartphone & Network Issue', deviceCategory: 'Phone', status: 'IN_PROGRESS', urgency: 'Moderate', description: 'Network connectivity and screen check.' },
-            customer: { id: 'usr-siri', name: 'Siri', email: 'siri@apple.com', phone: '+8801900000000' },
-            technician: { id: userId, name: techName, email: `${techName.toLowerCase().replace(' ', '')}@techaid.com` },
-            messages: inMemoryMessages[`conv_siri_${userId}`] || [{ content: 'Hi Siri! How can I help you today?', createdAt: new Date().toISOString() }],
-          }
-        ];
+      // Always seed Mehedi Hasan and any registered customer conversations for this technician
+      const defaultMehediConv = registerDynamicConversation({
+        id: `conv_mehedi_${techId}`,
+        serviceRequestId: `req_mehedi_${techId}`,
+        customerId: 'usr-1',
+        customerName: 'Mehedi Hasan',
+        customerEmail: 'mehedi@bracu.ac.bd',
+        technicianId: techId,
+        technicianName: techName,
+        title: 'Office Router & Wi-Fi Configuration',
+        deviceCategory: 'Internet',
+      });
 
-      } else {
-        // Customer perspective: generate private conversations strictly scoped to THIS customer ID (userId)
-        // Customer siri gets conv_siri_usr-2, conv_siri_usr-3, conv_siri_usr-4!
-        const safeUserName = userName || (userId === 'usr-1' ? 'Mehedi Hasan' : userId === 'usr-siri' ? 'Siri' : 'Customer');
+      // Gather all conversations where technicianId matches techId or userId
+      const techConvs = Object.values(dynamicConversations).filter(
+        (c) => c.technicianId === techId || c.technicianId === userId || c.technician?.name?.toLowerCase().includes(techName.toLowerCase())
+      );
 
-        conversations = [
-          {
-            id: `conv_${userId}_usr-2`,
-            serviceRequestId: `req_${userId}_usr-2`,
-            customerId: userId,
-            technicianId: 'usr-2',
-            serviceRequest: { id: `req_${userId}_usr-2`, title: "Laptop won't turn on after update", deviceCategory: 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical' },
-            customer: { id: userId, name: safeUserName, email: `${userId}@techaid.com` },
-            technician: { id: 'usr-2', name: 'Rafiq Ahmed', email: 'rafiq@techaid.com', specialty: 'Laptop & Desktop Specialist', rating: 4.9, avatar: 'RA' },
-            messages: inMemoryMessages[`conv_${userId}_usr-2`] || [{ content: `Hello ${safeUserName}! Does the charging light turn on when plugged in?`, createdAt: new Date().toISOString() }],
-          },
-          {
-            id: `conv_${userId}_usr-3`,
-            serviceRequestId: `req_${userId}_usr-3`,
-            customerId: userId,
-            technicianId: 'usr-3',
-            serviceRequest: { id: `req_${userId}_usr-3`, title: "Smartphone Screen & Battery Recovery", deviceCategory: 'Phone', status: 'IN_PROGRESS', urgency: 'Moderate' },
-            customer: { id: userId, name: safeUserName, email: `${userId}@techaid.com` },
-            technician: { id: 'usr-3', name: 'Sara Noor', email: 'sara@techaid.com', specialty: 'Smartphone Repair & OS Recovery', rating: 4.7, avatar: 'SN' },
-            messages: inMemoryMessages[`conv_${userId}_usr-3`] || [{ content: `Hi ${safeUserName}! I can help replace your battery.`, createdAt: new Date().toISOString() }],
-          },
-          {
-            id: `conv_${userId}_usr-4`,
-            serviceRequestId: `req_${userId}_usr-4`,
-            customerId: userId,
-            technicianId: 'usr-4',
-            serviceRequest: { id: `req_${userId}_usr-4`, title: "Office Router & Wi-Fi Configuration", deviceCategory: 'Internet', status: 'ACCEPTED', urgency: 'High' },
-            customer: { id: userId, name: safeUserName, email: `${userId}@techaid.com` },
-            technician: { id: 'usr-4', name: 'Alex', email: 'alex@techaid.com', specialty: 'Network & Printer Specialist', rating: 4.8, avatar: 'AL' },
-            messages: inMemoryMessages[`conv_${userId}_usr-4`] || [{ content: `Hello ${safeUserName}! I will guide you through resetting your router settings.`, createdAt: new Date().toISOString() }],
-          },
-        ];
-      }
+      conversations = techConvs.map((c) => ({
+        ...c,
+        messages: inMemoryMessages[c.id] || c.messages || [{ content: 'Conversation active', createdAt: new Date().toISOString() }],
+      }));
+
+    } else {
+      // Customer perspective: generate private conversations strictly scoped to THIS customer ID & Name!
+      const safeUserName = userName || 'Customer';
+
+      const tech1Conv = registerDynamicConversation({
+        id: `conv_${userId}_usr-2`,
+        serviceRequestId: `req_${userId}_usr-2`,
+        customerId: userId,
+        customerName: safeUserName,
+        technicianId: 'usr-2',
+        technicianName: 'Rafiq Ahmed',
+        title: "Laptop won't turn on after update",
+        deviceCategory: 'Laptop',
+      });
+
+      const tech2Conv = registerDynamicConversation({
+        id: `conv_${userId}_usr-3`,
+        serviceRequestId: `req_${userId}_usr-3`,
+        customerId: userId,
+        customerName: safeUserName,
+        technicianId: 'usr-3',
+        technicianName: 'Sara Noor',
+        title: 'Smartphone Screen & Battery Recovery',
+        deviceCategory: 'Phone',
+      });
+
+      const tech3Conv = registerDynamicConversation({
+        id: `conv_${userId}_usr-4`,
+        serviceRequestId: `req_${userId}_usr-4`,
+        customerId: userId,
+        customerName: safeUserName,
+        technicianId: 'usr-4',
+        technicianName: 'Alex',
+        title: 'Office Router & Wi-Fi Configuration',
+        deviceCategory: 'Internet',
+      });
+
+      conversations = [tech1Conv, tech2Conv, tech3Conv].map((c) => ({
+        ...c,
+        messages: inMemoryMessages[c.id] || [{ content: `Hello ${safeUserName}! How can I assist you with your issue today?`, createdAt: new Date().toISOString() }],
+      }));
     }
 
     res.json(conversations);

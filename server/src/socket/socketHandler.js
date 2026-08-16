@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { createNotificationHelper } from '../controllers/notificationController.js';
-import { saveInMemoryMessage } from '../controllers/conversationController.js';
+import { saveInMemoryMessage, registerDynamicConversation } from '../controllers/conversationController.js';
 
 let ioInstance = null;
 
@@ -55,7 +55,7 @@ export function initSocket(io) {
         if (!content || !content.trim()) return;
 
         const effectiveSenderId = senderId || socket.user?.id || 'usr-1';
-        const effectiveSenderName = senderName || (effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : effectiveSenderId === 'usr-siri' || effectiveSenderId.includes('siri') ? 'Siri' : 'Technician');
+        const effectiveSenderName = senderName || (effectiveSenderId === 'usr-1' ? 'Mehedi Hasan' : 'User');
         let message = null;
 
         if (prisma) {
@@ -87,14 +87,17 @@ export function initSocket(io) {
           };
         }
 
-        // Save into isolated in-memory store so page refresh retains conversation history
+        // Save message and register conversation dynamically for recipient technician/customer
         saveInMemoryMessage(message);
 
         const room = `conversation_${conversationId}`;
         io.to(room).emit('receive_message', message);
 
+        // Notify technician live via Socket event
+        io.to('role_TECHNICIAN').emit('new_conversation_message', { conversationId, message });
+
         // Send Real-Time Notification to recipient
-        const recipientId = socket.user?.role === 'TECHNICIAN' ? 'usr-1' : 'usr-2';
+        const recipientId = socket.user?.role === 'TECHNICIAN' ? 'usr-1' : 'usr-4';
         await createNotificationHelper({
           userId: recipientId,
           type: 'NEW_CHAT_MESSAGE',

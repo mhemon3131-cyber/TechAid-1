@@ -74,8 +74,7 @@ export default function ChatPage({ currentUser }) {
   const activeUser = currentUser || { id: 'usr-1', name: 'Mehedi Hasan', role: 'CUSTOMER' };
   const isTechnician = activeUser.role === 'TECHNICIAN';
 
-  useEffect(() => {
-    setLoading(true);
+  const fetchConversations = () => {
     axios
       .get('http://localhost:5000/api/conversations', {
         headers: {
@@ -86,12 +85,29 @@ export default function ChatPage({ currentUser }) {
       })
       .then((res) => {
         setConversations(res.data || []);
-        if (res.data && res.data.length > 0) {
+        if (res.data && res.data.length > 0 && !selectedConv) {
           setSelectedConv(res.data[0]);
         }
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to list conversations'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchConversations();
+
+    const socket = getSocket();
+    const handleNewMsgEvent = () => {
+      fetchConversations();
+    };
+
+    socket.on('new_conversation_message', handleNewMsgEvent);
+    socket.on('receive_message', handleNewMsgEvent);
+
+    return () => {
+      socket.off('new_conversation_message', handleNewMsgEvent);
+      socket.off('receive_message', handleNewMsgEvent);
+    };
   }, [activeUser.id, activeUser.role, activeUser.name]);
 
   const filteredConversations = conversations.filter((c) => {
