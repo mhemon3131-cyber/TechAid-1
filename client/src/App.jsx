@@ -63,6 +63,17 @@ export default function App() {
       });
     } catch (e) {}
 
+    // Emit live socket event to notify customer that request was accepted
+    const socket = getSocket();
+    socket.emit('emergency_request_accepted', {
+      targetConvId,
+      serviceRequestId: reqItem?.id || reqItem?.trackingId,
+      customerId: custId,
+      customerName: custName,
+      technicianId: techId,
+      technicianName: techName,
+    });
+
     setActiveConvId(targetConvId);
     setActiveTab('chat');
   };

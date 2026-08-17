@@ -15,7 +15,7 @@ export function cleanName(nameVal, fallback = 'User') {
 }
 
 export function normalizeConvId(convId) {
-  if (!convId) return 'conv_siri_fahim';
+  if (!convId) return 'conv_active';
   let norm = convId;
 
   if (norm.startsWith('req_')) norm = norm.replace('req_', 'conv_');
@@ -23,28 +23,28 @@ export function normalizeConvId(convId) {
 }
 
 export function registerDynamicConversation({ id, serviceRequestId, customerId, customerName, customerEmail, technicianId, technicianName, deviceCategory, title }) {
-  const normId = normalizeConvId(id || `conv_${customerId || 'siri'}_${technicianId || 'fahim'}`);
+  const normId = normalizeConvId(id || `conv_${customerId || 'usr-1'}_${technicianId || 'usr-4'}`);
 
-  const safeCustomerName = cleanName(customerName, 'siri');
-  const safeTechName = cleanName(technicianName, 'Fahim');
+  const safeCustomerName = cleanName(customerName, 'Customer');
+  const safeTechName = cleanName(technicianName, 'Technician');
 
   if (!dynamicConversations[normId]) {
     dynamicConversations[normId] = {
       id: normId,
       serviceRequestId: serviceRequestId || `req_${normId}`,
-      customerId: customerId || 'usr-siri',
-      technicianId: technicianId || 'tech-fahim',
-      customer: { id: customerId || 'usr-siri', name: safeCustomerName, email: `${safeCustomerName.toLowerCase()}@techaid.com`, role: 'CUSTOMER' },
-      technician: { id: technicianId || 'tech-fahim', name: safeTechName, email: `${safeTechName.toLowerCase()}@techaid.com`, role: 'TECHNICIAN', specialty: 'Smartphone Repair & OS Recovery' },
+      customerId: customerId || 'usr-1',
+      technicianId: technicianId || 'usr-4',
+      customer: { id: customerId || 'usr-1', name: safeCustomerName, email: customerEmail || 'customer@techaid.com', role: 'CUSTOMER' },
+      technician: { id: technicianId || 'usr-4', name: safeTechName, email: 'technician@techaid.com', role: 'TECHNICIAN', specialty: 'IT Support Specialist' },
       serviceRequest: { id: serviceRequestId || `req_${normId}`, title: title || 'Technical Troubleshooting & Repair', deviceCategory: deviceCategory || 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical' },
       createdAt: new Date().toISOString(),
     };
   } else {
     if (customerId) dynamicConversations[normId].customerId = customerId;
     if (technicianId) dynamicConversations[normId].technicianId = technicianId;
-    if (customerName && !customerName.includes('-')) dynamicConversations[normId].customer.name = cleanName(customerName, 'siri');
+    if (customerName && !customerName.includes('-')) dynamicConversations[normId].customer.name = cleanName(customerName, 'Customer');
     if (customerEmail) dynamicConversations[normId].customer.email = customerEmail;
-    if (technicianName && !technicianName.includes('-')) dynamicConversations[normId].technician.name = cleanName(technicianName, 'Fahim');
+    if (technicianName && !technicianName.includes('-')) dynamicConversations[normId].technician.name = cleanName(technicianName, 'Technician');
     if (title) dynamicConversations[normId].serviceRequest.title = title;
   }
 
@@ -98,10 +98,10 @@ export function saveInMemoryMessage(msg) {
   if (!dynamicConversations[normId]) {
     registerDynamicConversation({
       id: normId,
-      customerId: msg.sender?.role === 'CUSTOMER' ? msg.senderId : 'usr-siri',
-      customerName: msg.sender?.role === 'CUSTOMER' ? cleanName(msg.sender?.name, 'siri') : 'siri',
-      technicianId: msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'tech-fahim',
-      technicianName: msg.sender?.role === 'TECHNICIAN' ? cleanName(msg.sender?.name, 'Fahim') : 'Fahim',
+      customerId: msg.sender?.role === 'CUSTOMER' ? msg.senderId : 'usr-1',
+      customerName: msg.sender?.role === 'CUSTOMER' ? cleanName(msg.sender?.name, 'Customer') : 'Customer',
+      technicianId: msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'usr-4',
+      technicianName: msg.sender?.role === 'TECHNICIAN' ? cleanName(msg.sender?.name, 'Technician') : 'Technician',
     });
   }
 }
@@ -206,18 +206,6 @@ export async function listUserConversations(req, res) {
         },
         orderBy: { createdAt: 'desc' },
       }).catch(() => []);
-    }
-
-    // Default dynamic conversation for siri and fahim
-    const canonicalKey = 'conv_siri_fahim';
-    if (!dynamicConversations[canonicalKey]) {
-      registerDynamicConversation({
-        id: canonicalKey,
-        customerName: 'siri',
-        technicianName: 'Fahim',
-        title: 'Technical Troubleshooting & Repair',
-        deviceCategory: 'Laptop',
-      });
     }
 
     // STRICT USER PRIVACY FILTER: No technician or customer can see another user's conversations!

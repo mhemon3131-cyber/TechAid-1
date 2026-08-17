@@ -17,7 +17,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import axios from 'axios';
 
-export default function EmergencyQueue({ onAcceptSuccess }) {
+export default function EmergencyQueue({ currentUser, onAcceptSuccess }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,7 +31,7 @@ export default function EmergencyQueue({ onAcceptSuccess }) {
       description: 'Power LED turns on when plugged in, but screen stays black. Customer requires urgent live chat support.',
       urgency: 'Critical',
       serviceMethod: 'Emergency Dispatch',
-      customer: { name: 'Fariha Ahmed Luban', email: 'luban@bracu.ac.bd', phone: '+8801700000000' },
+      customer: { id: 'usr-1', name: 'Fariha Ahmed Luban', email: 'luban@bracu.ac.bd', phone: '+8801700000000' },
       createdAt: new Date().toISOString()
     },
     {
@@ -42,7 +42,7 @@ export default function EmergencyQueue({ onAcceptSuccess }) {
       description: 'Office network router completely offline during business hours. Immediate technician dispatch requested.',
       urgency: 'Critical',
       serviceMethod: 'Home Visit',
-      customer: { name: 'Claire', email: 'claire@techaid.com', phone: '+8801800000000' },
+      customer: { id: 'usr-claire', name: 'Claire', email: 'claire@techaid.com', phone: '+8801800000000' },
       createdAt: new Date(Date.now() - 600000).toISOString()
     }
   ];
@@ -71,11 +71,15 @@ export default function EmergencyQueue({ onAcceptSuccess }) {
   }, []);
 
   const handleAcceptRequest = (requestItem) => {
+    const techId = currentUser?.id || 'usr-4';
+    const techName = currentUser?.name || 'Technician';
+
     axios
       .put(`http://localhost:1257/api/requests/${requestItem.id}/status`, {
         status: 'ACCEPTED',
-        technicianId: 'usr-2',
-        note: 'Technician accepted emergency request.',
+        technicianId: techId,
+        technicianName: techName,
+        note: `Technician ${techName} accepted emergency request.`,
       })
       .then(() => {
         if (onAcceptSuccess) onAcceptSuccess(requestItem);
@@ -107,52 +111,73 @@ export default function EmergencyQueue({ onAcceptSuccess }) {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress color="error" />
         </Box>
-      ) : requests.length === 0 ? (
-        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
-          <Typography color="text.secondary">No pending emergency requests in the queue.</Typography>
-        </Paper>
       ) : (
-        <Grid container spacing={2}>
-          {requests.map((r) => (
-            <Grid item xs={12} key={r.id}>
-              <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: '6px solid', borderColor: 'error.main', backgroundColor: '#172036' }}>
+        <Grid container spacing={2.5}>
+          {requests.map((req) => (
+            <Grid item xs={12} key={req.id}>
+              <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: '6px solid #EF4444' }}>
                 <CardContent sx={{ p: 3 }}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={2}>
-                    <Box>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                        <Chip label="EMERGENCY" color="error" size="small" sx={{ fontWeight: 800 }} />
-                        <Chip label={r.deviceCategory || 'Device'} variant="outlined" size="small" sx={{ color: '#00A8FF', borderColor: '#2A364F' }} />
-                        <Typography variant="caption" color="text.secondary">
-                          #{r.trackingId || r.id}
-                        </Typography>
-                      </Stack>
-                      <Typography variant="h6" fontWeight={700} color="#F8FAFC">
-                        {r.title}
+                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={2} sx={{ mb: 2 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label={`Tracking: ${req.trackingId || req.id}`} size="small" color="error" />
+                      <Chip label={`Device: ${req.deviceCategory}`} size="small" variant="outlined" />
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AccessTimeIcon fontSize="small" color="action" />
+                      <Typography variant="caption" color="text.secondary">
+                        Submitted: {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Typography>
-                      <Typography variant="body2" color="#94A3B8" sx={{ mt: 0.5 }}>
-                        {r.description}
-                      </Typography>
-                      <Stack direction="row" spacing={3} sx={{ mt: 1.5 }}>
-                        <Typography variant="caption" color="#CBD5E1">
-                          <strong>Customer:</strong> {r.customer?.name || 'Customer'}
+                    </Stack>
+                  </Stack>
+
+                  <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+                    {req.title}
+                  </Typography>
+
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {req.description}
+                  </Typography>
+
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F172A', mb: 2.5 }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          CUSTOMER NAME
                         </Typography>
-                        <Typography variant="caption" color="#CBD5E1">
-                          <strong>Service Method:</strong> {r.serviceMethod || 'Emergency Dispatch'}
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          {req.customer?.name || 'Customer'}
                         </Typography>
-                      </Stack>
-                    </Box>
-                    <Box sx={{ textAlign: { sm: 'right' }, minWidth: 160 }}>
-                      <Button
-                        variant="contained"
-                        color="error"
-                        size="large"
-                        startIcon={<CheckCircleIcon />}
-                        onClick={() => handleAcceptRequest(r)}
-                        sx={{ fontWeight: 700, borderRadius: 2, boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}
-                      >
-                        Accept Request
-                      </Button>
-                    </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          CONTACT EMAIL
+                        </Typography>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          {req.customer?.email || 'customer@techaid.com'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          SERVICE TYPE
+                        </Typography>
+                        <Typography variant="subtitle2" fontWeight={700} color="error.main">
+                          {req.serviceMethod || 'Emergency Dispatch'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  <Stack direction="row" justifyContent="flex-end" spacing={2}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      size="large"
+                      startIcon={<CheckCircleIcon />}
+                      onClick={() => handleAcceptRequest(req)}
+                      sx={{ fontWeight: 700, px: 3, borderRadius: 2 }}
+                    >
+                      Accept & Open Customer Live Chat
+                    </Button>
                   </Stack>
                 </CardContent>
               </Card>

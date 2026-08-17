@@ -38,13 +38,13 @@ export function cleanName(nameVal, fallback = 'User') {
 export default function NotificationBell({ currentUser }) {
   const isTechnician = currentUser?.role === 'TECHNICIAN';
   const userId = currentUser?.id || 'usr-1';
-  const activeName = cleanName(currentUser?.name, isTechnician ? 'Fahim' : 'siri');
+  const activeName = cleanName(currentUser?.name, isTechnician ? 'Technician' : 'Customer');
 
   const customerDefaultNotifs = [
     {
       id: 'notif-1',
       title: 'Service Request Accepted',
-      message: 'Technician Fahim accepted request #REQ-2026-8942.',
+      message: 'Technician TechAlex accepted request #REQ-2026-8942.',
       type: 'REQUEST_ACCEPTED',
       isRead: false,
       createdAt: new Date().toISOString()
@@ -63,7 +63,7 @@ export default function NotificationBell({ currentUser }) {
     {
       id: 'notif-tech-1',
       title: 'Emergency Support Queue Alert',
-      message: 'New Critical emergency request submitted by customer siri.',
+      message: 'New Critical emergency request submitted by customer.',
       type: 'EMERGENCY_ALERT',
       isRead: false,
       createdAt: new Date().toISOString()
@@ -117,8 +117,8 @@ export default function NotificationBell({ currentUser }) {
       const userIdStr = String(userId);
 
       if (senderIdStr && senderIdStr !== userIdStr) {
-        const rawSender = msg.sender?.name || (isTechnician ? 'siri' : 'Fahim');
-        const senderName = cleanName(rawSender, isTechnician ? 'siri' : 'Fahim');
+        const rawSender = msg.sender?.name || (isTechnician ? 'Customer' : 'Technician');
+        const senderName = cleanName(rawSender, isTechnician ? 'Customer' : 'Technician');
         const notifTitle = `New Message from ${senderName}`;
         const notifMsg = `"${msg.content.slice(0, 40)}${msg.content.length > 40 ? '...' : ''}"`;
 

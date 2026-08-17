@@ -63,16 +63,52 @@ export function initSocket(io) {
       }
     });
 
+    // Handle emergency request acceptance -> Notify Customer & Open Chat
+    socket.on('emergency_request_accepted', ({ targetConvId, serviceRequestId, customerId, customerName, technicianId, technicianName }) => {
+      const normId = normalizeConvId(targetConvId || `conv_${customerId}_${technicianId}`);
+
+      registerDynamicConversation({
+        id: normId,
+        serviceRequestId: serviceRequestId || `req_${normId}`,
+        customerId: customerId || 'usr-1',
+        customerName: cleanName(customerName, 'Customer'),
+        technicianId: technicianId || 'usr-4',
+        technicianName: cleanName(technicianName, 'Technician'),
+        title: 'Emergency Technical Support',
+        deviceCategory: 'Laptop'
+      });
+
+      const notifObj = {
+        id: `notif_acc_${Date.now()}`,
+        title: 'Emergency Request Accepted!',
+        message: `Technician ${cleanName(technicianName, 'Technician')} accepted your request. Live chat box opened.`,
+        type: 'REQUEST_ACCEPTED',
+        targetConvId: normId,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      io.to(`user_${customerId}`).emit('new_notification', notifObj);
+      io.to('role_CUSTOMER').emit('new_notification', notifObj);
+      io.emit('new_notification', notifObj);
+
+      io.to(`user_${customerId}`).emit('conversation_accepted', {
+        targetConvId: normId,
+        technicianId,
+        technicianName: cleanName(technicianName, 'Technician'),
+      });
+    });
+
     socket.on('send_message', async ({ conversationId, content, senderId, senderName, recipientId }) => {
       try {
         if (!content || !content.trim()) return;
 
         const normId = normalizeConvId(conversationId);
-        const effectiveSenderId = senderId || socket.user?.id || 'usr-siri';
-        const senderRole = socket.user?.role || (effectiveSenderId === 'usr-siri' || effectiveSenderId?.includes('1996233a') ? 'CUSTOMER' : 'TECHNICIAN');
+        const effectiveSenderId = senderId || socket.user?.id || 'usr-1';
+        const senderRole = socket.user?.role || (effectiveSenderId === 'usr-1' ? 'CUSTOMER' : 'TECHNICIAN');
         
         let effectiveSenderName = senderName || socket.user?.name;
-        effectiveSenderName = cleanName(effectiveSenderName, senderRole === 'CUSTOMER' ? 'siri' : 'Fahim');
+        effectiveSenderName = cleanName(effectiveSenderName, senderRole === 'CUSTOMER' ? 'Customer' : 'Technician');
 
         let message = null;
 
@@ -82,8 +118,8 @@ export function initSocket(io) {
             where: { id: normId },
             create: {
               id: normId,
-              customerId: senderRole === 'CUSTOMER' ? effectiveSenderId : 'usr-siri',
-              technicianId: senderRole === 'TECHNICIAN' ? effectiveSenderId : 'tech-fahim',
+              customerId: senderRole === 'CUSTOMER' ? effectiveSenderId : 'usr-1',
+              technicianId: senderRole === 'TECHNICIAN' ? effectiveSenderId : 'usr-4',
             },
             update: {},
           }).catch(() => null);
