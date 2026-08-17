@@ -1,9 +1,23 @@
 import { prisma } from '../db.js';
 import jwt from 'jsonwebtoken';
 
-// In-memory dynamic message & conversation registries
+// In-memory registries
 const inMemoryMessages = {};
 const dynamicConversations = {};
+const userRegistry = {}; // Maps userId -> real human name (e.g. 'cust01', 'tech01', 'Claire', 'Fahim')
+
+export function registerUserInRegistry(id, name) {
+  if (!id) return;
+  if (name && typeof name === 'string' && !name.includes('-') && name !== 'Customer' && name !== 'Technician' && name !== 'User') {
+    userRegistry[id] = name.trim();
+  }
+}
+
+export function resolveUserName(id, fallback = 'User') {
+  if (!id) return fallback;
+  if (userRegistry[id]) return userRegistry[id];
+  return fallback;
+}
 
 export function cleanName(nameVal, fallback = 'User') {
   if (!nameVal || typeof nameVal !== 'string') return fallback;
@@ -11,22 +25,27 @@ export function cleanName(nameVal, fallback = 'User') {
   if (trimmed.length > 20 && trimmed.includes('-') && /^[0-9a-fA-F-]+$/.test(trimmed)) {
     return fallback;
   }
+  if (trimmed === 'Customer' || trimmed === 'Technician') {
+    return fallback;
+  }
   return trimmed;
 }
 
 export function normalizeConvId(convId) {
-  if (!convId) return 'conv_active';
+  if (!convId) return 'conv_default';
   let norm = convId;
-
   if (norm.startsWith('req_')) norm = norm.replace('req_', 'conv_');
   return norm;
 }
 
 export function registerDynamicConversation({ id, serviceRequestId, customerId, customerName, customerEmail, technicianId, technicianName, deviceCategory, title }) {
+  if (customerId && customerName) registerUserInRegistry(customerId, customerName);
+  if (technicianId && technicianName) registerUserInRegistry(technicianId, technicianName);
+
   const normId = normalizeConvId(id || `conv_${customerId || 'usr-1'}_${technicianId || 'usr-4'}`);
 
-  const safeCustomerName = cleanName(customerName, 'Customer');
-  const safeTechName = cleanName(technicianName, 'Technician');
+  const safeCustomerName = resolveUserName(customerId, cleanName(customerName, 'cust01'));
+  const safeTechName = resolveUserName(technicianId, cleanName(technicianName, 'tech01'));
 
   if (!dynamicConversations[normId]) {
     dynamicConversations[normId] = {
@@ -34,17 +53,17 @@ export function registerDynamicConversation({ id, serviceRequestId, customerId, 
       serviceRequestId: serviceRequestId || `req_${normId}`,
       customerId: customerId || 'usr-1',
       technicianId: technicianId || 'usr-4',
-      customer: { id: customerId || 'usr-1', name: safeCustomerName, email: customerEmail || 'customer@techaid.com', role: 'CUSTOMER' },
-      technician: { id: technicianId || 'usr-4', name: safeTechName, email: 'technician@techaid.com', role: 'TECHNICIAN', specialty: 'IT Support Specialist' },
+      customer: { id: customerId || 'usr-1', name: safeCustomerName, email: customerEmail || `${safeCustomerName.toLowerCase()}@techaid.com`, role: 'CUSTOMER' },
+      technician: { id: technicianId || 'usr-4', name: safeTechName, email: `${safeTechName.toLowerCase()}@techaid.com`, role: 'TECHNICIAN', specialty: 'IT Support Specialist' },
       serviceRequest: { id: serviceRequestId || `req_${normId}`, title: title || 'Technical Troubleshooting & Repair', deviceCategory: deviceCategory || 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical' },
       createdAt: new Date().toISOString(),
     };
   } else {
     if (customerId) dynamicConversations[normId].customerId = customerId;
     if (technicianId) dynamicConversations[normId].technicianId = technicianId;
-    if (customerName && !customerName.includes('-')) dynamicConversations[normId].customer.name = cleanName(customerName, 'Customer');
+    dynamicConversations[normId].customer.name = safeCustomerName;
+    dynamicConversations[normId].technician.name = safeTechName;
     if (customerEmail) dynamicConversations[normId].customer.email = customerEmail;
-    if (technicianName && !technicianName.includes('-')) dynamicConversations[normId].technician.name = cleanName(technicianName, 'Technician');
     if (title) dynamicConversations[normId].serviceRequest.title = title;
   }
 
@@ -94,14 +113,13 @@ export function saveInMemoryMessage(msg) {
     inMemoryMessages[normId].push(msg);
   }
 
-  // Ensure dynamic conversation exists and has clean names
   if (!dynamicConversations[normId]) {
     registerDynamicConversation({
       id: normId,
       customerId: msg.sender?.role === 'CUSTOMER' ? msg.senderId : 'usr-1',
-      customerName: msg.sender?.role === 'CUSTOMER' ? cleanName(msg.sender?.name, 'Customer') : 'Customer',
+      customerName: msg.sender?.role === 'CUSTOMER' ? msg.sender?.name : 'cust01',
       technicianId: msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'usr-4',
-      technicianName: msg.sender?.role === 'TECHNICIAN' ? cleanName(msg.sender?.name, 'Technician') : 'Technician',
+      technicianName: msg.sender?.role === 'TECHNICIAN' ? msg.sender?.name : 'tech01',
     });
   }
 }
@@ -154,7 +172,7 @@ export async function getMessages(req, res) {
 
     const memMessages = inMemoryMessages[normId] || inMemoryMessages[id] || [];
 
-    // Combine DB and Memory messages seamlessly, eliminating duplicates
+    // Combine DB and Memory messages seamlessly
     const combinedMap = {};
     [...dbMessages, ...memMessages].forEach((m) => {
       const key = `${m.senderId}_${m.content}_${Math.floor(new Date(m.createdAt || Date.now()).getTime() / 2000)}`;
@@ -187,6 +205,10 @@ export async function listUserConversations(req, res) {
     const userId = decoded?.id || req.headers['user-id'];
     const userName = decoded?.name || req.headers['user-name'] || 'User';
     const userRole = decoded?.role || req.headers['user-role'] || 'CUSTOMER';
+
+    if (userId && userName) {
+      registerUserInRegistry(userId, userName);
+    }
 
     let conversations = [];
 
@@ -241,9 +263,14 @@ export async function listUserConversations(req, res) {
     combined.forEach((c) => {
       const normId = normalizeConvId(c.id);
       if (!uniqueMap[normId]) {
+        const resolvedCustName = resolveUserName(c.customerId, cleanName(c.customer?.name, 'cust01'));
+        const resolvedTechName = resolveUserName(c.technicianId, cleanName(c.technician?.name, 'tech01'));
+
         uniqueMap[normId] = {
           ...c,
           id: normId,
+          customer: { ...(c.customer || {}), name: resolvedCustName },
+          technician: { ...(c.technician || {}), name: resolvedTechName },
           messages: inMemoryMessages[normId] || inMemoryMessages[c.id] || c.messages || [],
         };
       }

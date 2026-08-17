@@ -24,7 +24,6 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import StarIcon from '@mui/icons-material/Star';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
 import ChatBox from '../components/ChatBox';
 import JitsiCallModal from '../components/JitsiCallModal';
 import { getSocket } from '../socket/socket';
@@ -33,8 +32,10 @@ import axios from 'axios';
 export function cleanName(nameVal, fallback = 'User') {
   if (!nameVal || typeof nameVal !== 'string') return fallback;
   const trimmed = nameVal.trim();
-  // Check if string is a raw UUID (e.g. 1996233a-2edb-461c-a6da-e61a92e67684)
   if (trimmed.length > 20 && trimmed.includes('-') && /^[0-9a-fA-F-]+$/.test(trimmed)) {
+    return fallback;
+  }
+  if (trimmed === 'Customer' || trimmed === 'Technician') {
     return fallback;
   }
   return trimmed;
@@ -61,7 +62,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
   const [error, setError] = useState('');
   const [callModal, setCallModal] = useState({ open: false, roomName: '', callType: 'VIDEO' });
 
-  const activeUser = currentUser || { id: 'usr-1', name: 'Customer', role: 'CUSTOMER' };
+  const activeUser = currentUser || { id: 'usr-1', name: 'cust01', role: 'CUSTOMER' };
   const isTechnician = activeUser.role === 'TECHNICIAN';
 
   const fetchConversations = (preferredConvId = null) => {
@@ -77,37 +78,22 @@ export default function ChatPage({ currentUser, initialConvId }) {
         let list = res.data || [];
         const activeId = preferredConvId || initialConvId;
 
-        // Guaranteed fallback creation if requested conversation is not yet returned
+        // Fallback creation if requested activeId is not yet in conversation list
         if (activeId && !list.some((c) => c.id === activeId)) {
           const parts = activeId.split('_');
-          const rawTarget = isTechnician ? (parts[1] || 'Customer') : (parts[2] || 'Technician');
-          const targetName = cleanName(rawTarget, isTechnician ? 'Customer' : 'Technician');
+          const rawTarget = isTechnician ? (parts[1] || 'cust01') : (parts[2] || 'tech01');
+          const targetName = cleanName(rawTarget, isTechnician ? 'cust01' : 'tech01');
 
           const fallbackConv = {
             id: activeId,
             customerId: isTechnician ? (parts[1] || 'usr-1') : activeUser.id,
             technicianId: isTechnician ? activeUser.id : (parts[2] || 'usr-4'),
-            customer: { id: parts[1] || 'usr-1', name: isTechnician ? targetName : cleanName(activeUser.name, 'Customer'), email: 'customer@techaid.com' },
-            technician: { id: parts[2] || 'usr-4', name: isTechnician ? cleanName(activeUser.name, 'Technician') : targetName, email: 'tech@techaid.com' },
+            customer: { id: parts[1] || 'usr-1', name: isTechnician ? targetName : cleanName(activeUser.name, 'cust01'), email: 'customer@techaid.com' },
+            technician: { id: parts[2] || 'usr-4', name: isTechnician ? cleanName(activeUser.name, 'tech01') : targetName, email: 'tech@techaid.com' },
             serviceRequest: { title: 'Technical Troubleshooting & Repair', deviceCategory: 'Laptop' },
             messages: []
           };
           list = [fallbackConv, ...list];
-        }
-
-        // Customer guaranteed default technician chat if list is empty
-        if (!isTechnician && list.length === 0) {
-          const defaultTechName = 'Fahim';
-          const defaultConv = {
-            id: `conv_${activeUser.id}_tech-1`,
-            customerId: activeUser.id,
-            technicianId: 'tech-1',
-            customer: { id: activeUser.id, name: cleanName(activeUser.name, 'Customer'), email: 'customer@techaid.com' },
-            technician: { id: 'tech-1', name: defaultTechName, email: 'fahim@techaid.com', specialty: 'Smartphone Repair & OS Recovery' },
-            serviceRequest: { title: 'Technical Support Request', deviceCategory: 'Smartphone' },
-            messages: []
-          };
-          list = [defaultConv];
         }
 
         setConversations(list);
@@ -159,8 +145,8 @@ export default function ChatPage({ currentUser, initialConvId }) {
   };
 
   const filteredConversations = conversations.filter((c) => {
-    const rawPartnerName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
-    const partnerName = cleanName(rawPartnerName, isTechnician ? 'Customer' : 'Technician');
+    const rawPartnerName = isTechnician ? (c.customer?.name || 'cust01') : (c.technician?.name || 'tech01');
+    const partnerName = cleanName(rawPartnerName, isTechnician ? 'cust01' : 'tech01');
     const reqTitle = c.serviceRequest?.title || '';
     const q = search.toLowerCase();
     return partnerName.toLowerCase().includes(q) || reqTitle.toLowerCase().includes(q);
@@ -181,22 +167,11 @@ export default function ChatPage({ currentUser, initialConvId }) {
 
   const rawPartnerName = selectedConv
     ? isTechnician
-      ? selectedConv.customer?.name || 'Customer'
-      : selectedConv.technician?.name || 'Technician'
+      ? selectedConv.customer?.name || 'cust01'
+      : selectedConv.technician?.name || 'tech01'
     : 'Conversation Partner';
 
-  const partnerName = cleanName(rawPartnerName, isTechnician ? 'Customer' : 'Technician');
-
-  const selectedTechProfile = (selectedConv && TECHNICIAN_PROFILES[selectedConv.technicianId]) || TECHNICIAN_PROFILES['usr-4'] || {
-    name: cleanName(selectedConv?.technician?.name, 'Technician'),
-    specialty: selectedConv?.technician?.specialty || 'IT Support Specialist',
-    rating: 4.9,
-    reviews: 105,
-    completedJobs: 82,
-    responseTime: '1 min',
-    avatar: 'TA',
-    skills: ['Wi-Fi Setup', 'Router Config', 'Printer Maintenance', 'Network Security'],
-  };
+  const partnerName = cleanName(rawPartnerName, isTechnician ? 'cust01' : 'tech01');
 
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto', p: { xs: 2, md: 3 } }}>
@@ -238,8 +213,8 @@ export default function ChatPage({ currentUser, initialConvId }) {
 
             <List sx={{ flex: 1, overflowY: 'auto' }} disablePadding>
               {filteredConversations.map((c) => {
-                const rawName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
-                const name = cleanName(rawName, isTechnician ? 'Customer' : 'Technician');
+                const rawName = isTechnician ? (c.customer?.name || 'cust01') : (c.technician?.name || 'tech01');
+                const name = cleanName(rawName, isTechnician ? 'cust01' : 'tech01');
                 const isSelected = selectedConv?.id === c.id;
                 const lastMsg = c.messages?.[c.messages.length - 1]?.content || 'Start conversation...';
                 const avatarText = name.slice(0, 2).toUpperCase();
@@ -334,11 +309,11 @@ export default function ChatPage({ currentUser, initialConvId }) {
               <Stack spacing={2.5}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Avatar sx={{ width: 48, height: 48, bgcolor: 'secondary.main', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
-                    {cleanName(selectedConv?.customer?.name, 'Customer').slice(0, 2).toUpperCase()}
+                    {cleanName(selectedConv?.customer?.name, 'cust01').slice(0, 2).toUpperCase()}
                   </Avatar>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography variant="subtitle2" fontWeight={700} noWrap>
-                      {cleanName(selectedConv?.customer?.name, 'Customer')}
+                      {cleanName(selectedConv?.customer?.name, 'cust01')}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ wordBreak: 'break-all' }}>
                       {selectedConv?.customer?.email || 'customer@techaid.com'}
@@ -372,11 +347,11 @@ export default function ChatPage({ currentUser, initialConvId }) {
               <Stack spacing={2.5}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
-                    {cleanName(selectedConv?.technician?.name, 'Technician').slice(0, 2).toUpperCase()}
+                    {cleanName(selectedConv?.technician?.name, 'tech01').slice(0, 2).toUpperCase()}
                   </Avatar>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography variant="subtitle1" fontWeight={700} noWrap>
-                      {cleanName(selectedConv?.technician?.name, 'Technician')}
+                      {cleanName(selectedConv?.technician?.name, 'tech01')}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block" noWrap>
                       {selectedConv?.technician?.specialty || 'IT Support Specialist'}
