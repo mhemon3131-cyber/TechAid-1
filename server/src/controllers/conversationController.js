@@ -94,7 +94,7 @@ export function saveInMemoryMessage(msg) {
     inMemoryMessages[normId].push(msg);
   }
 
-  // Ensure dynamic conversation has clean names
+  // Ensure dynamic conversation exists and has clean names
   if (!dynamicConversations[normId]) {
     registerDynamicConversation({
       id: normId,
@@ -142,21 +142,32 @@ export async function getMessages(req, res) {
     const { id } = req.params;
     const normId = normalizeConvId(id);
 
-    let messages = [];
+    let dbMessages = [];
 
     if (prisma) {
-      messages = await prisma.message.findMany({
+      dbMessages = await prisma.message.findMany({
         where: { OR: [{ conversationId: id }, { conversationId: normId }] },
         orderBy: { createdAt: 'asc' },
         include: { sender: { select: { id: true, name: true, role: true } } },
       }).catch(() => []);
     }
 
-    if (messages.length === 0) {
-      messages = inMemoryMessages[normId] || inMemoryMessages[id] || [];
-    }
+    const memMessages = inMemoryMessages[normId] || inMemoryMessages[id] || [];
 
-    res.json(messages);
+    // Combine DB and Memory messages seamlessly, eliminating duplicates
+    const combinedMap = {};
+    [...dbMessages, ...memMessages].forEach((m) => {
+      const key = `${m.senderId}_${m.content}_${Math.floor(new Date(m.createdAt || Date.now()).getTime() / 2000)}`;
+      if (!combinedMap[key]) {
+        combinedMap[key] = m;
+      }
+    });
+
+    const finalMessages = Object.values(combinedMap).sort(
+      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+    );
+
+    res.json(finalMessages);
   } catch (err) {
     console.error('Get messages error:', err);
     res.status(500).json({ error: 'Failed to fetch messages' });
@@ -218,7 +229,6 @@ export async function listUserConversations(req, res) {
         const techIdStr = String(c.technicianId || c.technician?.id || '').toLowerCase();
         const techNameStr = String(c.technician?.name || '').toLowerCase();
 
-        // Match only if conversation belongs to THIS technician
         return (
           techIdStr === uIdStr ||
           (techNameStr && uNameStr && techNameStr === uNameStr) ||
@@ -229,7 +239,6 @@ export async function listUserConversations(req, res) {
         const custIdStr = String(c.customerId || c.customer?.id || '').toLowerCase();
         const custNameStr = String(c.customer?.name || '').toLowerCase();
 
-        // Match only if conversation belongs to THIS customer
         return (
           custIdStr === uIdStr ||
           (custNameStr && uNameStr && custNameStr === uNameStr) ||
