@@ -37,8 +37,30 @@ export default function App() {
 
   const handleEmergencyAccepted = (reqItem) => {
     const custId = reqItem?.customer?.id || reqItem?.customerId || 'usr-1';
-    const techId = currentUser?.id || 'usr-2';
+    const custName = reqItem?.customer?.name || reqItem?.customerName || 'Customer';
+    const custEmail = reqItem?.customer?.email || 'customer@techaid.com';
+    const techId = currentUser?.id || 'usr-4';
+    const techName = currentUser?.name || 'Technician';
     const targetConvId = `conv_${custId}_${techId}`;
+
+    axios.post('http://localhost:1257/api/conversations/register', {
+      id: targetConvId,
+      serviceRequestId: reqItem?.id || reqItem?.trackingId,
+      customerId: custId,
+      customerName: custName,
+      customerEmail: custEmail,
+      technicianId: techId,
+      technicianName: techName,
+      title: reqItem?.title || reqItem?.requestTitle || 'Emergency Technical Support',
+      deviceCategory: reqItem?.deviceCategory || 'Laptop'
+    }, {
+      headers: {
+        'user-id': currentUser?.id,
+        'user-role': currentUser?.role,
+        'user-name': currentUser?.name
+      }
+    }).catch(() => {});
+
     setActiveConvId(targetConvId);
     setActiveTab('chat');
   };
@@ -104,7 +126,30 @@ export default function App() {
             <TechnicianDashboard
               currentUser={currentUser}
               onOpenChat={(app) => {
-                if (app?.serviceRequestId) setActiveConvId(`conv_${app.serviceRequestId}`);
+                const custId = app?.customerId || 'usr-1';
+                const custName = app?.customerName || 'Customer';
+                const techId = currentUser?.id || 'usr-4';
+                const techName = currentUser?.name || 'Technician';
+                const targetConvId = `conv_${custId}_${techId}`;
+
+                axios.post('http://localhost:1257/api/conversations/register', {
+                  id: targetConvId,
+                  serviceRequestId: app?.serviceRequestId || app?.id,
+                  customerId: custId,
+                  customerName: custName,
+                  technicianId: techId,
+                  technicianName: techName,
+                  title: app?.requestTitle || app?.title || 'Technical Repair Request',
+                  deviceCategory: app?.deviceCategory || 'Laptop'
+                }, {
+                  headers: {
+                    'user-id': currentUser?.id,
+                    'user-role': currentUser?.role,
+                    'user-name': currentUser?.name
+                  }
+                }).catch(() => {});
+
+                setActiveConvId(targetConvId);
                 setActiveTab('chat');
               }}
             />
