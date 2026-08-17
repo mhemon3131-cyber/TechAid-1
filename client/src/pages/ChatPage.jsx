@@ -31,34 +31,14 @@ import { getSocket } from '../socket/socket';
 import axios from 'axios';
 
 const TECHNICIAN_PROFILES = {
-  'usr-2': {
-    name: 'Rafiq Ahmed',
-    specialty: 'Laptop & Desktop Specialist',
-    rating: 4.9,
-    reviews: 124,
-    completedJobs: 93,
-    responseTime: '2 min',
-    avatar: 'RA',
-    skills: ['Motherboard Repair', 'OS Installation', 'Hardware Upgrade', 'Virus Removal'],
-  },
-  'usr-3': {
-    name: 'Sara Noor',
-    specialty: 'Smartphone Repair & OS Recovery',
-    rating: 4.7,
-    reviews: 89,
-    completedJobs: 67,
-    responseTime: '3 min',
-    avatar: 'SN',
-    skills: ['Screen Replacement', 'Battery Replacement', 'iOS Recovery', 'Android Flashing'],
-  },
   'usr-4': {
-    name: 'Alex',
+    name: 'TechAlex',
     specialty: 'Network & Printer Specialist',
     rating: 4.8,
     reviews: 105,
     completedJobs: 82,
     responseTime: '1 min',
-    avatar: 'AL',
+    avatar: 'TA',
     skills: ['Wi-Fi Setup', 'Router Config', 'Printer Maintenance', 'Network Security'],
   },
 };
@@ -71,7 +51,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
   const [error, setError] = useState('');
   const [callModal, setCallModal] = useState({ open: false, roomName: '', callType: 'VIDEO' });
 
-  const activeUser = currentUser || { id: 'usr-1', name: 'Mehedi Hasan', role: 'CUSTOMER' };
+  const activeUser = currentUser || { id: 'usr-1', name: 'Claire', role: 'CUSTOMER' };
   const isTechnician = activeUser.role === 'TECHNICIAN';
 
   const fetchConversations = (preferredConvId = null) => {
@@ -85,21 +65,15 @@ export default function ChatPage({ currentUser, initialConvId }) {
       })
       .then((res) => {
         const list = res.data || [];
-        const activeId = preferredConvId || initialConvId || selectedConv?.id;
-        if (activeId) {
-          const match = list.find((c) => c.id === activeId);
-          if (match) {
-            setSelectedConv(match);
-            const rest = list.filter((c) => c.id !== activeId);
-            setConversations([match, ...rest]);
-          } else {
-            setConversations(list);
-            if (list.length > 0) setSelectedConv(list[0]);
+        setConversations(list);
+        setSelectedConv((prevSelected) => {
+          const activeId = preferredConvId || initialConvId || prevSelected?.id;
+          if (activeId) {
+            const match = list.find((c) => c.id === activeId);
+            return match || list[0] || null;
           }
-        } else {
-          setConversations(list);
-          if (list.length > 0) setSelectedConv(list[0]);
-        }
+          return list[0] || null;
+        });
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to list conversations'))
       .finally(() => setLoading(false));
@@ -110,7 +84,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
 
     const socket = getSocket();
     const handleNewMsgEvent = () => {
-      fetchConversations(selectedConv?.id);
+      fetchConversations();
     };
 
     socket.on('new_conversation_message', handleNewMsgEvent);
@@ -120,7 +94,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
       socket.off('new_conversation_message', handleNewMsgEvent);
       socket.off('receive_message', handleNewMsgEvent);
     };
-  }, [activeUser.id, activeUser.role, activeUser.name, selectedConv?.id]);
+  }, [activeUser.id, activeUser.role]);
 
   const handleSelectConv = (c) => {
     setSelectedConv(c);
@@ -196,18 +170,16 @@ export default function ChatPage({ currentUser, initialConvId }) {
       : selectedConv.technician?.name || 'Technician'
     : 'Conversation Partner';
 
-  const selectedTechProfile = selectedConv
-    ? TECHNICIAN_PROFILES[selectedConv.technicianId] || {
-        name: selectedConv.technician?.name || 'Technician',
-        specialty: selectedConv.technician?.specialty || 'IT Support Specialist',
-        rating: selectedConv.technician?.rating || 4.9,
-        reviews: 100,
-        completedJobs: 75,
-        responseTime: '2 min',
-        avatar: (selectedConv.technician?.name || 'Tech').slice(0, 2).toUpperCase(),
-        skills: ['Hardware Repair', 'Software Troubleshooting', 'System Diagnostics'],
-      }
-    : TECHNICIAN_PROFILES['usr-2'];
+  const selectedTechProfile = (selectedConv && TECHNICIAN_PROFILES[selectedConv.technicianId]) || TECHNICIAN_PROFILES['usr-4'] || {
+    name: selectedConv?.technician?.name || 'TechAlex',
+    specialty: selectedConv?.technician?.specialty || 'IT Support Specialist',
+    rating: 4.9,
+    reviews: 105,
+    completedJobs: 82,
+    responseTime: '1 min',
+    avatar: 'TA',
+    skills: ['Wi-Fi Setup', 'Router Config', 'Printer Maintenance', 'Network Security'],
+  };
 
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto', p: { xs: 2, md: 3 } }}>

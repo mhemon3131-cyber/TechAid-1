@@ -88,7 +88,10 @@ export default function ChatBox({ conversationId, currentUser, partnerName, onMe
               </Typography>
             )}
             {messages.map((m, idx) => {
-              const mine = String(m.senderId) === String(activeUserId);
+              const mine =
+                String(m.senderId) === String(activeUserId) ||
+                String(m.sender?.id) === String(activeUserId) ||
+                (m.sender?.role && m.sender?.role === currentUser?.role && m.senderId === currentUser?.id);
               const headerName = mine
                 ? 'You'
                 : (m.sender?.name || partnerName || 'Partner');

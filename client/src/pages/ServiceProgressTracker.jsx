@@ -85,7 +85,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
 
   const fetchLatestUserRequest = async () => {
     try {
-      const res = await axios.get('http://localhost:1345/api/requests');
+      const res = await axios.get('http://localhost:1257/api/requests');
       if (res.data.success && res.data.data.length > 0) {
         const userReq = res.data.data.find(r => r.customerId === currentUser?.id) || res.data.data[0];
         if (userReq && userReq.trackingId) {
@@ -126,7 +126,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
 
     try {
       const cleanId = idToFetch.trim().toUpperCase();
-      const res = await axios.get(`http://localhost:1345/api/requests/${cleanId}/progress`);
+      const res = await axios.get(`http://localhost:1257/api/requests/${cleanId}/progress`);
       if (res.data.success) {
         setProgressData(res.data.data);
         localStorage.setItem('techaid_active_tracking_id', cleanId);

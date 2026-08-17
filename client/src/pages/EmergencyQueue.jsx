@@ -42,7 +42,7 @@ export default function EmergencyQueue({ onAcceptSuccess }) {
       description: 'Office network router completely offline during business hours. Immediate technician dispatch requested.',
       urgency: 'Critical',
       serviceMethod: 'Home Visit',
-      customer: { name: 'Mehedi Hasan', email: 'mehedi@bracu.ac.bd', phone: '+8801800000000' },
+      customer: { name: 'Claire', email: 'claire@techaid.com', phone: '+8801800000000' },
       createdAt: new Date(Date.now() - 600000).toISOString()
     }
   ];

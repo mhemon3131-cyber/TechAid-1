@@ -34,7 +34,7 @@ export default function NotificationBell({ currentUser }) {
     {
       id: 'notif-1',
       title: 'Service Request Accepted',
-      message: 'Technician Rafiq Ahmed accepted request #REQ-2026-8942.',
+      message: 'Technician TechAlex accepted request #REQ-2026-8942.',
       type: 'REQUEST_ACCEPTED',
       isRead: false,
       createdAt: new Date().toISOString()

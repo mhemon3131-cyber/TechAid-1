@@ -53,7 +53,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
     setLoading(true);
     try {
       const techId = currentUser?.technicianId || currentUser?.id;
-      const res = await axios.get(`http://localhost:1345/api/technicians/availability/${techId}`);
+      const res = await axios.get(`http://localhost:1257/api/technicians/availability/${techId}`);
       if (res.data.success) {
         const data = res.data.data;
         setIsAvailable(data.isAvailable);
@@ -99,7 +99,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
 
     try {
       const techId = currentUser?.technicianId || currentUser?.id;
-      await axios.put(`http://localhost:1345/api/technicians/availability/${techId}`, payload);
+      await axios.put(`http://localhost:1257/api/technicians/availability/${techId}`, payload);
       setMsg('Technician working schedule updated in database!');
     } catch (err) {
       setMsg('Technician schedule saved.');

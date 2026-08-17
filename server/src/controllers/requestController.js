@@ -44,7 +44,7 @@ export const createServiceRequest = async (req, res) => {
       });
     }
 
-    // Default to Customer Mehedi Hasan if customerId not passed
+    // Default to Customer Claire if customerId not passed
     const custId = customerId || 'usr-1';
 
     // 2. Save directly to Prisma Database
@@ -290,7 +290,7 @@ export const getEmergencyQueue = async (req, res) => {
       const { mockDatabase } = await import('../db.js');
       emergencyRequests = mockDatabase.serviceRequests.map(r => ({
         ...r,
-        customer: mockDatabase.users.find(u => u.id === r.customerId) || { name: 'Mehedi Hasan', email: 'mehedi@bracu.ac.bd' }
+        customer: mockDatabase.users.find(u => u.id === r.customerId) || { name: 'Claire', email: 'claire@techaid.com' }
       }));
     }
 
