@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { createNotificationHelper } from '../controllers/notificationController.js';
-import { saveInMemoryMessage, registerDynamicConversation, normalizeConvId } from '../controllers/conversationController.js';
+import { saveInMemoryMessage, registerDynamicConversation, normalizeConvId, cleanName } from '../controllers/conversationController.js';
 
 let ioInstance = null;
 
@@ -52,7 +52,7 @@ export function initSocket(io) {
         const normId = normalizeConvId(conversationId);
         const room1 = `conversation_${conversationId}`;
         const room2 = `conversation_${normId}`;
-        const room3 = `conversation_conv_customer-active_tech-active`;
+        const room3 = `conversation_conv_siri_fahim`;
 
         socket.join(room1);
         socket.join(room2);
@@ -71,12 +71,10 @@ export function initSocket(io) {
 
         const normId = normalizeConvId(conversationId);
         const effectiveSenderId = senderId || socket.user?.id;
-        const senderRole = socket.user?.role || (senderId === 'usr-1' ? 'CUSTOMER' : 'TECHNICIAN');
+        const senderRole = socket.user?.role || (effectiveSenderId === 'usr-siri' || effectiveSenderId?.includes('1996233a') ? 'CUSTOMER' : 'TECHNICIAN');
         
         let effectiveSenderName = senderName || socket.user?.name;
-        if (!effectiveSenderName || effectiveSenderName.includes('-')) {
-          effectiveSenderName = senderRole === 'CUSTOMER' ? 'siri' : 'Fahim';
-        }
+        effectiveSenderName = cleanName(effectiveSenderName, senderRole === 'CUSTOMER' ? 'siri' : 'Fahim');
 
         let message = null;
 
@@ -110,22 +108,38 @@ export function initSocket(io) {
 
         const room1 = `conversation_${conversationId}`;
         const room2 = `conversation_${normId}`;
-        const room3 = `conversation_conv_customer-active_tech-active`;
+        const room3 = `conversation_conv_siri_fahim`;
 
-        // Broadcast to ALL canonical rooms so BOTH Customer & Technician receive messages live
+        // Broadcast message to conversation rooms
         io.to(room1).to(room2).to(room3).emit('receive_message', message);
-        io.emit('receive_message', message); // Universal fallback emit for instant UI update
+        io.emit('receive_message', message); // Universal fallback emit for instant sync
 
-        // Notify technician live via Socket event
-        io.to('role_TECHNICIAN').emit('new_conversation_message', { conversationId: normId, message });
-        io.to('role_CUSTOMER').emit('new_conversation_message', { conversationId: normId, message });
+        // Create Real-Time Bell Notification for Recipient
+        const notifTitle = `New Message from ${effectiveSenderName}`;
+        const notifMsg = `"${content.trim().slice(0, 40)}${content.trim().length > 40 ? '...' : ''}"`;
+        const notifObj = {
+          id: `notif_${Date.now()}`,
+          title: notifTitle,
+          message: notifMsg,
+          type: 'NEW_CHAT_MESSAGE',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        };
+
+        // Emit notification live to recipient role and rooms
+        if (senderRole === 'CUSTOMER') {
+          io.to('role_TECHNICIAN').emit('new_notification', notifObj);
+        } else {
+          io.to('role_CUSTOMER').emit('new_notification', notifObj);
+        }
+        io.emit('new_notification', notifObj);
 
         if (recipientId) {
           await createNotificationHelper({
             userId: recipientId,
             type: 'NEW_CHAT_MESSAGE',
-            title: `New Message from ${effectiveSenderName}`,
-            message: `"${content.trim().slice(0, 45)}${content.trim().length > 45 ? '...' : ''}"`,
+            title: notifTitle,
+            message: notifMsg,
           }).catch(() => null);
         }
 

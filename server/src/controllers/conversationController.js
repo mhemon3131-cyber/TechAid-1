@@ -5,52 +5,59 @@ import jwt from 'jsonwebtoken';
 const inMemoryMessages = {};
 const dynamicConversations = {};
 
+export function cleanName(nameVal, fallback = 'User') {
+  if (!nameVal || typeof nameVal !== 'string') return fallback;
+  const trimmed = nameVal.trim();
+  if (trimmed.length > 20 && trimmed.includes('-') && /^[0-9a-fA-F-]+$/.test(trimmed)) {
+    return fallback;
+  }
+  return trimmed;
+}
+
 export function normalizeConvId(convId) {
-  if (!convId) return 'conv_customer-active_tech-active';
+  if (!convId) return 'conv_siri_fahim';
   let norm = convId;
 
   if (norm.startsWith('req_')) norm = norm.replace('req_', 'conv_');
 
-  // Normalize customer ID variations to shared customer canonical room
-  if (norm.includes('1996233a') || norm.includes('siri') || norm.includes('claire') || norm.includes('usr-1')) {
-    norm = norm.replace(/^conv_[^_]+_/, 'conv_customer-active_');
+  // Standardize aliases for siri and fahim
+  if (norm.includes('1996233a') || norm.includes('siri') || norm.includes('claire')) {
+    norm = norm.replace(/^conv_[^_]+_/, 'conv_siri_');
   }
-
-  // Normalize technician ID variations to shared technician canonical room
   if (norm.includes('925ea') || norm.includes('fahim') || norm.includes('tech-1') || norm.includes('usr-4')) {
-    norm = norm.replace(/_[^_]+$/, '_tech-active');
+    norm = norm.replace(/_[^_]+$/, '_fahim');
   }
 
   if (norm === 'conv_default' || !norm.includes('_')) {
-    norm = 'conv_customer-active_tech-active';
+    norm = 'conv_siri_fahim';
   }
 
   return norm;
 }
 
 export function registerDynamicConversation({ id, serviceRequestId, customerId, customerName, customerEmail, technicianId, technicianName, deviceCategory, title }) {
-  const normId = normalizeConvId(id || `conv_${customerId || 'usr-1'}_${technicianId || 'usr-4'}`);
+  const normId = normalizeConvId(id || `conv_${customerId || 'siri'}_${technicianId || 'fahim'}`);
 
-  const safeCustomerName = (customerName && !customerName.includes('-')) ? customerName : 'siri';
-  const safeTechName = (technicianName && !technicianName.includes('-')) ? technicianName : 'Fahim';
+  const safeCustomerName = cleanName(customerName, 'siri');
+  const safeTechName = cleanName(technicianName, 'Fahim');
 
   if (!dynamicConversations[normId]) {
     dynamicConversations[normId] = {
       id: normId,
       serviceRequestId: serviceRequestId || `req_${normId}`,
-      customerId: customerId || 'usr-1',
-      technicianId: technicianId || 'usr-4',
-      customer: { id: customerId || 'usr-1', name: safeCustomerName, email: customerEmail || `${safeCustomerName.toLowerCase()}@techaid.com`, role: 'CUSTOMER' },
-      technician: { id: technicianId || 'usr-4', name: safeTechName, email: `${safeTechName.toLowerCase()}@techaid.com`, role: 'TECHNICIAN' },
+      customerId: customerId || 'usr-siri',
+      technicianId: technicianId || 'tech-fahim',
+      customer: { id: customerId || 'usr-siri', name: safeCustomerName, email: `${safeCustomerName.toLowerCase()}@techaid.com`, role: 'CUSTOMER' },
+      technician: { id: technicianId || 'tech-fahim', name: safeTechName, email: `${safeTechName.toLowerCase()}@techaid.com`, role: 'TECHNICIAN', specialty: 'Smartphone Repair & OS Recovery' },
       serviceRequest: { id: serviceRequestId || `req_${normId}`, title: title || 'Technical Troubleshooting & Repair', deviceCategory: deviceCategory || 'Laptop', status: 'IN_PROGRESS', urgency: 'Critical' },
       createdAt: new Date().toISOString(),
     };
   } else {
     if (customerId) dynamicConversations[normId].customerId = customerId;
     if (technicianId) dynamicConversations[normId].technicianId = technicianId;
-    if (customerName && !customerName.includes('-')) dynamicConversations[normId].customer.name = customerName;
+    if (customerName && !customerName.includes('-')) dynamicConversations[normId].customer.name = cleanName(customerName, 'siri');
     if (customerEmail) dynamicConversations[normId].customer.email = customerEmail;
-    if (technicianName && !technicianName.includes('-')) dynamicConversations[normId].technician.name = technicianName;
+    if (technicianName && !technicianName.includes('-')) dynamicConversations[normId].technician.name = cleanName(technicianName, 'Fahim');
     if (title) dynamicConversations[normId].serviceRequest.title = title;
   }
 
@@ -100,14 +107,14 @@ export function saveInMemoryMessage(msg) {
     inMemoryMessages[normId].push(msg);
   }
 
-  // Auto-register conversation if not present
+  // Ensure dynamic conversation has clean names
   if (!dynamicConversations[normId]) {
     registerDynamicConversation({
       id: normId,
-      customerId: msg.sender?.role === 'CUSTOMER' ? msg.senderId : 'usr-1',
-      customerName: msg.sender?.role === 'CUSTOMER' ? msg.sender?.name : 'siri',
-      technicianId: msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'usr-4',
-      technicianName: msg.sender?.role === 'TECHNICIAN' ? msg.sender?.name : 'Fahim',
+      customerId: msg.sender?.role === 'CUSTOMER' ? msg.senderId : 'usr-siri',
+      customerName: msg.sender?.role === 'CUSTOMER' ? cleanName(msg.sender?.name, 'siri') : 'siri',
+      technicianId: msg.sender?.role === 'TECHNICIAN' ? msg.senderId : 'tech-fahim',
+      technicianName: msg.sender?.role === 'TECHNICIAN' ? cleanName(msg.sender?.name, 'Fahim') : 'Fahim',
     });
   }
 }
@@ -203,8 +210,8 @@ export async function listUserConversations(req, res) {
       }).catch(() => []);
     }
 
-    // Default dynamic conversation fallback if dynamic list is currently empty
-    const canonicalKey = 'conv_customer-active_tech-active';
+    // Default dynamic conversation for siri and fahim
+    const canonicalKey = 'conv_siri_fahim';
     if (!dynamicConversations[canonicalKey]) {
       registerDynamicConversation({
         id: canonicalKey,

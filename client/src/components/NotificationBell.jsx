@@ -26,15 +26,25 @@ import {
 import { getSocket } from '../socket/socket';
 import axios from 'axios';
 
+export function cleanName(nameVal, fallback = 'User') {
+  if (!nameVal || typeof nameVal !== 'string') return fallback;
+  const trimmed = nameVal.trim();
+  if (trimmed.length > 20 && trimmed.includes('-') && /^[0-9a-fA-F-]+$/.test(trimmed)) {
+    return fallback;
+  }
+  return trimmed;
+}
+
 export default function NotificationBell({ currentUser }) {
   const isTechnician = currentUser?.role === 'TECHNICIAN';
   const userId = currentUser?.id || 'usr-1';
+  const activeName = cleanName(currentUser?.name, isTechnician ? 'Fahim' : 'siri');
 
   const customerDefaultNotifs = [
     {
       id: 'notif-1',
       title: 'Service Request Accepted',
-      message: 'Technician TechAlex accepted request #REQ-2026-8942.',
+      message: 'Technician Fahim accepted request #REQ-2026-8942.',
       type: 'REQUEST_ACCEPTED',
       isRead: false,
       createdAt: new Date().toISOString()
@@ -53,7 +63,7 @@ export default function NotificationBell({ currentUser }) {
     {
       id: 'notif-tech-1',
       title: 'Emergency Support Queue Alert',
-      message: 'New Critical emergency request submitted by customer Siri.',
+      message: 'New Critical emergency request submitted by customer siri.',
       type: 'EMERGENCY_ALERT',
       isRead: false,
       createdAt: new Date().toISOString()
@@ -89,17 +99,55 @@ export default function NotificationBell({ currentUser }) {
     fetchNotifications();
 
     const socket = getSocket();
+
     const handleNewNotif = (notif) => {
-      setNotifications((prev) => [notif, ...prev]);
-      setToast({ open: true, title: notif.title, message: notif.message });
+      if (!notif) return;
+      setNotifications((prev) => {
+        const exists = prev.some((n) => n.id === notif.id || (n.title === notif.title && n.message === notif.message));
+        if (exists) return prev;
+        return [notif, ...prev];
+      });
+      setToast({ open: true, title: notif.title || 'Notification', message: notif.message || '' });
+    };
+
+    const handleReceiveMessageNotif = (msg) => {
+      if (!msg) return;
+      // If message is sent by the other person (not current user)
+      const senderIdStr = String(msg.senderId || msg.sender?.id || '');
+      const userIdStr = String(userId);
+
+      if (senderIdStr && senderIdStr !== userIdStr) {
+        const rawSender = msg.sender?.name || (isTechnician ? 'siri' : 'Fahim');
+        const senderName = cleanName(rawSender, isTechnician ? 'siri' : 'Fahim');
+        const notifTitle = `New Message from ${senderName}`;
+        const notifMsg = `"${msg.content.slice(0, 40)}${msg.content.length > 40 ? '...' : ''}"`;
+
+        const newNotif = {
+          id: `notif_msg_${Date.now()}`,
+          title: notifTitle,
+          message: notifMsg,
+          type: 'NEW_CHAT_MESSAGE',
+          isRead: false,
+          createdAt: new Date().toISOString()
+        };
+
+        setNotifications((prev) => {
+          const exists = prev.some((n) => n.message === notifMsg && Math.abs(new Date(n.createdAt) - new Date()) < 3000);
+          if (exists) return prev;
+          return [newNotif, ...prev];
+        });
+        setToast({ open: true, title: notifTitle, message: notifMsg });
+      }
     };
 
     socket.on('new_notification', handleNewNotif);
+    socket.on('receive_message', handleReceiveMessageNotif);
 
     return () => {
       socket.off('new_notification', handleNewNotif);
+      socket.off('receive_message', handleReceiveMessageNotif);
     };
-  }, [userId]);
+  }, [userId, activeName, isTechnician]);
 
   const handleOpen = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
@@ -109,6 +157,22 @@ export default function NotificationBell({ currentUser }) {
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const getNotifIcon = (type) => {
+    switch (type) {
+      case 'REQUEST_ACCEPTED':
+      case 'COMPLETED':
+        return <CheckCircle size={18} color="#10B981" />;
+      case 'EMERGENCY_ALERT':
+        return <AlertCircle size={18} color="#EF4444" />;
+      case 'APPOINTMENT_REMINDER':
+        return <Calendar size={18} color="#00A8FF" />;
+      case 'NEW_CHAT_MESSAGE':
+        return <MessageSquare size={18} color="#00A8FF" />;
+      default:
+        return <Bell size={18} color="#00A8FF" />;
+    }
+  };
 
   return (
     <>
@@ -120,31 +184,9 @@ export default function NotificationBell({ currentUser }) {
         }}
       >
         <Badge badgeContent={unreadCount} color="error">
-          <Bell size={20} />
+          <Bell size={22} />
         </Badge>
       </IconButton>
-
-      {/* Floating Real-time Toast Alert */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast({ ...toast, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setToast({ ...toast, open: false })}
-          severity="info"
-          icon={<Bell size={18} color="#00A8FF" />}
-          sx={{ bgcolor: '#0F172A', color: '#FFF', border: '1px solid #00A8FF', borderRadius: 2 }}
-        >
-          <Typography variant="subtitle2" fontWeight={700}>
-            {toast.title}
-          </Typography>
-          <Typography variant="caption" color="#94A3B8">
-            {toast.message}
-          </Typography>
-        </Alert>
-      </Snackbar>
 
       <Popover
         open={Boolean(anchorEl)}
@@ -156,37 +198,38 @@ export default function NotificationBell({ currentUser }) {
           sx: {
             width: 360,
             maxHeight: 480,
-            borderRadius: 3,
-            bgcolor: '#1E293B',
+            backgroundColor: '#172036',
             color: '#FFFFFF',
-            border: '1px solid #334155',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-            p: 0
+            border: '1px solid #2A364F',
+            borderRadius: 3,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            mt: 1.5
           }
         }}
       >
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Bell size={18} color="#00A8FF" />
+          <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="subtitle1" fontWeight={700}>
-              Notifications & Reminders
+              Notifications
             </Typography>
+            {unreadCount > 0 && (
+              <Badge badgeContent={unreadCount} color="error" sx={{ ml: 1 }} />
+            )}
           </Stack>
           {unreadCount > 0 && (
             <Button
               size="small"
-              startIcon={<CheckCheck size={14} />}
               onClick={markAllRead}
-              sx={{ color: '#00A8FF', fontSize: '0.75rem', textTransform: 'none' }}
+              startIcon={<CheckCheck size={14} />}
+              sx={{ color: '#00A8FF', fontSize: 12 }}
             >
               Mark all read
             </Button>
           )}
         </Box>
+        <Divider sx={{ borderColor: '#2A364F' }} />
 
-        <Divider sx={{ borderColor: '#334155' }} />
-
-        <List sx={{ p: 0, maxHeight: 380, overflowY: 'auto' }}>
+        <List sx={{ p: 0, overflowY: 'auto', maxHeight: 380 }}>
           {notifications.length === 0 ? (
             <Box sx={{ p: 3, textAlign: 'center' }}>
               <Typography variant="body2" color="#94A3B8">
@@ -194,48 +237,73 @@ export default function NotificationBell({ currentUser }) {
               </Typography>
             </Box>
           ) : (
-            notifications.map((n) => (
-              <ListItem
-                key={n.id}
-                sx={{
-                  borderBottom: '1px solid #334155',
-                  bgcolor: n.isRead ? 'transparent' : 'rgba(0, 168, 255, 0.08)',
-                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.03)' }
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {n.type === 'APPOINTMENT_REMINDER' ? (
-                    <Calendar size={18} color="#F59E0B" />
-                  ) : n.type === 'EMERGENCY_ALERT' ? (
-                    <AlertCircle size={18} color="#EF4444" />
-                  ) : n.type === 'NEW_CHAT_MESSAGE' ? (
-                    <MessageSquare size={18} color="#00A8FF" />
-                  ) : (
-                    <CheckCircle size={18} color="#10B981" />
-                  )}
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#F8FAFC', fontSize: '0.85rem' }}>
-                      {n.title}
-                    </Typography>
-                  }
-                  secondary={
-                    <Box sx={{ mt: 0.3 }}>
-                      <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', lineHeight: 1.3 }}>
-                        {n.message}
+            notifications.map((notif) => (
+              <React.Fragment key={notif.id}>
+                <ListItem
+                  alignItems="flex-start"
+                  sx={{
+                    backgroundColor: notif.isRead ? 'transparent' : 'rgba(0, 168, 255, 0.08)',
+                    transition: 'background-color 0.2s',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.03)' },
+                    py: 1.5
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
+                    {getNotifIcon(notif.type)}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle2" fontWeight={notif.isRead ? 500 : 700} color="#F8FAFC">
+                        {notif.title}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.65rem', mt: 0.5, display: 'block' }}>
-                        {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </ListItem>
+                    }
+                    secondary={
+                      <React.Fragment>
+                        <Typography variant="caption" color="#94A3B8" display="block" sx={{ mt: 0.5 }}>
+                          {notif.message}
+                        </Typography>
+                        <Typography variant="caption" color="#64748B" sx={{ fontSize: 10, mt: 0.5, display: 'block' }}>
+                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Typography>
+                      </React.Fragment>
+                    }
+                  />
+                </ListItem>
+                <Divider sx={{ borderColor: '#2A364F' }} />
+              </React.Fragment>
             ))
           )}
         </List>
       </Popover>
+
+      {/* Toast Banner for New Incoming Notifications */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={() => setToast({ ...toast, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setToast({ ...toast, open: false })}
+          severity="info"
+          icon={<MessageSquare size={20} color="#00A8FF" />}
+          sx={{
+            width: '100%',
+            backgroundColor: '#172036',
+            color: '#FFFFFF',
+            border: '1px solid #00A8FF',
+            borderRadius: 2,
+            boxShadow: '0 8px 24px rgba(0,168,255,0.3)'
+          }}
+        >
+          <Typography variant="subtitle2" fontWeight={700}>
+            {toast.title}
+          </Typography>
+          <Typography variant="caption" color="#94A3B8" display="block">
+            {toast.message}
+          </Typography>
+        </Alert>
+      </Snackbar>
     </>
   );
 }
