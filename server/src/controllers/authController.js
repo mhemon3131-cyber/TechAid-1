@@ -29,6 +29,7 @@ const prisma =
 const isValidBangladeshPhone = (
   phone
 ) => {
+
   return /^(013|014|015|016|017|018|019)\d{8}$/.test(
     String(
       phone || ''
@@ -48,7 +49,9 @@ export const registerUser =
     req,
     res
   ) => {
+
     try {
+
       const {
         name,
         email,
@@ -69,9 +72,11 @@ export const registerUser =
         !password ||
         !phone
       ) {
+
         return res.status(
           400
         ).json({
+
           success:
             false,
 
@@ -121,9 +126,11 @@ export const registerUser =
           cleanPhone
         )
       ) {
+
         return res.status(
           400
         ).json({
+
           success:
             false,
 
@@ -134,12 +141,40 @@ export const registerUser =
 
 
       // ----------------------------------------------------
+      // ROLE VALIDATION
+      // ----------------------------------------------------
+
+      if (
+        userRole !==
+          'CUSTOMER' &&
+        userRole !==
+          'TECHNICIAN' &&
+        userRole !==
+          'ADMIN'
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Invalid user role.'
+        });
+      }
+
+
+      // ----------------------------------------------------
       // DUPLICATE EMAIL
       // ----------------------------------------------------
 
       const existing =
         await prisma.user.findUnique({
+
           where: {
+
             email:
               cleanEmail
           }
@@ -149,9 +184,11 @@ export const registerUser =
       if (
         existing
       ) {
+
         return res.status(
           400
         ).json({
+
           success:
             false,
 
@@ -172,11 +209,16 @@ export const registerUser =
 
       // ----------------------------------------------------
       // CREATE USER
+      //
+      // Technician hole same transaction-e Technician
+      // profile create hobe.
       // ----------------------------------------------------
 
       const newUser =
         await prisma.user.create({
+
           data: {
+
             name:
               cleanName,
 
@@ -199,7 +241,9 @@ export const registerUser =
               userRole ===
               'TECHNICIAN'
                 ? {
+
                     create: {
+
                       name:
                         cleanName,
 
@@ -231,12 +275,12 @@ export const registerUser =
                         5
                     }
                   }
-
                 : undefined
           },
 
 
           include: {
+
             technician:
               true
           }
@@ -250,13 +294,15 @@ export const registerUser =
       return res.status(
         201
       ).json({
+
         success:
           true,
 
         message:
-          `Account created successfully for ${newUser.name}!`,
+          `Account created successfully for ${newUser.name}! Saved in database.`,
 
         user: {
+
           id:
             newUser.id,
 
@@ -266,11 +312,11 @@ export const registerUser =
           email:
             newUser.email,
 
-          role:
-            newUser.role,
-
           phone:
             newUser.phone,
+
+          role:
+            newUser.role,
 
           avatar:
             newUser.avatar,
@@ -287,7 +333,11 @@ export const registerUser =
         }
       });
 
-    } catch (error) {
+
+    } catch (
+      error
+    ) {
+
       console.error(
         'Registration error:',
         error
@@ -297,6 +347,7 @@ export const registerUser =
       return res.status(
         500
       ).json({
+
         success:
           false,
 
@@ -315,13 +366,10 @@ export const registerUser =
 //
 // POST /api/auth/login
 //
-// Login checks:
-//
+// Checks:
 // 1. Email exists
 // 2. Password correct
-// 3. Selected role correct
-//
-// No @techaid.com restriction.
+// 3. Selected role matches account
 // ==========================================================
 
 export const loginUser =
@@ -329,7 +377,9 @@ export const loginUser =
     req,
     res
   ) => {
+
     try {
+
       const {
         email,
         password,
@@ -345,9 +395,11 @@ export const loginUser =
         !email ||
         !password
       ) {
+
         return res.status(
           400
         ).json({
+
           success:
             false,
 
@@ -377,12 +429,16 @@ export const loginUser =
 
       const user =
         await prisma.user.findUnique({
+
           where: {
+
             email:
               cleanEmail
           },
 
+
           include: {
+
             technician:
               true
           }
@@ -392,9 +448,11 @@ export const loginUser =
       if (
         !user
       ) {
+
         return res.status(
           404
         ).json({
+
           success:
             false,
 
@@ -406,9 +464,6 @@ export const loginUser =
 
       // ----------------------------------------------------
       // ROLE CHECK
-      //
-      // Customer account cannot login as Technician.
-      // Technician account cannot login as Customer.
       // ----------------------------------------------------
 
       if (
@@ -416,9 +471,11 @@ export const loginUser =
         user.role !==
           role
       ) {
+
         return res.status(
           401
         ).json({
+
           success:
             false,
 
@@ -436,9 +493,11 @@ export const loginUser =
         user.password !==
           cleanPassword
       ) {
+
         return res.status(
           401
         ).json({
+
           success:
             false,
 
@@ -453,6 +512,7 @@ export const loginUser =
       // ----------------------------------------------------
 
       return res.json({
+
         success:
           true,
 
@@ -460,6 +520,7 @@ export const loginUser =
           `Welcome back, ${user.name}! Logged in as ${user.role}.`,
 
         user: {
+
           id:
             user.id,
 
@@ -469,11 +530,12 @@ export const loginUser =
           email:
             user.email,
 
+          phone:
+            user.phone ||
+            '',
+
           role:
             user.role,
-
-          phone:
-            user.phone,
 
           avatar:
             user.avatar ||
@@ -496,7 +558,11 @@ export const loginUser =
         }
       });
 
-    } catch (error) {
+
+    } catch (
+      error
+    ) {
+
       console.error(
         'Login error:',
         error
@@ -506,6 +572,7 @@ export const loginUser =
       return res.status(
         500
       ).json({
+
         success:
           false,
 
@@ -530,7 +597,9 @@ export const getCurrentUser =
     req,
     res
   ) => {
+
     try {
+
       const {
         email
       } = req.params;
@@ -544,14 +613,35 @@ export const getCurrentUser =
           .trim();
 
 
+      if (
+        !cleanEmail
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Email address is required.'
+        });
+      }
+
+
       const user =
         await prisma.user.findUnique({
+
           where: {
+
             email:
               cleanEmail
           },
 
+
           include: {
+
             technician:
               true
           }
@@ -561,9 +651,11 @@ export const getCurrentUser =
       if (
         !user
       ) {
+
         return res.status(
           404
         ).json({
+
           success:
             false,
 
@@ -574,10 +666,12 @@ export const getCurrentUser =
 
 
       return res.json({
+
         success:
           true,
 
         user: {
+
           id:
             user.id,
 
@@ -587,14 +681,21 @@ export const getCurrentUser =
           email:
             user.email,
 
+          phone:
+            user.phone ||
+            '',
+
           role:
             user.role,
 
-          phone:
-            user.phone,
-
           avatar:
-            user.avatar,
+            user.avatar ||
+            user.name
+              .slice(
+                0,
+                2
+              )
+              .toUpperCase(),
 
           technicianId:
             user.technician
@@ -608,7 +709,11 @@ export const getCurrentUser =
         }
       });
 
-    } catch (error) {
+
+    } catch (
+      error
+    ) {
+
       console.error(
         'Get current user error:',
         error
@@ -618,6 +723,7 @@ export const getCurrentUser =
       return res.status(
         500
       ).json({
+
         success:
           false,
 

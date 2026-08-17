@@ -292,13 +292,17 @@ export const Auth = ({
     location
   ) => {
 
-    if (!location) {
+    if (
+      !location
+    ) {
+
       return '';
     }
 
 
     const address =
-      location.address || {};
+      location.address ||
+      {};
 
 
     const parts = [
@@ -317,11 +321,15 @@ export const Auth = ({
 
 
     if (
-      unique.length > 0
+      unique.length >
+      0
     ) {
 
       return unique
-        .slice(0, 3)
+        .slice(
+          0,
+          3
+        )
         .join(', ');
     }
 
@@ -332,7 +340,10 @@ export const Auth = ({
 
       return location.displayName
         .split(',')
-        .slice(0, 3)
+        .slice(
+          0,
+          3
+        )
         .join(',');
     }
 
@@ -345,42 +356,41 @@ export const Auth = ({
   // ROLE CHANGE
   // ========================================================
 
-  const handleRoleChange = (
-    role
-  ) => {
+  const handleRoleChange =
+    (role) => {
 
-    setRoleTab(
-      role
-    );
-
-
-    setName('');
-
-    setEmail('');
-
-    setPassword('');
-
-    setPhone('');
+      setRoleTab(
+        role
+      );
 
 
-    setSelectedLocation(
-      null
-    );
+      setName('');
 
-    setPendingLocation(
-      null
-    );
+      setEmail('');
 
-    setLocationQuery('');
+      setPassword('');
 
-    setLocationSuggestions([]);
+      setPhone('');
 
-    setEditingLocation(
-      true
-    );
 
-    setError('');
-  };
+      setSelectedLocation(
+        null
+      );
+
+      setPendingLocation(
+        null
+      );
+
+      setLocationQuery('');
+
+      setLocationSuggestions([]);
+
+      setEditingLocation(
+        true
+      );
+
+      setError('');
+    };
 
 
   // ========================================================
@@ -391,7 +401,8 @@ export const Auth = ({
   useEffect(() => {
 
     if (
-      roleTab !== 'CUSTOMER'
+      roleTab !==
+      'CUSTOMER'
     ) {
 
       setLocationSuggestions([]);
@@ -443,7 +454,8 @@ export const Auth = ({
 
 
             if (
-              results.length > 0
+              results.length >
+              0
             ) {
 
               const best =
@@ -466,7 +478,8 @@ export const Auth = ({
                   best.displayName,
 
                 address:
-                  best.address || {},
+                  best.address ||
+                  {},
 
                 source:
                   'SEARCH_PREVIEW'
@@ -481,9 +494,7 @@ export const Auth = ({
             );
 
 
-            setLocationSuggestions(
-              []
-            );
+            setLocationSuggestions([]);
 
           } finally {
 
@@ -514,47 +525,45 @@ export const Auth = ({
   // SELECT LOCATION
   // ========================================================
 
-  const handleSuggestionSelect = (
-    location
-  ) => {
+  const handleSuggestionSelect =
+    (location) => {
 
-    const locationData = {
+      const locationData = {
 
-      latitude:
-        Number(
-          location.latitude
-        ),
+        latitude:
+          Number(
+            location.latitude
+          ),
 
-      longitude:
-        Number(
-          location.longitude
-        ),
+        longitude:
+          Number(
+            location.longitude
+          ),
 
-      displayName:
-        location.displayName,
+        displayName:
+          location.displayName,
 
-      address:
-        location.address || {},
+        address:
+          location.address ||
+          {},
 
-      source:
-        'SEARCH'
+        source:
+          'SEARCH'
+      };
+
+
+      setPendingLocation(
+        locationData
+      );
+
+
+      setLocationQuery(
+        location.displayName
+      );
+
+
+      setLocationSuggestions([]);
     };
-
-
-    setPendingLocation(
-      locationData
-    );
-
-
-    setLocationQuery(
-      location.displayName
-    );
-
-
-    setLocationSuggestions(
-      []
-    );
-  };
 
 
   // ========================================================
@@ -587,7 +596,8 @@ export const Auth = ({
             6
           )}`,
 
-        address: {},
+        address:
+          {},
 
         source:
           'MAP'
@@ -637,9 +647,7 @@ export const Auth = ({
       );
 
 
-      setLocationSuggestions(
-        []
-      );
+      setLocationSuggestions([]);
 
 
       setMapLocationLoading(
@@ -739,72 +747,70 @@ export const Auth = ({
   // CONFIRM LOCATION
   // ========================================================
 
-  const confirmLocation = () => {
+  const confirmLocation =
+    () => {
 
-    if (
-      !pendingLocation
-    ) {
+      if (
+        !pendingLocation
+      ) {
 
-      setError(
-        'Please search or select a location first.'
+        setError(
+          'Please search or select a location first.'
+        );
+
+        return;
+      }
+
+
+      setSelectedLocation({
+
+        ...pendingLocation,
+
+        capturedAt:
+          new Date().toISOString()
+      });
+
+
+      setEditingLocation(
+        false
       );
 
-      return;
-    }
+
+      setLocationSuggestions([]);
 
 
-    setSelectedLocation({
-
-      ...pendingLocation,
-
-      capturedAt:
-        new Date().toISOString()
-    });
-
-
-    setEditingLocation(
-      false
-    );
-
-
-    setLocationSuggestions(
-      []
-    );
-
-
-    setError('');
-  };
+      setError('');
+    };
 
 
   // ========================================================
   // CHANGE LOCATION
   // ========================================================
 
-  const changeLocation = () => {
+  const changeLocation =
+    () => {
 
-    setPendingLocation(
-      selectedLocation
-    );
-
-
-    setLocationQuery(
-      selectedLocation?.displayName ||
-      ''
-    );
+      setPendingLocation(
+        selectedLocation
+      );
 
 
-    setEditingLocation(
-      true
-    );
+      setLocationQuery(
+        selectedLocation?.displayName ||
+        ''
+      );
 
 
-    setLocationSuggestions(
-      []
-    );
+      setEditingLocation(
+        true
+      );
 
 
-    setError('');
-  };
+      setLocationSuggestions([]);
+
+
+      setError('');
+    };
 
 
   // ========================================================
@@ -824,9 +830,7 @@ export const Auth = ({
       );
 
 
-      setLocationSuggestions(
-        []
-      );
+      setLocationSuggestions([]);
 
 
       setError('');
@@ -839,12 +843,8 @@ export const Auth = ({
   // CUSTOMER:
   // Location OPTIONAL.
   //
-  // Location selected hole save hobe.
-  // Location na dile login/register still hobe.
-  //
   // TECHNICIAN:
   // Login/register-er somoy location lagbe na.
-  // Availability Config theke manage korbe.
   // ========================================================
 
   const completeLogin =
@@ -856,10 +856,6 @@ export const Auth = ({
         user.role ===
         'CUSTOMER'
       ) {
-
-        // -----------------------------------------------
-        // Customer location selected korle save
-        // -----------------------------------------------
 
         if (
           selectedLocation
@@ -887,13 +883,6 @@ export const Auth = ({
         }
 
 
-        // -----------------------------------------------
-        // Customer location na dileo login successful
-        //
-        // Old/stale location remove kore dei jate
-        // auto assignment vul location use na kore.
-        // -----------------------------------------------
-
         localStorage.removeItem(
           'techaid_customer_location'
         );
@@ -916,9 +905,6 @@ export const Auth = ({
         user.role ===
         'TECHNICIAN'
       ) {
-
-        // Technician login/register-er somoy
-        // kono location save hobe na.
 
         onLoginSuccess(
           user
@@ -965,13 +951,6 @@ export const Auth = ({
 
         return;
       }
-
-
-      // ====================================================
-      // LOCATION VALIDATION REMOVED
-      //
-      // Customer location optional.
-      // ====================================================
 
 
       setLoading(
@@ -1087,13 +1066,6 @@ export const Auth = ({
       }
 
 
-      // ====================================================
-      // CUSTOMER LOCATION VALIDATION REMOVED
-      //
-      // Location optional.
-      // ====================================================
-
-
       setLoading(
         true
       );
@@ -1177,7 +1149,6 @@ export const Auth = ({
             pendingLocation.longitude
           )
         ]
-
       : [
           23.8103,
           90.4125
@@ -1240,7 +1211,9 @@ export const Auth = ({
         }}
       >
 
-        {/* BRAND */}
+        {/* =================================================
+            BRAND
+        ================================================= */}
 
         <Box
           sx={{
@@ -1302,7 +1275,6 @@ export const Auth = ({
             }}
           >
             Tech
-
             <span
               style={{
                 color:
@@ -1311,7 +1283,6 @@ export const Auth = ({
             >
               Aid
             </span>
-
           </Typography>
 
 
@@ -1330,7 +1301,9 @@ export const Auth = ({
         </Box>
 
 
-        {/* SIGN IN / REGISTER */}
+        {/* =================================================
+            SIGN IN / REGISTER
+        ================================================= */}
 
         <Box
           sx={{
@@ -1421,7 +1394,9 @@ export const Auth = ({
         </Box>
 
 
-        {/* ROLE */}
+        {/* =================================================
+            ROLE
+        ================================================= */}
 
         <Grid
           container
@@ -1509,7 +1484,7 @@ export const Auth = ({
 
 
         {/* =================================================
-            CUSTOMER LOCATION ONLY
+            CUSTOMER LOCATION
             OPTIONAL
         ================================================= */}
 
@@ -2072,7 +2047,9 @@ export const Auth = ({
         )}
 
 
-        {/* ERROR */}
+        {/* =================================================
+            ERROR
+        ================================================= */}
 
         {error && (
 
@@ -2088,7 +2065,9 @@ export const Auth = ({
         )}
 
 
-        {/* NAME */}
+        {/* =================================================
+            NAME
+        ================================================= */}
 
         {isRegisterMode && (
 
@@ -2127,7 +2106,9 @@ export const Auth = ({
         )}
 
 
-        {/* EMAIL */}
+        {/* =================================================
+            EMAIL
+        ================================================= */}
 
         <TextField
           fullWidth
@@ -2170,7 +2151,9 @@ export const Auth = ({
         />
 
 
-        {/* PASSWORD */}
+        {/* =================================================
+            PASSWORD
+        ================================================= */}
 
         <TextField
           fullWidth
@@ -2207,7 +2190,9 @@ export const Auth = ({
         />
 
 
-        {/* PHONE */}
+        {/* =================================================
+            PHONE
+        ================================================= */}
 
         {isRegisterMode && (
 
@@ -2244,6 +2229,7 @@ export const Auth = ({
               inputMode:
                 'numeric'
             }}
+            placeholder="01712345678"
             sx={{
               mb:
                 2,
@@ -2267,7 +2253,9 @@ export const Auth = ({
         )}
 
 
-        {/* TECH SPECIALTY */}
+        {/* =================================================
+            TECHNICIAN SPECIALTY
+        ================================================= */}
 
         {isRegisterMode &&
         roleTab ===
@@ -2325,26 +2313,20 @@ export const Auth = ({
 
 
         {/* =================================================
-            MAIN LOGIN / REGISTER BUTTON
-
-            IMPORTANT:
-            Customer location no longer required.
+            LOGIN / REGISTER BUTTON
         ================================================= */}
 
         <Button
           fullWidth
           variant="contained"
-
           disabled={
             loading
           }
-
           onClick={
             isRegisterMode
               ? handleRegister
               : handleLogin
           }
-
           endIcon={
             !loading
               ? (
@@ -2354,7 +2336,6 @@ export const Auth = ({
               )
               : null
           }
-
           sx={{
             py:
               1.3,
@@ -2383,10 +2364,13 @@ export const Auth = ({
                   color="inherit"
                 />
               )
-
               : isRegisterMode
-                ? 'Create Account'
-
+                ? `Create ${
+                    roleTab ===
+                      'CUSTOMER'
+                      ? 'Customer'
+                      : 'Technician'
+                  } Account`
                 : `Log In as ${
                     roleTab ===
                       'CUSTOMER'

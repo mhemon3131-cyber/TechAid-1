@@ -1,5 +1,7 @@
 import React from 'react';
 
+import NotificationBell from './NotificationBell';
+
 import {
   Box,
   Typography,
@@ -23,8 +25,15 @@ import {
   MapPinned,
   Star,
   Search,
-  CreditCard
+  CreditCard,
+  MessageSquare,
+  AlertTriangle,
+  Sparkles,
+  Bot,
+  History,
+  Calculator
 } from 'lucide-react';
+
 
 export const Sidebar = ({
   activeTab,
@@ -32,10 +41,54 @@ export const Sidebar = ({
   currentUser,
   onLogout
 }) => {
+
   const isCustomer =
     currentUser?.role === 'CUSTOMER';
 
+
+  // ========================================================
+  // COMMON MENU BUTTON STYLE
+  // ========================================================
+
+  const menuStyle =
+    (tab) => ({
+      borderRadius: 2,
+
+      color:
+        activeTab === tab
+          ? '#FFFFFF'
+          : '#94A3B8',
+
+      backgroundColor:
+        activeTab === tab
+          ? '#172036'
+          : 'transparent',
+
+      borderLeft:
+        activeTab === tab
+          ? '4px solid #00A8FF'
+          : '4px solid transparent',
+
+      '&:hover': {
+        backgroundColor:
+          '#172036'
+      }
+    });
+
+
+  const menuIconStyle =
+    (tab) => ({
+      minWidth: 34,
+
+      color:
+        activeTab === tab
+          ? '#00A8FF'
+          : '#94A3B8'
+    });
+
+
   return (
+
     <Box
       sx={{
         width: 250,
@@ -50,67 +103,90 @@ export const Sidebar = ({
     >
 
       {/* =================================================
-          LOGO
+          BRAND HEADER + NOTIFICATION
       ================================================= */}
 
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: 1.5,
+          justifyContent: 'space-between',
           mb: 3
         }}
       >
+
         <Box
           sx={{
-            width: 38,
-            height: 38,
-            borderRadius: '10px',
-            backgroundColor: '#00A8FF',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: '#0D1527',
-            boxShadow:
-              '0 0 15px rgba(0, 168, 255, 0.4)'
+            gap: 1.5
           }}
         >
-          <Shield
-            size={24}
-            strokeWidth={2.5}
-          />
-        </Box>
 
-        <Box>
-          <Typography
-            variant="h6"
+          <Box
             sx={{
-              color: '#FFFFFF',
-              fontWeight: 700,
-              fontSize: '1.25rem'
+              width: 38,
+              height: 38,
+              borderRadius: '10px',
+              backgroundColor: '#00A8FF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#0D1527',
+              boxShadow:
+                '0 0 15px rgba(0, 168, 255, 0.4)'
             }}
           >
-            Tech
-            <span
-              style={{
-                color: '#00A8FF'
+            <Shield
+              size={24}
+              strokeWidth={2.5}
+            />
+          </Box>
+
+
+          <Box>
+
+            <Typography
+              variant="h6"
+              sx={{
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '1.25rem'
               }}
             >
-              Aid
-            </span>
-          </Typography>
+              Tech
+              <span
+                style={{
+                  color: '#00A8FF'
+                }}
+              >
+                Aid
+              </span>
+            </Typography>
 
-          <Typography
-            variant="caption"
-            sx={{
-              color: '#64748B',
-              display: 'block',
-              fontSize: '0.7rem'
-            }}
-          >
-            IT Support Platform
-          </Typography>
+
+            <Typography
+              variant="caption"
+              sx={{
+                color: '#64748B',
+                display: 'block',
+                fontSize: '0.7rem'
+              }}
+            >
+              IT Support Platform
+            </Typography>
+
+          </Box>
+
         </Box>
+
+
+        <NotificationBell
+          currentUser={
+            currentUser
+          }
+        />
+
       </Box>
 
 
@@ -130,6 +206,7 @@ export const Sidebar = ({
             '1px solid #2A364F'
         }}
       >
+
         <Typography
           variant="caption"
           sx={{
@@ -141,6 +218,7 @@ export const Sidebar = ({
           LOGGED IN AS
         </Typography>
 
+
         <Typography
           variant="body2"
           sx={{
@@ -151,6 +229,7 @@ export const Sidebar = ({
         >
           {currentUser?.name || 'User'}
         </Typography>
+
 
         <Chip
           label={
@@ -182,6 +261,7 @@ export const Sidebar = ({
             fontWeight: 700
           }}
         />
+
       </Box>
 
 
@@ -208,14 +288,20 @@ export const Sidebar = ({
           MENU
       ================================================= */}
 
-      <List disablePadding>
+      <List
+        disablePadding
+        sx={{
+          flexGrow: 1,
+          overflowY: 'auto',
+          pr: 0.5
+        }}
+      >
 
         {isCustomer ? (
 
           <>
-            {/* =============================================
-                NEW REQUEST
-            ============================================= */}
+
+            {/* NEW REQUEST */}
 
             <ListItem
               disablePadding
@@ -231,43 +317,19 @@ export const Sidebar = ({
                     'new-request'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'new-request'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'new-request'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'new-request'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'new-request'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <PlusCircle
                     size={18}
@@ -277,18 +339,16 @@ export const Sidebar = ({
                 <ListItemText
                   primary="New Request"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                AUTO ASSIGNMENT
-            ============================================= */}
+            {/* AUTO ASSIGNMENT */}
 
             <ListItem
               disablePadding
@@ -304,43 +364,19 @@ export const Sidebar = ({
                     'technician-assignment'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'technician-assignment'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'technician-assignment'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'technician-assignment'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'technician-assignment'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <MapPinned
                     size={18}
@@ -350,19 +386,63 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Auto Assignment"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                MODULE 3 FEATURE 4
-                ADVANCED SEARCH & FILTER
-            ============================================= */}
+            {/* LIVE CHAT */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'chat'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'chat'
+                  )
+                }
+                sx={
+                  menuStyle(
+                    'chat'
+                  )
+                }
+              >
+
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
+                      'chat'
+                    )
+                  }
+                >
+                  <MessageSquare
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Live Chat & Calls"
+                  primaryTypographyProps={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* ADVANCED SEARCH */}
 
             <ListItem
               disablePadding
@@ -378,43 +458,19 @@ export const Sidebar = ({
                     'technician-search'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'technician-search'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'technician-search'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'technician-search'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'technician-search'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <Search
                     size={18}
@@ -424,18 +480,16 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Advanced Search"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                APPOINTMENTS
-            ============================================= */}
+            {/* BOOK APPOINTMENT */}
 
             <ListItem
               disablePadding
@@ -451,43 +505,19 @@ export const Sidebar = ({
                     'appointments'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'appointments'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'appointments'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'appointments'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'appointments'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <Calendar
                     size={18}
@@ -497,18 +527,16 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Book Appointment"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                PROGRESS TRACKING
-            ============================================= */}
+            {/* TRACK PROGRESS */}
 
             <ListItem
               disablePadding
@@ -524,43 +552,19 @@ export const Sidebar = ({
                     'progress-tracker'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'progress-tracker'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'progress-tracker'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'progress-tracker'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'progress-tracker'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <Activity
                     size={18}
@@ -570,19 +574,16 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Track Progress"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                MODULE 2 FEATURE 4
-                PAYMENT & INVOICE
-            ============================================= */}
+            {/* PAYMENT */}
 
             <ListItem
               disablePadding
@@ -598,43 +599,19 @@ export const Sidebar = ({
                     'payment'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'payment'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'payment'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'payment'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'payment'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <CreditCard
                     size={18}
@@ -644,18 +621,16 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Payment & Invoice"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                RATING & REVIEW
-            ============================================= */}
+            {/* RATING */}
 
             <ListItem
               disablePadding
@@ -671,43 +646,19 @@ export const Sidebar = ({
                     'rating-review'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'rating-review'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'rating-review'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'rating-review'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'rating-review'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <Star
                     size={18}
@@ -717,11 +668,199 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Rating & Review"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* AI ISSUE CLASSIFIER */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'ai-classify'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'ai-classify'
+                  )
+                }
+                sx={
+                  menuStyle(
+                    'ai-classify'
+                  )
+                }
+              >
+
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
+                      'ai-classify'
+                    )
+                  }
+                >
+                  <Sparkles
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="AI Issue Classifier"
+                  primaryTypographyProps={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* AI TROUBLESHOOT */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'ai-troubleshoot'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'ai-troubleshoot'
+                  )
+                }
+                sx={
+                  menuStyle(
+                    'ai-troubleshoot'
+                  )
+                }
+              >
+
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
+                      'ai-troubleshoot'
+                    )
+                  }
+                >
+                  <Bot
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="AI Troubleshoot"
+                  primaryTypographyProps={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* RESOLUTION HISTORY */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'resolution-history'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'resolution-history'
+                  )
+                }
+                sx={
+                  menuStyle(
+                    'resolution-history'
+                  )
+                }
+              >
+
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
+                      'resolution-history'
+                    )
+                  }
+                >
+                  <History
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Resolution History"
+                  primaryTypographyProps={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* COST ESTIMATOR */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'cost-estimate'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'cost-estimate'
+                  )
+                }
+                sx={
+                  menuStyle(
+                    'cost-estimate'
+                  )
+                }
+              >
+
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
+                      'cost-estimate'
+                    )
+                  }
+                >
+                  <Calculator
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Cost Estimator"
+                  primaryTypographyProps={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+
               </ListItemButton>
             </ListItem>
 
@@ -730,9 +869,8 @@ export const Sidebar = ({
         ) : (
 
           <>
-            {/* =============================================
-                TECHNICIAN JOB REQUESTS
-            ============================================= */}
+
+            {/* TECHNICIAN JOB REQUESTS */}
 
             <ListItem
               disablePadding
@@ -748,43 +886,19 @@ export const Sidebar = ({
                     'tech-dashboard'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'tech-dashboard'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'tech-dashboard'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'tech-dashboard'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'tech-dashboard'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <ClipboardList
                     size={18}
@@ -794,18 +908,130 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Job Requests"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                TECHNICIAN AVAILABILITY
-            ============================================= */}
+            {/* EMERGENCY QUEUE */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'emergency-queue'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'emergency-queue'
+                  )
+                }
+                sx={{
+                  borderRadius: 2,
+
+                  color:
+                    activeTab ===
+                    'emergency-queue'
+                      ? '#FFFFFF'
+                      : '#EF4444',
+
+                  backgroundColor:
+                    activeTab ===
+                    'emergency-queue'
+                      ? '#172036'
+                      : 'transparent',
+
+                  borderLeft:
+                    activeTab ===
+                    'emergency-queue'
+                      ? '4px solid #EF4444'
+                      : '4px solid transparent',
+
+                  '&:hover': {
+                    backgroundColor:
+                      '#172036'
+                  }
+                }}
+              >
+
+                <ListItemIcon
+                  sx={{
+                    minWidth: 34,
+                    color: '#EF4444'
+                  }}
+                >
+                  <AlertTriangle
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Emergency Queue"
+                  primaryTypographyProps={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* LIVE CHAT */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'chat'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'chat'
+                  )
+                }
+                sx={
+                  menuStyle(
+                    'chat'
+                  )
+                }
+              >
+
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
+                      'chat'
+                    )
+                  }
+                >
+                  <MessageSquare
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Live Chat & Calls"
+                  primaryTypographyProps={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* AVAILABILITY */}
 
             <ListItem
               disablePadding
@@ -821,43 +1047,19 @@ export const Sidebar = ({
                     'tech-availability'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'tech-availability'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'tech-availability'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'tech-availability'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'tech-availability'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <Sliders
                     size={18}
@@ -867,18 +1069,16 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Availability Config"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
 
-            {/* =============================================
-                TECHNICIAN STATUS TRACKER
-            ============================================= */}
+            {/* STATUS TRACKER */}
 
             <ListItem
               disablePadding
@@ -894,43 +1094,19 @@ export const Sidebar = ({
                     'progress-tracker'
                   )
                 }
-                sx={{
-                  borderRadius: 2,
-
-                  color:
-                    activeTab ===
+                sx={
+                  menuStyle(
                     'progress-tracker'
-                      ? '#FFFFFF'
-                      : '#94A3B8',
-
-                  backgroundColor:
-                    activeTab ===
-                    'progress-tracker'
-                      ? '#172036'
-                      : 'transparent',
-
-                  borderLeft:
-                    activeTab ===
-                    'progress-tracker'
-                      ? '4px solid #00A8FF'
-                      : '4px solid transparent',
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#172036'
-                  }
-                }}
+                  )
+                }
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 34,
 
-                    color:
-                      activeTab ===
+                <ListItemIcon
+                  sx={
+                    menuIconStyle(
                       'progress-tracker'
-                        ? '#00A8FF'
-                        : '#94A3B8'
-                  }}
+                    )
+                  }
                 >
                   <Activity
                     size={18}
@@ -940,11 +1116,11 @@ export const Sidebar = ({
                 <ListItemText
                   primary="Status Tracker"
                   primaryTypographyProps={{
-                    fontSize:
-                      '0.85rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600
                   }}
                 />
+
               </ListItemButton>
             </ListItem>
 
@@ -960,15 +1136,19 @@ export const Sidebar = ({
 
       <Box
         sx={{
-          mt: 'auto',
           pt: 2
         }}
       >
+
         <Button
           fullWidth
-          onClick={onLogout}
+          onClick={
+            onLogout
+          }
           startIcon={
-            <LogOut size={18} />
+            <LogOut
+              size={18}
+            />
           }
           sx={{
             color: '#EF4444',
@@ -991,6 +1171,7 @@ export const Sidebar = ({
         >
           Sign Out
         </Button>
+
       </Box>
 
     </Box>

@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, {
+  useEffect,
+  useState
+} from 'react';
+
 import {
   Box,
   Typography,
@@ -15,64 +19,135 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
+
 import {
   Search,
   Star,
   MapPin,
   CheckCircle2
 } from 'lucide-react';
+
 import axios from 'axios';
 
-// Default Fallback Technicians
-const DEFAULT_TECHS = [
-  {
-    id: 'tech-1',
-    name: 'Rafiq Ahmed',
-    specialty: 'Laptop & Desktop Specialist',
-    rating: 4.9,
-    distanceKm: 2.1,
-    isAvailable: true,
-    avatar: 'RA'
-  },
-  {
-    id: 'tech-2',
-    name: 'Sara Noor',
-    specialty: 'Smartphone Repair & OS Recovery',
-    rating: 4.7,
-    distanceKm: 3.7,
-    isAvailable: true,
-    avatar: 'SN'
-  }
-];
 
-export const AppointmentBooking = ({ currentUser }) => {
-  const [step, setStep] = useState(1);
-  const [technicians, setTechnicians] = useState(DEFAULT_TECHS);
-  const [selectedTech, setSelectedTech] = useState(DEFAULT_TECHS[0]);
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Slot selection state
-  const [selectedDate, setSelectedDate] = useState('Mon 13'); // Format: "Day Num" e.g. "Tue 14"
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState('10:00 am');
-  const [serviceType, setServiceType] = useState('Remote support');
-  
-  // PER-TECHNICIAN AND PER-DATE BOOKED SLOTS DICTIONARY (Fixes Leakage Bug!)
-  // Key format: `${techId}_${formattedDate}` e.g. "tech-1_Mon Jul 13, 2026"
-  const [bookedMap, setBookedMap] = useState({});
+export const AppointmentBooking = ({
+  currentUser
+}) => {
 
-  // Confirmation Modal & API state
-  const [openModal, setOpenModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(null);
-  const [conflictError, setConflictError] = useState('');
+  const [
+    step,
+    setStep
+  ] = useState(1);
+
+
+  const [
+    technicians,
+    setTechnicians
+  ] = useState([]);
+
+
+  const [
+    selectedTech,
+    setSelectedTech
+  ] = useState(null);
+
+
+  const [
+    searchQuery,
+    setSearchQuery
+  ] = useState('');
+
+
+  // ======================================================
+  // SLOT SELECTION
+  // ======================================================
+
+  const [
+    selectedDate,
+    setSelectedDate
+  ] = useState('Mon 13');
+
+
+  const [
+    selectedTimeSlot,
+    setSelectedTimeSlot
+  ] = useState('10:00 am');
+
+
+  const [
+    serviceType,
+    setServiceType
+  ] = useState('Remote support');
+
+
+  // ======================================================
+  // BOOKED SLOT MAP
+  //
+  // Key:
+  // technicianId + formatted date
+  // ======================================================
+
+  const [
+    bookedMap,
+    setBookedMap
+  ] = useState({});
+
+
+  // ======================================================
+  // MODAL & API STATE
+  // ======================================================
+
+  const [
+    openModal,
+    setOpenModal
+  ] = useState(false);
+
+
+  const [
+    loading,
+    setLoading
+  ] = useState(false);
+
+
+  const [
+    bookingSuccess,
+    setBookingSuccess
+  ] = useState(null);
+
+
+  const [
+    conflictError,
+    setConflictError
+  ] = useState('');
+
+
+  // ======================================================
+  // DATE OPTIONS
+  // ======================================================
 
   const dateOptions = [
-    { day: 'Sun', dateNum: '12', fullDay: 'Sun' },
-    { day: 'Mon', dateNum: '13', fullDay: 'Mon' },
-    { day: 'Tue', dateNum: '14', fullDay: 'Tue' },
-    { day: 'Wed', dateNum: '15', fullDay: 'Wed' },
-    { day: 'Thu', dateNum: '16', fullDay: 'Thu' }
+    {
+      day: 'Sun',
+      dateNum: '12'
+    },
+    {
+      day: 'Mon',
+      dateNum: '13'
+    },
+    {
+      day: 'Tue',
+      dateNum: '14'
+    },
+    {
+      day: 'Wed',
+      dateNum: '15'
+    },
+    {
+      day: 'Thu',
+      dateNum: '16'
+    }
   ];
+
 
   const timeSlots = [
     '10:00 am',
@@ -83,244 +158,565 @@ export const AppointmentBooking = ({ currentUser }) => {
     '06:30 pm'
   ];
 
-  const serviceTypes = ['Remote support', 'Home visit', 'Service center'];
 
-  // Helper to format exact date string e.g. "Tue 14" -> "Tue Jul 14, 2026"
-  const getFormattedDateStr = (dateLabel) => {
-    const parts = dateLabel.split(' ');
-    const dayName = parts[0];
-    const num = parts[1];
-    return `${dayName} Jul ${num}, 2026`;
-  };
+  const serviceTypes = [
+    'Remote support',
+    'Home visit',
+    'Service center'
+  ];
+
+
+  // ======================================================
+  // FALLBACK TECHNICIAN
+  //
+  // Only use if backend has no technician / unavailable.
+  // ======================================================
+
+  const fallbackTechs = [
+    {
+      id: 'usr-4',
+      name: 'TechAlex',
+      specialty:
+        'Networking & Wi-Fi Specialist',
+      rating: 4.9,
+      distanceKm: 2.1,
+      isAvailable: true,
+      avatar: 'TA'
+    }
+  ];
+
+
+  // ======================================================
+  // FORMAT DATE
+  // ======================================================
+
+  const getFormattedDateStr =
+    (dateLabel) => {
+
+      const parts =
+        dateLabel.split(' ');
+
+
+      const dayName =
+        parts[0];
+
+
+      const num =
+        parts[1];
+
+
+      return `${dayName} Jul ${num}, 2026`;
+    };
+
+
+  // ======================================================
+  // LOAD TECHNICIANS
+  // ======================================================
 
   useEffect(() => {
+
     fetchTechs();
+
   }, []);
 
-  // Fetch booked slots SPECIFIC to selected tech and SPECIFIC date whenever either changes
+
+  // ======================================================
+  // LOAD BOOKED SLOTS WHEN TECH / DATE CHANGES
+  // ======================================================
+
   useEffect(() => {
-    if (selectedTech && selectedDate) {
+
+    if (
+      selectedTech &&
+      selectedDate
+    ) {
+
       fetchBookedSlotsForCurrentSelection();
     }
-  }, [selectedTech?.id, selectedDate]);
 
-  const fetchTechs = async () => {
-    const registeredTechs = JSON.parse(
-      localStorage.getItem('techaid_registered_techs') || '[]'
-    );
-
-    try {
-      const res = await axios.get('http://localhost:5000/api/technicians');
-
-      if (res.data.success && res.data.data.length > 0) {
-        const combined = [...res.data.data];
-
-        registeredTechs.forEach(rt => {
-          if (
-            !combined.some(
-              t => t.name.toLowerCase() === rt.name.toLowerCase()
-            )
-          ) {
-            combined.push(rt);
-          }
-        });
-
-        setTechnicians(combined);
-        setSelectedTech(combined[0]);
-      }
-
-    } catch (err) {
-      const combined = [...DEFAULT_TECHS];
-
-      registeredTechs.forEach(rt => {
-        if (
-          !combined.some(
-            t => t.name.toLowerCase() === rt.name.toLowerCase()
-          )
-        ) {
-          combined.push(rt);
-        }
-      });
-
-      setTechnicians(combined);
-      setSelectedTech(combined[0]);
-    }
-  };
-
-  const fetchBookedSlotsForCurrentSelection = async () => {
-    if (!selectedTech) return;
-
-    const formattedDate = getFormattedDateStr(selectedDate);
-    const key = `${selectedTech.id}_${formattedDate}`;
-
-    try {
-      const res = await axios.get(
-        `http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`
-      );
-
-      if (res.data.success) {
-        const taken = res.data.data
-          .filter(
-            app =>
-              app.status !== 'REJECTED' &&
-              app.technicianId === selectedTech.id &&
-              app.date === formattedDate
-          )
-          .map(app => app.timeSlot);
-        
-        setBookedMap(prev => ({
-          ...prev,
-          [key]: taken
-        }));
-      }
-
-    } catch (err) {
-      // Keep local entries for this key if backend offline
-    }
-  };
-
-  // Get currently booked slots for the active tech + active date
-  const currentFormattedDate = getFormattedDateStr(selectedDate);
-
-  const currentKey = selectedTech
-    ? `${selectedTech.id}_${currentFormattedDate}`
-    : '';
-
-  const activeBookedSlots = bookedMap[currentKey] || [];
-
-  const filteredTechs = technicians.filter((t) =>
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.specialty.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  }, [
+    selectedTech?.id,
+    selectedDate
+  ]);
 
 
   // ======================================================
-  // FIXED BOOKING FUNCTION
+  // FETCH TECHNICIANS
   //
-  // Previous problem:
-  // serviceRequestId: 'req-101'
-  // backend fail korleo fake success dekhato.
+  // Keep existing backend:
+  // http://localhost:5000
   //
-  // Now:
-  // serviceRequestId = null
-  // backend real success holei Booking Successful dekhabe.
+  // Also merge registered technicians from localStorage.
   // ======================================================
 
-  const handleConfirmBooking = async () => {
-    setLoading(true);
-    setConflictError('');
+  const fetchTechs =
+    async () => {
 
-    if (activeBookedSlots.includes(selectedTimeSlot)) {
-      setConflictError(
-        `Scheduling Conflict: ${selectedTech?.name} is already booked for ${selectedTimeSlot} on ${selectedDate}. Please select another available time slot.`
-      );
-
-      setLoading(false);
-      return;
-    }
-
-    const formattedDate = getFormattedDateStr(selectedDate);
-
-    try {
-
-      const payload = {
-        technicianId:
-          selectedTech
-            ? selectedTech.id
-            : 'tech-1',
-
-        date:
-          formattedDate,
-
-        timeSlot:
-          selectedTimeSlot,
-
-        serviceType,
-
-        customerId:
-          currentUser?.id ||
-          'usr-1',
-
-        // ==================================================
-        // FIX:
-        // Manual appointment-er jonno fake req-101 dibo na.
-        // ==================================================
-        serviceRequestId:
-          null
-      };
-
-
-      const res = await axios.post(
-        'http://localhost:5000/api/appointments',
-        payload
-      );
-
-
-      if (res.data.success) {
-
-        // ONLY REAL DATABASE SUCCESS
-        setBookingSuccess(
-          res.data.data
+      const registeredTechs =
+        JSON.parse(
+          localStorage.getItem(
+            'techaid_registered_techs'
+          ) || '[]'
         );
 
 
-        // Add to booked map specifically for this technician and this date
-        setBookedMap(prev => ({
-          ...prev,
+      try {
 
-          [currentKey]: [
-            ...(prev[currentKey] || []),
-            selectedTimeSlot
-          ]
-        }));
+        const res =
+          await axios.get(
+            'http://localhost:5000/api/technicians'
+          );
+
+
+        let combined = [];
+
+
+        if (
+          res.data.success &&
+          Array.isArray(
+            res.data.data
+          ) &&
+          res.data.data.length > 0
+        ) {
+
+          combined = [
+            ...res.data.data
+          ];
+
+        } else {
+
+          combined = [
+            ...fallbackTechs
+          ];
+        }
+
+
+        registeredTechs.forEach(
+          (registeredTech) => {
+
+            const alreadyExists =
+              combined.some(
+                (tech) =>
+                  String(
+                    tech.name || ''
+                  ).toLowerCase() ===
+                  String(
+                    registeredTech.name || ''
+                  ).toLowerCase()
+              );
+
+
+            if (
+              !alreadyExists
+            ) {
+
+              combined.push(
+                registeredTech
+              );
+            }
+          }
+        );
+
+
+        setTechnicians(
+          combined
+        );
+
+
+        setSelectedTech(
+          combined[0] ||
+          null
+        );
+
+
+      } catch (err) {
+
+        console.error(
+          'Technician fetch error:',
+          err
+        );
+
+
+        const combined = [
+          ...fallbackTechs
+        ];
+
+
+        registeredTechs.forEach(
+          (registeredTech) => {
+
+            const alreadyExists =
+              combined.some(
+                (tech) =>
+                  String(
+                    tech.name || ''
+                  ).toLowerCase() ===
+                  String(
+                    registeredTech.name || ''
+                  ).toLowerCase()
+              );
+
+
+            if (
+              !alreadyExists
+            ) {
+
+              combined.push(
+                registeredTech
+              );
+            }
+          }
+        );
+
+
+        setTechnicians(
+          combined
+        );
+
+
+        setSelectedTech(
+          combined[0] ||
+          null
+        );
+      }
+    };
+
+
+  // ======================================================
+  // FETCH BOOKED SLOTS
+  // ======================================================
+
+  const fetchBookedSlotsForCurrentSelection =
+    async () => {
+
+      if (
+        !selectedTech
+      ) {
+
+        return;
       }
 
 
-    } catch (err) {
-
-      // ==================================================
-      // FIX:
-      // Backend error hole fake Booking Successful na.
-      // Real error show korbe.
-      // ==================================================
-
-      console.error(
-        'Appointment booking error:',
-        err
-      );
+      const formattedDate =
+        getFormattedDateStr(
+          selectedDate
+        );
 
 
-      setBookingSuccess(
-        null
-      );
+      const key =
+        `${selectedTech.id}_${formattedDate}`;
 
 
-      setConflictError(
-        err?.response?.data?.message ||
-        'Appointment could not be saved. Please try again.'
-      );
+      try {
+
+        const res =
+          await axios.get(
+            `http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(
+              formattedDate
+            )}`
+          );
 
 
-    } finally {
+        if (
+          res.data.success
+        ) {
 
-      setLoading(false);
-    }
-  };
+          const taken =
+            (res.data.data || [])
+              .filter(
+                (appointment) =>
 
+                  appointment.status !==
+                    'REJECTED' &&
+
+                  appointment.technicianId ===
+                    selectedTech.id &&
+
+                  appointment.date ===
+                    formattedDate
+              )
+              .map(
+                (appointment) =>
+                  appointment.timeSlot
+              );
+
+
+          setBookedMap(
+            (prev) => ({
+              ...prev,
+
+              [key]:
+                taken
+            })
+          );
+        }
+
+
+      } catch (err) {
+
+        console.error(
+          'Booked slot fetch error:',
+          err
+        );
+
+        // Existing local booked map stays unchanged.
+      }
+    };
+
+
+  // ======================================================
+  // CURRENT BOOKING KEY
+  // ======================================================
+
+  const currentFormattedDate =
+    getFormattedDateStr(
+      selectedDate
+    );
+
+
+  const currentKey =
+    selectedTech
+      ? `${selectedTech.id}_${currentFormattedDate}`
+      : '';
+
+
+  const activeBookedSlots =
+    bookedMap[
+      currentKey
+    ] || [];
+
+
+  // ======================================================
+  // FILTER TECHNICIANS
+  // ======================================================
+
+  const filteredTechs =
+    technicians.filter(
+      (tech) => {
+
+        const name =
+          String(
+            tech.name || ''
+          ).toLowerCase();
+
+
+        const specialty =
+          String(
+            tech.specialty || ''
+          ).toLowerCase();
+
+
+        const query =
+          searchQuery.toLowerCase();
+
+
+        return (
+          name.includes(
+            query
+          ) ||
+          specialty.includes(
+            query
+          )
+        );
+      }
+    );
+
+
+  // ======================================================
+  // CONFIRM BOOKING
+  // ======================================================
+
+  const handleConfirmBooking =
+    async () => {
+
+      setLoading(true);
+
+      setConflictError('');
+
+
+      if (
+        !selectedTech
+      ) {
+
+        setConflictError(
+          'Please select a technician.'
+        );
+
+        setLoading(false);
+
+        return;
+      }
+
+
+      if (
+        activeBookedSlots.includes(
+          selectedTimeSlot
+        )
+      ) {
+
+        setConflictError(
+          `Scheduling Conflict: ${selectedTech.name} is already booked for ${selectedTimeSlot} on ${selectedDate}. Please select another available time slot.`
+        );
+
+
+        setLoading(false);
+
+        return;
+      }
+
+
+      const formattedDate =
+        getFormattedDateStr(
+          selectedDate
+        );
+
+
+      try {
+
+        // --------------------------------------------------
+        // Main branch active request support
+        //
+        // If customer came from a service request,
+        // attach that request.
+        //
+        // Otherwise manual appointment keeps null.
+        // --------------------------------------------------
+
+        const activeRequest =
+          JSON.parse(
+            localStorage.getItem(
+              'techaid_active_request'
+            ) || 'null'
+          );
+
+
+        const payload = {
+
+          technicianId:
+            selectedTech.id,
+
+          date:
+            formattedDate,
+
+          timeSlot:
+            selectedTimeSlot,
+
+          serviceType,
+
+          customerId:
+            currentUser?.id ||
+            'usr-1',
+
+          serviceRequestId:
+            activeRequest?.id ||
+            null
+        };
+
+
+        const res =
+          await axios.post(
+            'http://localhost:5000/api/appointments',
+            payload
+          );
+
+
+        if (
+          res.data.success
+        ) {
+
+          // REAL DATABASE SUCCESS ONLY
+
+          setBookingSuccess(
+            res.data.data
+          );
+
+
+          setBookedMap(
+            (prev) => ({
+
+              ...prev,
+
+              [currentKey]: [
+                ...(
+                  prev[
+                    currentKey
+                  ] || []
+                ),
+
+                selectedTimeSlot
+              ]
+            })
+          );
+
+        } else {
+
+          setBookingSuccess(
+            null
+          );
+
+
+          setConflictError(
+            res.data.message ||
+            'Appointment could not be saved.'
+          );
+        }
+
+
+      } catch (err) {
+
+        console.error(
+          'Appointment booking error:',
+          err
+        );
+
+
+        setBookingSuccess(
+          null
+        );
+
+
+        setConflictError(
+          err?.response?.data?.message ||
+          'Appointment could not be saved. Please try again.'
+        );
+
+
+      } finally {
+
+        setLoading(false);
+      }
+    };
+
+
+  // ======================================================
+  // UI
+  // ======================================================
 
   return (
+
     <Box
       sx={{
         flexGrow: 1,
         p: 4,
-        backgroundColor: '#0D1527',
-        minHeight: '100vh',
-        overflowY: 'auto'
+        backgroundColor:
+          '#0D1527',
+        minHeight:
+          '100vh',
+        overflowY:
+          'auto'
       }}
     >
 
-      {/* Page Header */}
-      <Box sx={{ mb: 4 }}>
+      {/* =================================================
+          PAGE HEADER
+      ================================================= */}
+
+      <Box
+        sx={{
+          mb: 4
+        }}
+      >
+
         <Typography
           variant="h5"
           sx={{
@@ -331,29 +727,45 @@ export const AppointmentBooking = ({ currentUser }) => {
           Appointment Scheduling System
         </Typography>
 
+
         <Typography
           variant="body2"
           sx={{
-            color: '#94A3B8'
+            color:
+              '#94A3B8'
           }}
         >
           Select technician, date, time slot & prevent scheduling conflicts
         </Typography>
+
       </Box>
 
 
       {step === 1 ? (
 
-        /* STEP 1: Choose a technician */
+        // ==================================================
+        // STEP 1
+        // CHOOSE TECHNICIAN
+        // ==================================================
 
-        <Box sx={{ maxWidth: 800 }}>
+        <Box
+          sx={{
+            maxWidth:
+              800
+          }}
+        >
 
           <Typography
             variant="h6"
             sx={{
-              color: '#FFF',
-              fontWeight: 600,
-              mb: 2
+              color:
+                '#FFF',
+
+              fontWeight:
+                600,
+
+              mb:
+                2
             }}
           >
             Choose a technician
@@ -363,37 +775,56 @@ export const AppointmentBooking = ({ currentUser }) => {
           <TextField
             fullWidth
             placeholder="Search by name or specialty..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={
+              searchQuery
+            }
+            onChange={
+              (e) =>
+                setSearchQuery(
+                  e.target.value
+                )
+            }
             InputProps={{
               startAdornment: (
+
                 <Search
                   size={20}
                   color="#94A3B8"
                   style={{
-                    marginRight: 10
+                    marginRight:
+                      10
                   }}
                 />
               )
             }}
             sx={{
-              mb: 3,
-              backgroundColor: '#172036',
-              borderRadius: 2,
+              mb:
+                3,
+
+              backgroundColor:
+                '#172036',
+
+              borderRadius:
+                2,
 
               '& .MuiOutlinedInput-root': {
-                color: '#FFF',
+
+                color:
+                  '#FFF',
 
                 '& fieldset': {
-                  borderColor: '#2A364F'
+                  borderColor:
+                    '#2A364F'
                 },
 
                 '&:hover fieldset': {
-                  borderColor: '#00A8FF'
+                  borderColor:
+                    '#00A8FF'
                 },
 
                 '&.Mui-focused fieldset': {
-                  borderColor: '#00A8FF'
+                  borderColor:
+                    '#00A8FF'
                 }
               }
             }}
@@ -402,201 +833,347 @@ export const AppointmentBooking = ({ currentUser }) => {
 
           <Box
             sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2
+              display:
+                'flex',
+
+              flexDirection:
+                'column',
+
+              gap:
+                2
             }}
           >
 
-            {filteredTechs.map((tech) => (
+            {filteredTechs.length ===
+              0 ? (
 
               <Paper
-                key={tech.id}
                 elevation={0}
-                onClick={() => setSelectedTech(tech)}
                 sx={{
-                  backgroundColor: '#172036',
-                  borderRadius: 3,
-                  p: 2.5,
+                  p:
+                    4,
+
+                  textAlign:
+                    'center',
+
+                  backgroundColor:
+                    '#172036',
 
                   border:
-                    selectedTech?.id === tech.id
-                      ? '2px solid #00A8FF'
-                      : '1px solid #2A364F',
+                    '1px dashed #2A364F',
 
-                  cursor: 'pointer',
-
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-
-                  transition: 'all 0.2s',
-
-                  '&:hover': {
-                    borderColor: '#00A8FF'
-                  }
+                  borderRadius:
+                    3
                 }}
               >
 
-                <Box
+                <Typography
+                  variant="body1"
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2
+                    color:
+                      '#94A3B8'
                   }}
                 >
-
-                  <Avatar
-                    sx={{
-                      width: 52,
-                      height: 52,
-                      backgroundColor: '#0F172A',
-                      color: '#00A8FF',
-                      fontWeight: 700,
-                      border: '2px solid #00A8FF'
-                    }}
-                  >
-                    {tech.avatar}
-                  </Avatar>
-
-
-                  <Box>
-
-                    <Typography
-                      variant="subtitle1"
-                      sx={{
-                        color: '#FFF',
-                        fontWeight: 700
-                      }}
-                    >
-                      {tech.name}
-                    </Typography>
-
-
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: '#94A3B8'
-                      }}
-                    >
-                      {tech.specialty}
-                    </Typography>
-
-                  </Box>
-
-                </Box>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 3
-                  }}
-                >
-
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5
-                    }}
-                  >
-
-                    <Star
-                      size={18}
-                      fill="#F59E0B"
-                      color="#F59E0B"
-                    />
-
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: '#FFF',
-                        fontWeight: 700
-                      }}
-                    >
-                      {tech.rating}
-                    </Typography>
-
-                  </Box>
-
-
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5
-                    }}
-                  >
-
-                    <MapPin
-                      size={16}
-                      color="#94A3B8"
-                    />
-
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: '#94A3B8'
-                      }}
-                    >
-                      {tech.distanceKm} km
-                    </Typography>
-
-                  </Box>
-
-
-                  {tech.isAvailable && (
-
-                    <Chip
-                      label="Available today"
-                      size="small"
-                      sx={{
-                        backgroundColor:
-                          'rgba(16, 185, 129, 0.2)',
-
-                        color:
-                          '#10B981',
-
-                        fontWeight:
-                          700
-                      }}
-                    />
-
-                  )}
-
-                </Box>
+                  No technicians found.
+                </Typography>
 
               </Paper>
 
-            ))}
+            ) : (
+
+              filteredTechs.map(
+                (tech) => (
+
+                  <Paper
+                    key={
+                      tech.id
+                    }
+                    elevation={0}
+                    onClick={() =>
+                      setSelectedTech(
+                        tech
+                      )
+                    }
+                    sx={{
+                      backgroundColor:
+                        '#172036',
+
+                      borderRadius:
+                        3,
+
+                      p:
+                        2.5,
+
+                      border:
+                        selectedTech?.id ===
+                        tech.id
+                          ? '2px solid #00A8FF'
+                          : '1px solid #2A364F',
+
+                      cursor:
+                        'pointer',
+
+                      display:
+                        'flex',
+
+                      alignItems:
+                        'center',
+
+                      justifyContent:
+                        'space-between',
+
+                      transition:
+                        'all 0.2s',
+
+                      '&:hover': {
+                        borderColor:
+                          '#00A8FF'
+                      }
+                    }}
+                  >
+
+                    <Box
+                      sx={{
+                        display:
+                          'flex',
+
+                        alignItems:
+                          'center',
+
+                        gap:
+                          2
+                      }}
+                    >
+
+                      <Avatar
+                        sx={{
+                          width:
+                            52,
+
+                          height:
+                            52,
+
+                          backgroundColor:
+                            '#0F172A',
+
+                          color:
+                            '#00A8FF',
+
+                          fontWeight:
+                            700,
+
+                          border:
+                            '2px solid #00A8FF'
+                        }}
+                      >
+                        {
+                          tech.avatar ||
+                          tech.name
+                            ?.slice(
+                              0,
+                              2
+                            )
+                            .toUpperCase()
+                        }
+                      </Avatar>
+
+
+                      <Box>
+
+                        <Typography
+                          variant="subtitle1"
+                          sx={{
+                            color:
+                              '#FFF',
+
+                            fontWeight:
+                              700
+                          }}
+                        >
+                          {
+                            tech.name
+                          }
+                        </Typography>
+
+
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color:
+                              '#94A3B8'
+                          }}
+                        >
+                          {
+                            tech.specialty
+                          }
+                        </Typography>
+
+                      </Box>
+
+                    </Box>
+
+
+                    <Box
+                      sx={{
+                        display:
+                          'flex',
+
+                        alignItems:
+                          'center',
+
+                        gap:
+                          3
+                      }}
+                    >
+
+                      <Box
+                        sx={{
+                          display:
+                            'flex',
+
+                          alignItems:
+                            'center',
+
+                          gap:
+                            0.5
+                        }}
+                      >
+
+                        <Star
+                          size={18}
+                          fill="#F59E0B"
+                          color="#F59E0B"
+                        />
+
+
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color:
+                              '#FFF',
+
+                            fontWeight:
+                              700
+                          }}
+                        >
+                          {
+                            tech.rating ??
+                            4.8
+                          }
+                        </Typography>
+
+                      </Box>
+
+
+                      <Box
+                        sx={{
+                          display:
+                            'flex',
+
+                          alignItems:
+                            'center',
+
+                          gap:
+                            0.5
+                        }}
+                      >
+
+                        <MapPin
+                          size={16}
+                          color="#94A3B8"
+                        />
+
+
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color:
+                              '#94A3B8'
+                          }}
+                        >
+                          {
+                            tech.distanceKm ??
+                            2.5
+                          } km
+                        </Typography>
+
+                      </Box>
+
+
+                      {tech.isAvailable && (
+
+                        <Chip
+                          label="Available"
+                          size="small"
+                          sx={{
+                            backgroundColor:
+                              'rgba(16, 185, 129, 0.2)',
+
+                            color:
+                              '#10B981',
+
+                            fontWeight:
+                              700
+                          }}
+                        />
+
+                      )}
+
+                    </Box>
+
+                  </Paper>
+                )
+              )
+            )}
 
           </Box>
 
 
           <Box
             sx={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              mt: 4
+              display:
+                'flex',
+
+              justifyContent:
+                'flex-end',
+
+              mt:
+                4
             }}
           >
 
             <Button
               variant="contained"
-              onClick={() => setStep(2)}
-              disabled={!selectedTech}
+              onClick={() =>
+                setStep(
+                  2
+                )
+              }
+              disabled={
+                !selectedTech
+              }
               sx={{
-                backgroundColor: '#00A8FF',
-                color: '#0D1527',
-                px: 4,
-                py: 1.2,
-                fontSize: '1rem',
-                fontWeight: 700,
+                backgroundColor:
+                  '#00A8FF',
+
+                color:
+                  '#0D1527',
+
+                px:
+                  4,
+
+                py:
+                  1.2,
+
+                fontSize:
+                  '1rem',
+
+                fontWeight:
+                  700,
 
                 '&:hover': {
-                  backgroundColor: '#38BDF8'
+                  backgroundColor:
+                    '#38BDF8'
                 }
               }}
             >
@@ -609,13 +1186,17 @@ export const AppointmentBooking = ({ currentUser }) => {
 
       ) : (
 
-        /* STEP 2: Calendar & Time Slots Screen */
+        // ==================================================
+        // STEP 2
+        // DATE & TIME
+        // ==================================================
 
         <Grid
           container
           spacing={4}
           sx={{
-            maxWidth: 1000
+            maxWidth:
+              1000
           }}
         >
 
@@ -628,33 +1209,68 @@ export const AppointmentBooking = ({ currentUser }) => {
             <Paper
               elevation={0}
               sx={{
-                backgroundColor: '#172036',
-                borderRadius: 3,
-                p: 4,
-                border: '1px solid #2A364F'
+                backgroundColor:
+                  '#172036',
+
+                borderRadius:
+                  3,
+
+                p:
+                  4,
+
+                border:
+                  '1px solid #2A364F'
               }}
             >
 
+              {/* TECHNICIAN SUMMARY */}
+
               <Box
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  mb: 4,
-                  p: 2,
-                  backgroundColor: '#0F172A',
-                  borderRadius: 2
+                  display:
+                    'flex',
+
+                  alignItems:
+                    'center',
+
+                  gap:
+                    2,
+
+                  mb:
+                    4,
+
+                  p:
+                    2,
+
+                  backgroundColor:
+                    '#0F172A',
+
+                  borderRadius:
+                    2
                 }}
               >
 
                 <Avatar
                   sx={{
-                    backgroundColor: '#00A8FF',
-                    color: '#0D1527',
-                    fontWeight: 700
+                    backgroundColor:
+                      '#00A8FF',
+
+                    color:
+                      '#0D1527',
+
+                    fontWeight:
+                      700
                   }}
                 >
-                  {selectedTech?.avatar}
+                  {
+                    selectedTech?.avatar ||
+                    selectedTech?.name
+                      ?.slice(
+                        0,
+                        2
+                      )
+                      .toUpperCase()
+                  }
                 </Avatar>
 
 
@@ -663,21 +1279,29 @@ export const AppointmentBooking = ({ currentUser }) => {
                   <Typography
                     variant="subtitle1"
                     sx={{
-                      color: '#FFF',
-                      fontWeight: 700
+                      color:
+                        '#FFF',
+
+                      fontWeight:
+                        700
                     }}
                   >
-                    {selectedTech?.name}
+                    {
+                      selectedTech?.name
+                    }
                   </Typography>
 
 
                   <Typography
                     variant="caption"
                     sx={{
-                      color: '#94A3B8'
+                      color:
+                        '#94A3B8'
                     }}
                   >
-                    {selectedTech?.specialty}
+                    {
+                      selectedTech?.specialty
+                    }
                   </Typography>
 
                 </Box>
@@ -685,14 +1309,19 @@ export const AppointmentBooking = ({ currentUser }) => {
               </Box>
 
 
-              {/* Date Selection */}
+              {/* DATE */}
 
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  fontWeight: 600,
-                  mb: 1.5
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5
                 }}
               >
                 Select a date
@@ -701,99 +1330,128 @@ export const AppointmentBooking = ({ currentUser }) => {
 
               <Box
                 sx={{
-                  display: 'flex',
-                  gap: 1.5,
-                  mb: 4
+                  display:
+                    'flex',
+
+                  gap:
+                    1.5,
+
+                  mb:
+                    4
                 }}
               >
 
-                {dateOptions.map((d) => {
+                {dateOptions.map(
+                  (dateOption) => {
 
-                  const label =
-                    `${d.day} ${d.dateNum}`;
-
-                  const selected =
-                    selectedDate === label;
+                    const label =
+                      `${dateOption.day} ${dateOption.dateNum}`;
 
 
-                  return (
+                    const selected =
+                      selectedDate ===
+                      label;
 
-                    <Box
-                      key={label}
-                      onClick={() =>
-                        setSelectedDate(label)
-                      }
-                      sx={{
-                        flex: 1,
-                        py: 1.5,
-                        px: 1,
-                        textAlign: 'center',
-                        borderRadius: 2,
-                        cursor: 'pointer',
 
-                        backgroundColor:
-                          selected
-                            ? '#00A8FF'
-                            : '#0F172A',
+                    return (
 
-                        color:
-                          selected
-                            ? '#0D1527'
-                            : '#FFF',
+                      <Box
+                        key={
+                          label
+                        }
+                        onClick={() =>
+                          setSelectedDate(
+                            label
+                          )
+                        }
+                        sx={{
+                          flex:
+                            1,
 
-                        border:
-                          selected
-                            ? '1px solid #00A8FF'
-                            : '1px solid #2A364F',
+                          py:
+                            1.5,
 
-                        transition: 'all 0.2s',
+                          px:
+                            1,
 
-                        '&:hover': {
+                          textAlign:
+                            'center',
+
+                          borderRadius:
+                            2,
+
+                          cursor:
+                            'pointer',
+
                           backgroundColor:
                             selected
                               ? '#00A8FF'
-                              : '#1E293B'
-                        }
-                      }}
-                    >
+                              : '#0F172A',
 
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          display: 'block',
-                          fontWeight: 500
+                          color:
+                            selected
+                              ? '#0D1527'
+                              : '#FFF',
+
+                          border:
+                            selected
+                              ? '1px solid #00A8FF'
+                              : '1px solid #2A364F',
+
+                          transition:
+                            'all 0.2s'
                         }}
                       >
-                        {d.day}
-                      </Typography>
+
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display:
+                              'block',
+
+                            fontWeight:
+                              500
+                          }}
+                        >
+                          {
+                            dateOption.day
+                          }
+                        </Typography>
 
 
-                      <Typography
-                        variant="body1"
-                        sx={{
-                          fontWeight: 700
-                        }}
-                      >
-                        {d.dateNum}
-                      </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight:
+                              700
+                          }}
+                        >
+                          {
+                            dateOption.dateNum
+                          }
+                        </Typography>
 
-                    </Box>
-
-                  );
-
-                })}
+                      </Box>
+                    );
+                  }
+                )}
 
               </Box>
 
 
-              {/* Time Slots */}
+              {/* TIME SLOT */}
 
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  fontWeight: 600,
-                  mb: 1.5
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5
                 }}
               >
                 Available time slots for {selectedTech?.name} — {selectedDate}
@@ -804,96 +1462,111 @@ export const AppointmentBooking = ({ currentUser }) => {
                 container
                 spacing={1.5}
                 sx={{
-                  mb: 4
+                  mb:
+                    4
                 }}
               >
 
-                {timeSlots.map((slot) => {
+                {timeSlots.map(
+                  (slot) => {
 
-                  const isBooked =
-                    activeBookedSlots.includes(slot);
+                    const isBooked =
+                      activeBookedSlots.includes(
+                        slot
+                      );
 
-                  const selected =
-                    selectedTimeSlot === slot;
+
+                    const selected =
+                      selectedTimeSlot ===
+                      slot;
 
 
-                  return (
+                    return (
 
-                    <Grid
-                      item
-                      xs={4}
-                      key={slot}
-                    >
-
-                      <Button
-                        fullWidth
-                        disabled={isBooked}
-                        onClick={() =>
-                          setSelectedTimeSlot(slot)
+                      <Grid
+                        item
+                        xs={4}
+                        key={
+                          slot
                         }
-                        sx={{
-                          backgroundColor:
+                      >
+
+                        <Button
+                          fullWidth
+                          disabled={
                             isBooked
-                              ? '#1E293B'
-                              : selected
-                                ? '#00A8FF'
-                                : '#0F172A',
-
-                          color:
-                            isBooked
-                              ? '#64748B'
-                              : selected
-                                ? '#0D1527'
-                                : '#94A3B8',
-
-                          border:
-                            isBooked
-                              ? '1px dashed #334155'
-                              : selected
-                                ? '1px solid #00A8FF'
-                                : '1px solid #2A364F',
-
-                          py: 1,
-
-                          fontSize: '0.85rem',
-
-                          fontWeight: 600,
-
-                          textDecoration:
-                            isBooked
-                              ? 'line-through'
-                              : 'none',
-
-                          '&:hover': {
+                          }
+                          onClick={() =>
+                            setSelectedTimeSlot(
+                              slot
+                            )
+                          }
+                          sx={{
                             backgroundColor:
                               isBooked
                                 ? '#1E293B'
                                 : selected
                                   ? '#00A8FF'
-                                  : '#1E293B'
+                                  : '#0F172A',
+
+                            color:
+                              isBooked
+                                ? '#64748B'
+                                : selected
+                                  ? '#0D1527'
+                                  : '#94A3B8',
+
+                            border:
+                              isBooked
+                                ? '1px dashed #334155'
+                                : selected
+                                  ? '1px solid #00A8FF'
+                                  : '1px solid #2A364F',
+
+                            py:
+                              1,
+
+                            fontSize:
+                              '0.85rem',
+
+                            fontWeight:
+                              600,
+
+                            textDecoration:
+                              isBooked
+                                ? 'line-through'
+                                : 'none'
+                          }}
+                        >
+                          {slot}
+                          {
+                            isBooked
+                              ? ' (Booked)'
+                              : ''
                           }
-                        }}
-                      >
-                        {slot} {isBooked ? '(Booked)' : ''}
-                      </Button>
+                        </Button>
 
-                    </Grid>
-
-                  );
-
-                })}
+                      </Grid>
+                    );
+                  }
+                )}
 
               </Grid>
 
 
-              {/* Service Type */}
+              {/* SERVICE TYPE */}
 
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  fontWeight: 600,
-                  mb: 1.5
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5
                 }}
               >
                 Service type
@@ -902,75 +1575,95 @@ export const AppointmentBooking = ({ currentUser }) => {
 
               <Box
                 sx={{
-                  display: 'flex',
-                  gap: 1.5,
-                  mb: 4
+                  display:
+                    'flex',
+
+                  gap:
+                    1.5,
+
+                  mb:
+                    4
                 }}
               >
 
-                {serviceTypes.map((st) => {
+                {serviceTypes.map(
+                  (type) => {
 
-                  const selected =
-                    serviceType === st;
+                    const selected =
+                      serviceType ===
+                      type;
 
 
-                  return (
+                    return (
 
-                    <Button
-                      key={st}
-                      onClick={() =>
-                        setServiceType(st)
-                      }
-                      sx={{
-                        backgroundColor:
-                          selected
-                            ? 'rgba(0, 168, 255, 0.15)'
-                            : '#0F172A',
-
-                        color:
-                          selected
-                            ? '#00A8FF'
-                            : '#94A3B8',
-
-                        border:
-                          selected
-                            ? '1px solid #00A8FF'
-                            : '1px solid #2A364F',
-
-                        px: 2,
-                        py: 1,
-                        fontWeight: 600,
-
-                        '&:hover': {
+                      <Button
+                        key={
+                          type
+                        }
+                        onClick={() =>
+                          setServiceType(
+                            type
+                          )
+                        }
+                        sx={{
                           backgroundColor:
                             selected
-                              ? 'rgba(0, 168, 255, 0.25)'
-                              : '#1E293B'
+                              ? 'rgba(0, 168, 255, 0.15)'
+                              : '#0F172A',
+
+                          color:
+                            selected
+                              ? '#00A8FF'
+                              : '#94A3B8',
+
+                          border:
+                            selected
+                              ? '1px solid #00A8FF'
+                              : '1px solid #2A364F',
+
+                          px:
+                            2,
+
+                          py:
+                            1,
+
+                          fontWeight:
+                            600
+                        }}
+                      >
+                        {
+                          type
                         }
-                      }}
-                    >
-                      {st}
-                    </Button>
-
-                  );
-
-                })}
+                      </Button>
+                    );
+                  }
+                )}
 
               </Box>
 
 
               <Box
                 sx={{
-                  display: 'flex',
-                  gap: 2
+                  display:
+                    'flex',
+
+                  gap:
+                    2
                 }}
               >
 
                 <Button
-                  onClick={() => setStep(1)}
+                  onClick={() =>
+                    setStep(
+                      1
+                    )
+                  }
                   sx={{
-                    color: '#94A3B8',
-                    border: '1px solid #2A364F'
+                    color:
+                      '#94A3B8',
+
+                    border:
+                      '1px solid #2A364F'
                   }}
                 >
                   Back
@@ -981,8 +1674,18 @@ export const AppointmentBooking = ({ currentUser }) => {
                   variant="contained"
                   fullWidth
                   onClick={() => {
-                    setConflictError('');
-                    setOpenModal(true);
+
+                    setConflictError(
+                      ''
+                    );
+
+                    setBookingSuccess(
+                      null
+                    );
+
+                    setOpenModal(
+                      true
+                    );
                   }}
                   disabled={
                     activeBookedSlots.includes(
@@ -990,14 +1693,17 @@ export const AppointmentBooking = ({ currentUser }) => {
                     )
                   }
                   sx={{
-                    backgroundColor: '#00A8FF',
-                    color: '#0D1527',
-                    py: 1.2,
-                    fontWeight: 700,
+                    backgroundColor:
+                      '#00A8FF',
 
-                    '&:hover': {
-                      backgroundColor: '#38BDF8'
-                    }
+                    color:
+                      '#0D1527',
+
+                    py:
+                      1.2,
+
+                    fontWeight:
+                      700
                   }}
                 >
                   Review Booking
@@ -1010,43 +1716,63 @@ export const AppointmentBooking = ({ currentUser }) => {
           </Grid>
 
         </Grid>
-
       )}
 
 
-      {/* Booking Summary Confirmation Modal */}
+      {/* =================================================
+          CONFIRMATION MODAL
+      ================================================= */}
 
       <Dialog
-        open={openModal}
-        onClose={() => setOpenModal(false)}
+        open={
+          openModal
+        }
+        onClose={() =>
+          setOpenModal(
+            false
+          )
+        }
         PaperProps={{
           sx: {
-            backgroundColor: '#172036',
-            color: '#FFF',
-            borderRadius: 3,
-            border: '1px solid #2A364F',
-            p: 2,
-            minWidth: 400
+            backgroundColor:
+              '#172036',
+
+            color:
+              '#FFF',
+
+            borderRadius:
+              3,
+
+            border:
+              '1px solid #2A364F',
+
+            p:
+              2,
+
+            minWidth:
+              400
           }
         }}
       >
 
         <DialogTitle
           sx={{
-            textAlign: 'center',
-            pb: 1
+            textAlign:
+              'center',
+
+            pb:
+              1
           }}
         >
-
           <Typography
             variant="h6"
             sx={{
-              fontWeight: 700
+              fontWeight:
+                700
             }}
           >
             Confirm your booking
           </Typography>
-
         </DialogTitle>
 
 
@@ -1057,7 +1783,9 @@ export const AppointmentBooking = ({ currentUser }) => {
             <Alert
               severity="error"
               sx={{
-                mb: 2,
+                mb:
+                  2,
+
                 backgroundColor:
                   'rgba(239, 68, 68, 0.15)',
 
@@ -1065,9 +1793,10 @@ export const AppointmentBooking = ({ currentUser }) => {
                   '#EF4444'
               }}
             >
-              {conflictError}
+              {
+                conflictError
+              }
             </Alert>
-
           )}
 
 
@@ -1075,8 +1804,11 @@ export const AppointmentBooking = ({ currentUser }) => {
 
             <Box
               sx={{
-                textAlign: 'center',
-                py: 2
+                textAlign:
+                  'center',
+
+                py:
+                  2
               }}
             >
 
@@ -1096,9 +1828,14 @@ export const AppointmentBooking = ({ currentUser }) => {
               <Typography
                 variant="h6"
                 sx={{
-                  color: '#10B981',
-                  fontWeight: 700,
-                  mb: 1
+                  color:
+                    '#10B981',
+
+                  fontWeight:
+                    700,
+
+                  mb:
+                    1
                 }}
               >
                 Booking Successful!
@@ -1108,29 +1845,44 @@ export const AppointmentBooking = ({ currentUser }) => {
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  mb: 2
+                  color:
+                    '#94A3B8',
+
+                  mb:
+                    2
                 }}
               >
-                Saved in Prisma database & email dispatched via EmailJS API.
+                Appointment saved successfully in the database.
               </Typography>
 
 
               <Box
                 sx={{
-                  backgroundColor: '#0F172A',
-                  p: 2,
-                  borderRadius: 2,
-                  textAlign: 'left',
-                  mb: 2
+                  backgroundColor:
+                    '#0F172A',
+
+                  p:
+                    2,
+
+                  borderRadius:
+                    2,
+
+                  textAlign:
+                    'left',
+
+                  mb:
+                    2
                 }}
               >
 
                 <Typography
                   variant="caption"
                   sx={{
-                    color: '#64748B',
-                    display: 'block'
+                    color:
+                      '#64748B',
+
+                    display:
+                      'block'
                   }}
                 >
                   APPOINTMENT ID
@@ -1140,20 +1892,30 @@ export const AppointmentBooking = ({ currentUser }) => {
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#00A8FF',
-                    fontWeight: 700
+                    color:
+                      '#00A8FF',
+
+                    fontWeight:
+                      700
                   }}
                 >
-                  {bookingSuccess.id}
+                  {
+                    bookingSuccess.id
+                  }
                 </Typography>
 
 
                 <Typography
                   variant="caption"
                   sx={{
-                    color: '#64748B',
-                    display: 'block',
-                    mt: 1
+                    color:
+                      '#64748B',
+
+                    display:
+                      'block',
+
+                    mt:
+                      1
                   }}
                 >
                   DATE & TIME
@@ -1163,7 +1925,8 @@ export const AppointmentBooking = ({ currentUser }) => {
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#FFF'
+                    color:
+                      '#FFF'
                   }}
                 >
                   {bookingSuccess.date} at {bookingSuccess.timeSlot}
@@ -1177,134 +1940,160 @@ export const AppointmentBooking = ({ currentUser }) => {
 
             <Box
               sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                py: 1
+                display:
+                  'flex',
+
+                flexDirection:
+                  'column',
+
+                gap:
+                  2,
+
+                py:
+                  1
               }}
             >
 
               <Box
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between'
+                  display:
+                    'flex',
+
+                  justifyContent:
+                    'space-between'
                 }}
               >
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#94A3B8'
+                    color:
+                      '#94A3B8'
                   }}
                 >
                   Technician
                 </Typography>
 
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#FFF',
-                    fontWeight: 600
+                    color:
+                      '#FFF',
+
+                    fontWeight:
+                      600
                   }}
                 >
-                  {selectedTech?.name}
+                  {
+                    selectedTech?.name
+                  }
                 </Typography>
-
               </Box>
 
 
               <Box
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between'
+                  display:
+                    'flex',
+
+                  justifyContent:
+                    'space-between'
                 }}
               >
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#94A3B8'
+                    color:
+                      '#94A3B8'
                   }}
                 >
                   Date & time
                 </Typography>
 
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#FFF',
-                    fontWeight: 600
+                    color:
+                      '#FFF',
+
+                    fontWeight:
+                      600
                   }}
                 >
                   {getFormattedDateStr(selectedDate)}, {selectedTimeSlot}
                 </Typography>
-
               </Box>
 
 
               <Box
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between'
+                  display:
+                    'flex',
+
+                  justifyContent:
+                    'space-between'
                 }}
               >
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#94A3B8'
+                    color:
+                      '#94A3B8'
                   }}
                 >
                   Service type
                 </Typography>
 
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#FFF',
-                    fontWeight: 600
+                    color:
+                      '#FFF',
+
+                    fontWeight:
+                      600
                   }}
                 >
-                  {serviceType}
+                  {
+                    serviceType
+                  }
                 </Typography>
-
               </Box>
 
 
               <Box
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between'
+                  display:
+                    'flex',
+
+                  justifyContent:
+                    'space-between'
                 }}
               >
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#94A3B8'
+                    color:
+                      '#94A3B8'
                   }}
                 >
                   Estimated cost
                 </Typography>
 
-
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#00A8FF',
-                    fontWeight: 700
+                    color:
+                      '#00A8FF',
+
+                    fontWeight:
+                      700
                   }}
                 >
                   ৳800 - 1,500
                 </Typography>
-
               </Box>
 
             </Box>
-
           )}
 
         </DialogContent>
@@ -1312,8 +2101,11 @@ export const AppointmentBooking = ({ currentUser }) => {
 
         <DialogActions
           sx={{
-            px: 3,
-            pb: 2
+            px:
+              3,
+
+            pb:
+              2
           }}
         >
 
@@ -1337,9 +2129,14 @@ export const AppointmentBooking = ({ currentUser }) => {
                 );
               }}
               sx={{
-                backgroundColor: '#00A8FF',
-                color: '#0D1527',
-                fontWeight: 700
+                backgroundColor:
+                  '#00A8FF',
+
+                color:
+                  '#0D1527',
+
+                fontWeight:
+                  700
               }}
             >
               Done
@@ -1350,27 +2147,34 @@ export const AppointmentBooking = ({ currentUser }) => {
             <Button
               fullWidth
               variant="contained"
-              onClick={handleConfirmBooking}
-              disabled={loading}
+              onClick={
+                handleConfirmBooking
+              }
+              disabled={
+                loading
+              }
               startIcon={
                 loading
                   ? (
-                      <CircularProgress
-                        size={18}
-                        color="inherit"
-                      />
-                    )
+                    <CircularProgress
+                      size={18}
+                      color="inherit"
+                    />
+                  )
                   : null
               }
               sx={{
-                backgroundColor: '#00A8FF',
-                color: '#0D1527',
-                py: 1.2,
-                fontWeight: 700,
+                backgroundColor:
+                  '#00A8FF',
 
-                '&:hover': {
-                  backgroundColor: '#38BDF8'
-                }
+                color:
+                  '#0D1527',
+
+                py:
+                  1.2,
+
+                fontWeight:
+                  700
               }}
             >
               {
@@ -1379,7 +2183,6 @@ export const AppointmentBooking = ({ currentUser }) => {
                   : 'Confirm booking'
               }
             </Button>
-
           )}
 
         </DialogActions>

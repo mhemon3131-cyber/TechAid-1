@@ -1,35 +1,39 @@
-import React, { useState } from 'react';
+import React, {
+  useState
+} from 'react';
 
 import {
+  Alert,
+  Avatar,
   Box,
-  Typography,
-  Paper,
   Button,
   Chip,
-  Grid,
-  Stepper,
-  Step,
-  StepLabel,
-  StepConnector,
   CircularProgress,
-  TextField,
-  Alert,
   Divider,
-  Avatar
+  Grid,
+  Paper,
+  Step,
+  StepConnector,
+  StepLabel,
+  Stepper,
+  TextField,
+  Typography
 } from '@mui/material';
 
-import { styled } from '@mui/material/styles';
+import {
+  CheckCheck,
+  CheckCircle2,
+  Clock,
+  Navigation,
+  Search,
+  Star,
+  UserCheck,
+  Wrench
+} from 'lucide-react';
 
 import {
-  Clock,
-  UserCheck,
-  CheckCircle2,
-  Wrench,
-  Navigation,
-  CheckCheck,
-  Search,
-  Star
-} from 'lucide-react';
+  styled
+} from '@mui/material/styles';
 
 import axios from 'axios';
 
@@ -38,22 +42,40 @@ import axios from 'axios';
 // CUSTOM STEPPER CONNECTOR
 // ======================================================
 
-const ColorlibConnector = styled(StepConnector)(() => ({
-  '& .MuiStepConnector-line': {
-    height: 4,
-    border: 0,
-    backgroundColor: '#2A364F',
-    borderRadius: 1
-  },
+const ColorlibConnector =
+  styled(
+    StepConnector
+  )(
+    () => ({
 
-  '&.Mui-active .MuiStepConnector-line': {
-    backgroundColor: '#00A8FF'
-  },
+      '& .MuiStepConnector-line':
+        {
+          height:
+            4,
 
-  '&.Mui-completed .MuiStepConnector-line': {
-    backgroundColor: '#10B981'
-  }
-}));
+          border:
+            0,
+
+          backgroundColor:
+            '#2A364F',
+
+          borderRadius:
+            1
+        },
+
+      '&.Mui-active .MuiStepConnector-line':
+        {
+          backgroundColor:
+            '#00A8FF'
+        },
+
+      '&.Mui-completed .MuiStepConnector-line':
+        {
+          backgroundColor:
+            '#10B981'
+        }
+    })
+  );
 
 
 // ======================================================
@@ -66,27 +88,46 @@ export const ServiceProgressTracker = ({
 }) => {
 
   // ====================================================
-  // CHANGED:
-  // Page open hole tracking ID blank thakbe.
+  // TRACKING ID
+  //
+  // Page open hole blank thakbe.
+  // User tracking ID dilei only data show korbe.
   // ====================================================
 
-  const [trackingIdInput, setTrackingIdInput] =
-    useState('');
+  const [
+    trackingIdInput,
+    setTrackingIdInput
+  ] = useState('');
 
-  const [progressData, setProgressData] =
-    useState(null);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [
+    progressData,
+    setProgressData
+  ] = useState(null);
 
-  const [updating, setUpdating] =
-    useState(false);
 
-  const [error, setError] =
-    useState('');
+  const [
+    loading,
+    setLoading
+  ] = useState(false);
 
-  const [msg, setMsg] =
-    useState('');
+
+  const [
+    updating,
+    setUpdating
+  ] = useState(false);
+
+
+  const [
+    error,
+    setError
+  ] = useState('');
+
+
+  const [
+    msg,
+    setMsg
+  ] = useState('');
 
 
   // ======================================================
@@ -94,129 +135,215 @@ export const ServiceProgressTracker = ({
   // ======================================================
 
   const stagesList = [
+
     {
-      key: 'PENDING',
-      label: 'Pending',
-      icon: <Clock size={18} />
+      key:
+        'PENDING',
+
+      label:
+        'Pending',
+
+      icon:
+        <Clock
+          size={18}
+        />
     },
+
     {
-      key: 'ASSIGNED',
-      label: 'Assigned',
-      icon: <UserCheck size={18} />
+      key:
+        'ASSIGNED',
+
+      label:
+        'Assigned',
+
+      icon:
+        <UserCheck
+          size={18}
+        />
     },
+
     {
-      key: 'ACCEPTED',
-      label: 'Accepted',
-      icon: <CheckCircle2 size={18} />
+      key:
+        'ACCEPTED',
+
+      label:
+        'Accepted',
+
+      icon:
+        <CheckCircle2
+          size={18}
+        />
     },
+
     {
-      key: 'IN_PROGRESS',
-      label: 'In Progress',
-      icon: <Wrench size={18} />
+      key:
+        'IN_PROGRESS',
+
+      label:
+        'In Progress',
+
+      icon:
+        <Wrench
+          size={18}
+        />
     },
+
     {
-      key: 'ON_THE_WAY',
-      label: 'On the Way',
-      icon: <Navigation size={18} />
+      key:
+        'ON_THE_WAY',
+
+      label:
+        'On the Way',
+
+      icon:
+        <Navigation
+          size={18}
+        />
     },
+
     {
-      key: 'COMPLETED',
-      label: 'Completed',
-      icon: <CheckCheck size={18} />
+      key:
+        'COMPLETED',
+
+      label:
+        'Completed',
+
+      icon:
+        <CheckCheck
+          size={18}
+        />
     }
   ];
 
 
   // ======================================================
   // FETCH SERVICE PROGRESS
-  //
-  // Tracking ID dilei only data show korbe.
   // ======================================================
 
-  const fetchProgress = async (idToFetch) => {
+  const fetchProgress =
+    async (
+      idToFetch
+    ) => {
 
-    const cleanId =
-      String(idToFetch || '')
-        .trim();
-
-
-    if (!cleanId) {
-
-      setProgressData(null);
-
-      setError(
-        'Please enter a tracking ID.'
-      );
-
-      return;
-    }
+      const cleanId =
+        String(
+          idToFetch ||
+          ''
+        )
+          .trim()
+          .toUpperCase();
 
 
-    setLoading(true);
-
-    setError('');
-
-    setMsg('');
-
-    setProgressData(null);
-
-
-    try {
-
-      const res =
-        await axios.get(
-          `http://localhost:5000/api/requests/${cleanId}/progress`
-        );
-
-
-      if (res.data.success) {
+      if (
+        !cleanId
+      ) {
 
         setProgressData(
-          res.data.data
+          null
         );
 
-      } else {
-
-        setProgressData(null);
 
         setError(
-          res.data.message ||
-          'Could not load service progress.'
+          'Please enter a tracking ID.'
         );
+
+
+        return;
       }
 
 
-    } catch (err) {
-
-      // ==================================================
-      // CHANGED:
-      //
-      // Fake ON_THE_WAY fallback removed.
-      //
-      // Backend-e request na thakle actual error show.
-      // ==================================================
-
-      console.error(
-        'Progress load error:',
-        err
+      setLoading(
+        true
       );
 
 
-      setProgressData(null);
+      setError('');
 
 
-      setError(
-        err?.response?.data?.message ||
-        'Service request not found. Please check the tracking ID.'
+      setMsg('');
+
+
+      setProgressData(
+        null
       );
 
 
-    } finally {
+      try {
 
-      setLoading(false);
+        const res =
+          await axios.get(
+            `http://localhost:5000/api/requests/${cleanId}/progress`
+          );
 
-    }
-  };
+
+        if (
+          res.data.success
+        ) {
+
+          setProgressData(
+            res.data.data
+          );
+
+
+          setTrackingIdInput(
+            cleanId
+          );
+
+        } else {
+
+          setProgressData(
+            null
+          );
+
+
+          setError(
+            res.data.message ||
+            'Could not load service progress.'
+          );
+        }
+
+
+      } catch (err) {
+
+        console.error(
+          'Progress load error:',
+          err
+        );
+
+
+        setProgressData(
+          null
+        );
+
+
+        setError(
+          err?.response
+            ?.data
+            ?.message ||
+          `No service request found for Tracking ID "${cleanId}". Please verify your Tracking ID.`
+        );
+
+
+      } finally {
+
+        setLoading(
+          false
+        );
+      }
+    };
+
+
+  // ======================================================
+  // SEARCH SUBMIT
+  // ======================================================
+
+  const handleSearchSubmit =
+    () => {
+
+      fetchProgress(
+        trackingIdInput
+      );
+    };
 
 
   // ======================================================
@@ -224,16 +351,25 @@ export const ServiceProgressTracker = ({
   // ======================================================
 
   const handleUpdateStatus =
-    async (nextStatus) => {
+    async (
+      nextStatus
+    ) => {
 
-      if (!progressData) {
+      if (
+        !progressData
+      ) {
+
         return;
       }
 
 
-      setUpdating(true);
+      setUpdating(
+        true
+      );
+
 
       setMsg('');
+
 
       setError('');
 
@@ -243,6 +379,7 @@ export const ServiceProgressTracker = ({
         const res =
           await axios.put(
             `http://localhost:5000/api/requests/${progressData.trackingId}/status`,
+
             {
               status:
                 nextStatus,
@@ -262,14 +399,7 @@ export const ServiceProgressTracker = ({
           );
 
 
-          // ================================================
-          // IMPORTANT:
-          // Backend success-er por abar DB theke progress
-          // load kori.
-          //
-          // Fake local status banai na.
-          // ================================================
-
+          // DB theke abar real progress load
           await fetchProgress(
             progressData.trackingId
           );
@@ -285,42 +415,51 @@ export const ServiceProgressTracker = ({
 
 
         setError(
-          err?.response?.data?.message ||
+          err?.response
+            ?.data
+            ?.message ||
           'Could not update service progress.'
         );
 
 
       } finally {
 
-        setUpdating(false);
+        setUpdating(
+          false
+        );
       }
     };
 
 
   // ======================================================
-  // MODULE 3 FEATURE 4
   // GO TO RATING & REVIEW
   // ======================================================
 
-  const handleRateAndReview = () => {
+  const handleRateAndReview =
+    () => {
 
-    if (!progressData) {
-      return;
-    }
+      if (
+        !progressData
+      ) {
 
-
-    localStorage.setItem(
-      'techaid_review_tracking_id',
-      progressData.trackingId
-    );
+        return;
+      }
 
 
-    if (onNavigateToReview) {
+      localStorage.setItem(
+        'techaid_review_tracking_id',
 
-      onNavigateToReview();
+        progressData.trackingId
+      );
 
-    }
-  };
+
+      if (
+        onNavigateToReview
+      ) {
+
+        onNavigateToReview();
+      }
+    };
 
 
   // ======================================================
@@ -331,12 +470,18 @@ export const ServiceProgressTracker = ({
 
     <Box
       sx={{
-        flexGrow: 1,
-        p: 4,
+        flexGrow:
+          1,
+
+        p:
+          4,
+
         backgroundColor:
           '#0D1527',
+
         minHeight:
           '100vh',
+
         overflowY:
           'auto'
       }}
@@ -346,13 +491,19 @@ export const ServiceProgressTracker = ({
           HEADER
       ================================================= */}
 
-      <Box sx={{ mb: 4 }}>
+      <Box
+        sx={{
+          mb:
+            4
+        }}
+      >
 
         <Typography
           variant="h5"
           sx={{
             color:
               '#FFF',
+
             fontWeight:
               700
           }}
@@ -383,7 +534,8 @@ export const ServiceProgressTracker = ({
       <Paper
         elevation={0}
         sx={{
-          p: 2.5,
+          p:
+            2.5,
 
           backgroundColor:
             '#172036',
@@ -418,10 +570,10 @@ export const ServiceProgressTracker = ({
           value={
             trackingIdInput
           }
-          onChange={(e) => {
+          onChange={(event) => {
 
             setTrackingIdInput(
-              e.target.value
+              event.target.value
             );
 
 
@@ -431,24 +583,19 @@ export const ServiceProgressTracker = ({
             );
 
 
-            setError(
-              ''
-            );
+            setError('');
 
 
-            setMsg(
-              ''
-            );
+            setMsg('');
           }}
-          onKeyDown={(e) => {
+          onKeyDown={(event) => {
 
             if (
-              e.key === 'Enter'
+              event.key ===
+              'Enter'
             ) {
 
-              fetchProgress(
-                trackingIdInput
-              );
+              handleSearchSubmit();
             }
           }}
           sx={{
@@ -472,10 +619,8 @@ export const ServiceProgressTracker = ({
 
         <Button
           variant="contained"
-          onClick={() =>
-            fetchProgress(
-              trackingIdInput
-            )
+          onClick={
+            handleSearchSubmit
           }
           disabled={
             loading
@@ -483,16 +628,16 @@ export const ServiceProgressTracker = ({
           startIcon={
             loading
               ? (
-                  <CircularProgress
-                    size={18}
-                    color="inherit"
-                  />
-                )
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              )
               : (
-                  <Search
-                    size={18}
-                  />
-                )
+                <Search
+                  size={18}
+                />
+              )
           }
           sx={{
             backgroundColor:
@@ -536,19 +681,24 @@ export const ServiceProgressTracker = ({
         <Alert
           severity="success"
           sx={{
-            mb: 3,
-            maxWidth: 900,
+            mb:
+              3,
+
+            maxWidth:
+              900,
+
             backgroundColor:
               'rgba(16, 185, 129, 0.15)',
+
             color:
               '#10B981',
+
             border:
               '1px solid #10B981'
           }}
         >
           {msg}
         </Alert>
-
       )}
 
 
@@ -561,17 +711,21 @@ export const ServiceProgressTracker = ({
         <Alert
           severity="error"
           sx={{
-            mb: 3,
-            maxWidth: 900,
+            mb:
+              3,
+
+            maxWidth:
+              900,
+
             backgroundColor:
               'rgba(239, 68, 68, 0.15)',
+
             color:
               '#EF4444'
           }}
         >
           {error}
         </Alert>
-
       )}
 
 
@@ -614,12 +768,14 @@ export const ServiceProgressTracker = ({
           }}
         >
 
-
           {/* ===============================================
               PROGRESS CARD
           =============================================== */}
 
-          <Grid item xs={12}>
+          <Grid
+            item
+            xs={12}
+          >
 
             <Paper
               elevation={0}
@@ -678,7 +834,28 @@ export const ServiceProgressTracker = ({
                     }}
                   >
                     {
-                      progressData.trackingId
+                      progressData
+                        .trackingId
+                    }
+                  </Typography>
+
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color:
+                        '#E2E8F0',
+
+                      mt:
+                        0.5,
+
+                      fontWeight:
+                        600
+                    }}
+                  >
+                    {
+                      progressData.title ||
+                      `${progressData.deviceCategory || 'Service'} Support Request`
                     }
                   </Typography>
 
@@ -687,17 +864,20 @@ export const ServiceProgressTracker = ({
 
                 <Chip
                   label={
-                    progressData.currentStatus
+                    progressData
+                      .currentStatus
                   }
                   sx={{
                     backgroundColor:
-                      progressData.currentStatus ===
+                      progressData
+                        .currentStatus ===
                       'COMPLETED'
                         ? 'rgba(16, 185, 129, 0.2)'
                         : 'rgba(0, 168, 255, 0.2)',
 
                     color:
-                      progressData.currentStatus ===
+                      progressData
+                        .currentStatus ===
                       'COMPLETED'
                         ? '#10B981'
                         : '#00A8FF',
@@ -717,11 +897,17 @@ export const ServiceProgressTracker = ({
                   STEPPER
               =========================================== */}
 
-              <Box sx={{ my: 4 }}>
+              <Box
+                sx={{
+                  my:
+                    4
+                }}
+              >
 
                 <Stepper
                   activeStep={
-                    progressData.currentStageIndex
+                    progressData
+                      .currentStageIndex
                   }
                   connector={
                     <ColorlibConnector />
@@ -730,16 +916,21 @@ export const ServiceProgressTracker = ({
                 >
 
                   {stagesList.map(
-                    (stage, idx) => {
+                    (
+                      stage,
+                      index
+                    ) => {
 
                       const isCompleted =
-                        idx <
-                        progressData.currentStageIndex;
+                        index <
+                        progressData
+                          .currentStageIndex;
 
 
                       const isActive =
-                        idx ===
-                        progressData.currentStageIndex;
+                        index ===
+                        progressData
+                          .currentStageIndex;
 
 
                       return (
@@ -765,8 +956,8 @@ export const ServiceProgressTracker = ({
                                     isCompleted
                                       ? '#10B981'
                                       : isActive
-                                      ? '#00A8FF'
-                                      : '#0F172A',
+                                        ? '#00A8FF'
+                                        : '#0F172A',
 
                                   color:
                                     isCompleted ||
@@ -800,8 +991,8 @@ export const ServiceProgressTracker = ({
                                   isActive
                                     ? '#00A8FF'
                                     : isCompleted
-                                    ? '#10B981'
-                                    : '#94A3B8',
+                                      ? '#10B981'
+                                      : '#94A3B8',
 
                                 fontWeight:
                                   isActive
@@ -823,7 +1014,6 @@ export const ServiceProgressTracker = ({
                           </StepLabel>
 
                         </Step>
-
                       );
                     }
                   )}
@@ -837,6 +1027,7 @@ export const ServiceProgressTracker = ({
                 sx={{
                   borderColor:
                     '#2A364F',
+
                   my:
                     3
                 }}
@@ -894,37 +1085,36 @@ export const ServiceProgressTracker = ({
                 >
 
                   {stagesList.map(
-                    (stg) => (
+                    (stage) => (
 
                       <Button
                         key={
-                          stg.key
+                          stage.key
                         }
-
                         size="small"
-
                         disabled={
                           updating ||
-                          progressData.currentStatus ===
-                            stg.key
+                          progressData
+                            .currentStatus ===
+                            stage.key
                         }
-
                         onClick={() =>
                           handleUpdateStatus(
-                            stg.key
+                            stage.key
                           )
                         }
-
                         sx={{
                           backgroundColor:
-                            progressData.currentStatus ===
-                            stg.key
+                            progressData
+                              .currentStatus ===
+                            stage.key
                               ? '#00A8FF'
                               : '#172036',
 
                           color:
-                            progressData.currentStatus ===
-                            stg.key
+                            progressData
+                              .currentStatus ===
+                            stage.key
                               ? '#0D1527'
                               : '#94A3B8',
 
@@ -947,9 +1137,8 @@ export const ServiceProgressTracker = ({
                             }
                         }}
                       >
-                        Set {stg.label}
+                        Set {stage.label}
                       </Button>
-
                     )
                   )}
 
@@ -959,97 +1148,98 @@ export const ServiceProgressTracker = ({
 
 
               {/* ===========================================
-                  REVIEW BUTTON ONLY AFTER COMPLETED
+                  REVIEW BUTTON
               =========================================== */}
 
               {currentUser?.role ===
                 'CUSTOMER' &&
-                progressData.currentStatus ===
+                progressData
+                  .currentStatus ===
                   'COMPLETED' && (
 
-                  <Box
+                <Box
+                  sx={{
+                    mt:
+                      3,
+
+                    p:
+                      2.5,
+
+                    borderRadius:
+                      2,
+
+                    backgroundColor:
+                      'rgba(245, 158, 11, 0.08)',
+
+                    border:
+                      '1px solid rgba(245, 158, 11, 0.35)'
+                  }}
+                >
+
+                  <Typography
+                    variant="subtitle1"
                     sx={{
-                      mt:
-                        3,
+                      color:
+                        '#FFFFFF',
 
-                      p:
-                        2.5,
-
-                      borderRadius:
-                        2,
-
-                      backgroundColor:
-                        'rgba(245, 158, 11, 0.08)',
-
-                      border:
-                        '1px solid rgba(245, 158, 11, 0.35)'
+                      fontWeight:
+                        700
                     }}
                   >
-
-                    <Typography
-                      variant="subtitle1"
-                      sx={{
-                        color:
-                          '#FFFFFF',
-
-                        fontWeight:
-                          700
-                      }}
-                    >
-                      Service Completed
-                    </Typography>
+                    Service Completed
+                  </Typography>
 
 
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color:
-                          '#94A3B8',
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color:
+                        '#94A3B8',
 
-                        mt:
-                          0.5,
+                      mt:
+                        0.5,
 
-                        mb:
-                          2
-                      }}
-                    >
-                      Your service is complete.
-                      You can now rate and review
-                      your technician.
-                    </Typography>
+                      mb:
+                        2
+                    }}
+                  >
+                    Your service is complete.
+                    You can now rate and review your technician.
+                  </Typography>
 
 
-                    <Button
-                      variant="contained"
-                      startIcon={
-                        <Star size={18} />
-                      }
-                      onClick={
-                        handleRateAndReview
-                      }
-                      sx={{
-                        backgroundColor:
-                          '#F59E0B',
+                  <Button
+                    variant="contained"
+                    startIcon={
+                      <Star
+                        size={18}
+                      />
+                    }
+                    onClick={
+                      handleRateAndReview
+                    }
+                    sx={{
+                      backgroundColor:
+                        '#F59E0B',
 
-                        color:
-                          '#0D1527',
+                      color:
+                        '#0D1527',
 
-                        fontWeight:
-                          800,
+                      fontWeight:
+                        800,
 
-                        '&:hover':
-                          {
-                            backgroundColor:
-                              '#FBBF24'
-                          }
-                      }}
-                    >
-                      Rate & Review Technician
-                    </Button>
+                      '&:hover':
+                        {
+                          backgroundColor:
+                            '#FBBF24'
+                        }
+                    }}
+                  >
+                    Rate & Review Technician
+                  </Button>
 
-                  </Box>
-
-                )}
+                </Box>
+              )}
 
             </Paper>
 
@@ -1060,7 +1250,10 @@ export const ServiceProgressTracker = ({
               HISTORY LOGS
           =============================================== */}
 
-          <Grid item xs={12}>
+          <Grid
+            item
+            xs={12}
+          >
 
             <Paper
               elevation={0}
@@ -1109,117 +1302,141 @@ export const ServiceProgressTracker = ({
                 }}
               >
 
-                {(progressData.logs || []).map(
-                  (log, i) => {
+                {
+                  progressData.logs &&
+                  progressData.logs.length >
+                    0 ? (
 
-                    const logDate =
-                      log.createdAt ||
-                      log.timestamp;
+                    progressData.logs.map(
+                      (
+                        log,
+                        index
+                      ) => {
 
-
-                    return (
-
-                      <Box
-                        key={
-                          log.id ||
-                          `${log.status}-${i}`
-                        }
-                        sx={{
-                          display:
-                            'flex',
-
-                          alignItems:
-                            'center',
-
-                          gap:
-                            2,
-
-                          p:
-                            1.5,
-
-                          backgroundColor:
-                            '#0F172A',
-
-                          borderRadius:
-                            2,
-
-                          borderLeft:
-                            '4px solid #00A8FF'
-                        }}
-                      >
-
-                        <CheckCircle2
-                          size={20}
-                          color="#00A8FF"
-                        />
+                        const logDate =
+                          log.createdAt ||
+                          log.timestamp;
 
 
-                        <Box
-                          sx={{
-                            flexGrow:
-                              1
-                          }}
-                        >
+                        return (
 
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color:
-                                '#FFF',
-
-                              fontWeight:
-                                600
-                            }}
-                          >
-                            Stage: {log.status}
-                          </Typography>
-
-
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color:
-                                '#94A3B8'
-                            }}
-                          >
-                            {log.note}
-                          </Typography>
-
-                        </Box>
-
-
-                        {logDate && (
-
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color:
-                                '#64748B'
-                            }}
-                          >
-                            {
-                              new Date(
-                                logDate
-                              ).toLocaleTimeString(
-                                [],
-                                {
-                                  hour:
-                                    '2-digit',
-
-                                  minute:
-                                    '2-digit'
-                                }
-                              )
+                          <Box
+                            key={
+                              log.id ||
+                              `${log.status}-${index}`
                             }
-                          </Typography>
+                            sx={{
+                              display:
+                                'flex',
 
-                        )}
+                              alignItems:
+                                'center',
 
-                      </Box>
+                              gap:
+                                2,
 
-                    );
-                  }
-                )}
+                              p:
+                                1.5,
+
+                              backgroundColor:
+                                '#0F172A',
+
+                              borderRadius:
+                                2,
+
+                              borderLeft:
+                                '4px solid #00A8FF'
+                            }}
+                          >
+
+                            <CheckCircle2
+                              size={20}
+                              color="#00A8FF"
+                            />
+
+
+                            <Box
+                              sx={{
+                                flexGrow:
+                                  1
+                              }}
+                            >
+
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color:
+                                    '#FFF',
+
+                                  fontWeight:
+                                    600
+                                }}
+                              >
+                                Stage: {log.status}
+                              </Typography>
+
+
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color:
+                                    '#94A3B8'
+                                }}
+                              >
+                                {
+                                  log.note ||
+                                  'Status updated in system.'
+                                }
+                              </Typography>
+
+                            </Box>
+
+
+                            {logDate && (
+
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color:
+                                    '#64748B'
+                                }}
+                              >
+                                {
+                                  new Date(
+                                    logDate
+                                  )
+                                    .toLocaleTimeString(
+                                      [],
+                                      {
+                                        hour:
+                                          '2-digit',
+
+                                        minute:
+                                          '2-digit'
+                                      }
+                                    )
+                                }
+                              </Typography>
+                            )}
+
+                          </Box>
+                        );
+                      }
+                    )
+
+                  ) : (
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color:
+                          '#94A3B8'
+                      }}
+                    >
+                      No activity logs recorded yet.
+                    </Typography>
+                  )
+                }
 
               </Box>
 
@@ -1229,7 +1446,51 @@ export const ServiceProgressTracker = ({
 
         </Grid>
 
-      ) : null}
+      ) : (
+
+        // ==================================================
+        // EMPTY STATE
+        // ==================================================
+
+        <Paper
+          elevation={0}
+          sx={{
+            p:
+              4,
+
+            backgroundColor:
+              '#172036',
+
+            borderRadius:
+              3,
+
+            border:
+              '1px dashed #2A364F',
+
+            maxWidth:
+              900,
+
+            textAlign:
+              'center'
+          }}
+        >
+
+          <Typography
+            variant="body1"
+            sx={{
+              color:
+                '#94A3B8'
+            }}
+          >
+            Enter your Service Request Tracking ID above and click{' '}
+            <strong>
+              Track Request
+            </strong>{' '}
+            to view its live progress.
+          </Typography>
+
+        </Paper>
+      )}
 
     </Box>
   );

@@ -3,6 +3,8 @@ import React, {
   useState
 } from 'react';
 
+import axios from 'axios';
+
 import {
   Box,
   ThemeProvider,
@@ -20,17 +22,60 @@ import { TechnicianDashboard } from './pages/TechnicianDashboard';
 import { TechnicianAvailability } from './pages/TechnicianAvailability';
 import { ServiceProgressTracker } from './pages/ServiceProgressTracker';
 
-import { TechnicianAssignment } from './pages/TechnicianAssignment';
+import ChatPage from './pages/ChatPage';
+import EmergencyQueue from './pages/EmergencyQueue';
 
-// MEMBER 4 - manual technician search
-import { TechnicianSearch } from './pages/TechnicianSearch';
 
-// MODULE 3 FEATURE 4 - Rating & Review
+// ==========================================================
+// MAIN BRANCH - AI / SUPPORT FEATURES
+// ==========================================================
+
+import {
+  AIIssueClassifier
+} from './pages/AIIssueClassifier';
+
+import {
+  AITroubleshootAssistant
+} from './pages/AITroubleshootAssistant';
+
+import {
+  IssueResolutionHistory
+} from './pages/IssueResolutionHistory';
+
+import {
+  ServiceCostEstimator
+} from './pages/ServiceCostEstimator';
+
+
+// ==========================================================
+// MEMBER 4 - AUTO ASSIGNMENT
+// ==========================================================
+
+import {
+  TechnicianAssignment
+} from './pages/TechnicianAssignment';
+
+
+// ==========================================================
+// MEMBER 4 - MANUAL TECHNICIAN SEARCH
+// ==========================================================
+
+import {
+  TechnicianSearch
+} from './pages/TechnicianSearch';
+
+
+// ==========================================================
+// MODULE 3 FEATURE 4 - RATING & REVIEW
+// ==========================================================
+
 import RatingReview from './pages/RatingReview';
 
+
 // ==========================================================
-// MODULE 2 FEATURE 4 - SECURE PAYMENT & INVOICE SYSTEM
+// MODULE 2 FEATURE 4 - PAYMENT
 // ==========================================================
+
 import Payment from './pages/Payment';
 
 
@@ -40,7 +85,10 @@ export default function App() {
   // CURRENT USER
   // ========================================================
 
-  const [currentUser, setCurrentUser] = useState(() => {
+  const [
+    currentUser,
+    setCurrentUser
+  ] = useState(() => {
 
     const saved =
       localStorage.getItem(
@@ -48,28 +96,39 @@ export default function App() {
       );
 
     return saved
-      ? JSON.parse(saved)
+      ? JSON.parse(
+          saved
+        )
       : null;
   });
 
 
   // ========================================================
-  // ACTIVE PAGE
+  // ACTIVE TAB
   // ========================================================
 
   const [
     activeTab,
     setActiveTab
-  ] = useState('new-request');
+  ] = useState(
+    'new-request'
+  );
 
 
   // ========================================================
-  // STRIPE REDIRECT CHECK
-  //
-  // Stripe success hole:
-  // ?payment=success&session_id=...
-  //
-  // Payment page automatically open hobe.
+  // ACTIVE CHAT
+  // ========================================================
+
+  const [
+    activeConvId,
+    setActiveConvId
+  ] = useState(
+    null
+  );
+
+
+  // ========================================================
+  // STRIPE REDIRECT
   // ========================================================
 
   useEffect(() => {
@@ -87,8 +146,10 @@ export default function App() {
 
 
     if (
-      paymentStatus === 'success' ||
-      paymentStatus === 'cancelled'
+      paymentStatus ===
+        'success' ||
+      paymentStatus ===
+        'cancelled'
     ) {
 
       setActiveTab(
@@ -100,73 +161,296 @@ export default function App() {
 
 
   // ========================================================
-  // LOGIN
+  // LOGIN SUCCESS
   // ========================================================
 
-  const handleLoginSuccess = (user) => {
+  const handleLoginSuccess =
+    (user) => {
 
-    setCurrentUser(user);
-
-    localStorage.setItem(
-      'techaid_user',
-      JSON.stringify(user)
-    );
-
-
-    if (
-      user.role === 'TECHNICIAN'
-    ) {
-
-      setActiveTab(
-        'tech-dashboard'
+      setCurrentUser(
+        user
       );
 
-    } else {
 
-      setActiveTab(
-        'new-request'
+      localStorage.setItem(
+        'techaid_user',
+        JSON.stringify(
+          user
+        )
       );
-    }
-  };
+
+
+      if (
+        user.role ===
+        'TECHNICIAN'
+      ) {
+
+        setActiveTab(
+          'tech-dashboard'
+        );
+
+      } else {
+
+        setActiveTab(
+          'new-request'
+        );
+      }
+    };
 
 
   // ========================================================
   // LOGOUT
   // ========================================================
 
-  const handleLogout = () => {
+  const handleLogout =
+    () => {
 
-    setCurrentUser(null);
-
-    localStorage.removeItem(
-      'techaid_user'
-    );
-
-    setActiveTab(
-      'new-request'
-    );
+      setCurrentUser(
+        null
+      );
 
 
-    // Stripe query params clean
-    window.history.replaceState(
-      {},
-      '',
-      window.location.pathname
-    );
-  };
+      localStorage.removeItem(
+        'techaid_user'
+      );
+
+
+      setActiveTab(
+        'new-request'
+      );
+
+
+      setActiveConvId(
+        null
+      );
+
+
+      window.history.replaceState(
+        {},
+        '',
+        window.location.pathname
+      );
+    };
+
+
+  // ========================================================
+  // EMERGENCY REQUEST ACCEPTED
+  // ========================================================
+
+  const handleEmergencyAccepted =
+    (reqItem) => {
+
+      const custId =
+        reqItem?.customer?.id ||
+        reqItem?.customerId ||
+        'usr-1';
+
+
+      const custName =
+        reqItem?.customer?.name ||
+        reqItem?.customerName ||
+        'Customer';
+
+
+      const custEmail =
+        reqItem?.customer?.email ||
+        'customer@techaid.com';
+
+
+      const techId =
+        currentUser?.id ||
+        'usr-4';
+
+
+      const techName =
+        currentUser?.name ||
+        'Technician';
+
+
+      const targetConvId =
+        `conv_${custId}_${techId}`;
+
+
+      axios
+        .post(
+          'http://localhost:1257/api/conversations/register',
+
+          {
+            id:
+              targetConvId,
+
+            serviceRequestId:
+              reqItem?.id ||
+              reqItem?.trackingId,
+
+            customerId:
+              custId,
+
+            customerName:
+              custName,
+
+            customerEmail:
+              custEmail,
+
+            technicianId:
+              techId,
+
+            technicianName:
+              techName,
+
+            title:
+              reqItem?.title ||
+              reqItem?.requestTitle ||
+              'Emergency Technical Support',
+
+            deviceCategory:
+              reqItem?.deviceCategory ||
+              'Laptop'
+          },
+
+          {
+            headers: {
+
+              'user-id':
+                currentUser?.id,
+
+              'user-role':
+                currentUser?.role,
+
+              'user-name':
+                currentUser?.name
+            }
+          }
+        )
+        .catch(
+          () => {}
+        );
+
+
+      setActiveConvId(
+        targetConvId
+      );
+
+
+      setActiveTab(
+        'chat'
+      );
+    };
+
+
+  // ========================================================
+  // TECHNICIAN OPEN CHAT
+  // ========================================================
+
+  const handleTechnicianOpenChat =
+    (app) => {
+
+      const custId =
+        app?.customerId ||
+        'usr-1';
+
+
+      const custName =
+        app?.customerName ||
+        'Customer';
+
+
+      const techId =
+        currentUser?.id ||
+        'usr-4';
+
+
+      const techName =
+        currentUser?.name ||
+        'Technician';
+
+
+      const targetConvId =
+        `conv_${custId}_${techId}`;
+
+
+      axios
+        .post(
+          'http://localhost:1257/api/conversations/register',
+
+          {
+            id:
+              targetConvId,
+
+            serviceRequestId:
+              app?.serviceRequestId ||
+              app?.id,
+
+            customerId:
+              custId,
+
+            customerName:
+              custName,
+
+            technicianId:
+              techId,
+
+            technicianName:
+              techName,
+
+            title:
+              app?.requestTitle ||
+              app?.title ||
+              'Technical Repair Request',
+
+            deviceCategory:
+              app?.deviceCategory ||
+              'Laptop'
+          },
+
+          {
+            headers: {
+
+              'user-id':
+                currentUser?.id,
+
+              'user-role':
+                currentUser?.role,
+
+              'user-name':
+                currentUser?.name
+            }
+          }
+        )
+        .catch(
+          () => {}
+        );
+
+
+      setActiveConvId(
+        targetConvId
+      );
+
+
+      setActiveTab(
+        'chat'
+      );
+    };
 
 
   // ========================================================
   // LOGIN PAGE
   // ========================================================
 
-  if (!currentUser) {
+  if (
+    !currentUser
+  ) {
 
     return (
 
-      <ThemeProvider theme={theme}>
+      <ThemeProvider
+        theme={
+          theme
+        }
+      >
 
         <CssBaseline />
+
 
         <Auth
           onLoginSuccess={
@@ -185,9 +469,14 @@ export default function App() {
 
   return (
 
-    <ThemeProvider theme={theme}>
+    <ThemeProvider
+      theme={
+        theme
+      }
+    >
 
       <CssBaseline />
+
 
       <Box
         sx={{
@@ -226,7 +515,7 @@ export default function App() {
 
 
         {/* =================================================
-            CONTENT
+            MAIN CONTENT
         ================================================= */}
 
         <Box
@@ -235,12 +524,12 @@ export default function App() {
               1,
 
             overflow:
-              'hidden'
+              'auto'
           }}
         >
 
           {/* ===============================================
-              CUSTOMER - NEW REQUEST
+              NEW REQUEST
           =============================================== */}
 
           {activeTab ===
@@ -256,13 +545,18 @@ export default function App() {
                   'appointments'
                 )
               }
-            />
 
+              onNavigateToChat={() =>
+                setActiveTab(
+                  'chat'
+                )
+              }
+            />
           )}
 
 
           {/* ===============================================
-              MEMBER 4 - AUTO ASSIGNMENT
+              AUTO ASSIGNMENT
           =============================================== */}
 
           {activeTab ===
@@ -279,12 +573,11 @@ export default function App() {
                 )
               }
             />
-
           )}
 
 
           {/* ===============================================
-              MEMBER 4 - MANUAL TECHNICIAN SEARCH
+              TECHNICIAN SEARCH
           =============================================== */}
 
           {activeTab ===
@@ -301,12 +594,11 @@ export default function App() {
                 )
               }
             />
-
           )}
 
 
           {/* ===============================================
-              CUSTOMER - APPOINTMENTS
+              APPOINTMENTS
           =============================================== */}
 
           {activeTab ===
@@ -317,12 +609,45 @@ export default function App() {
                 currentUser
               }
             />
-
           )}
 
 
           {/* ===============================================
-              CUSTOMER - PROGRESS
+              LIVE CHAT
+          =============================================== */}
+
+          {activeTab ===
+            'chat' && (
+
+            <ChatPage
+              currentUser={
+                currentUser
+              }
+
+              initialConvId={
+                activeConvId
+              }
+            />
+          )}
+
+
+          {/* ===============================================
+              EMERGENCY QUEUE
+          =============================================== */}
+
+          {activeTab ===
+            'emergency-queue' && (
+
+            <EmergencyQueue
+              onAcceptSuccess={
+                handleEmergencyAccepted
+              }
+            />
+          )}
+
+
+          {/* ===============================================
+              PROGRESS TRACKER
           =============================================== */}
 
           {activeTab ===
@@ -332,29 +657,18 @@ export default function App() {
               currentUser={
                 currentUser
               }
-            />
 
-          )}
-
-
-          {/* ===============================================
-              MODULE 3 FEATURE 4 - RATING & REVIEW
-          =============================================== */}
-
-          {activeTab ===
-            'rating-review' && (
-
-            <RatingReview
-              currentUser={
-                currentUser
+              onNavigateToReview={() =>
+                setActiveTab(
+                  'rating-review'
+                )
               }
             />
-
           )}
 
 
           {/* ===============================================
-              MODULE 2 FEATURE 4 - PAYMENT & INVOICE
+              PAYMENT
           =============================================== */}
 
           {activeTab ===
@@ -365,12 +679,86 @@ export default function App() {
                 currentUser
               }
             />
-
           )}
 
 
           {/* ===============================================
-              TECHNICIAN JOB REQUESTS
+              RATING & REVIEW
+          =============================================== */}
+
+          {activeTab ===
+            'rating-review' && (
+
+            <RatingReview
+              currentUser={
+                currentUser
+              }
+            />
+          )}
+
+
+          {/* ===============================================
+              AI ISSUE CLASSIFIER
+          =============================================== */}
+
+          {activeTab ===
+            'ai-classify' && (
+
+            <AIIssueClassifier
+              currentUser={
+                currentUser
+              }
+            />
+          )}
+
+
+          {/* ===============================================
+              AI TROUBLESHOOT
+          =============================================== */}
+
+          {activeTab ===
+            'ai-troubleshoot' && (
+
+            <AITroubleshootAssistant
+              currentUser={
+                currentUser
+              }
+            />
+          )}
+
+
+          {/* ===============================================
+              ISSUE RESOLUTION HISTORY
+          =============================================== */}
+
+          {activeTab ===
+            'resolution-history' && (
+
+            <IssueResolutionHistory
+              currentUser={
+                currentUser
+              }
+            />
+          )}
+
+
+          {/* ===============================================
+              SERVICE COST ESTIMATOR
+          =============================================== */}
+
+          {activeTab ===
+            'cost-estimate' && (
+
+            <ServiceCostEstimator
+              currentUser={
+                currentUser
+              }
+            />
+          )}
+
+
+          {/* ===============================================
+              TECHNICIAN DASHBOARD
           =============================================== */}
 
           {activeTab ===
@@ -380,8 +768,11 @@ export default function App() {
               currentUser={
                 currentUser
               }
-            />
 
+              onOpenChat={
+                handleTechnicianOpenChat
+              }
+            />
           )}
 
 
@@ -397,7 +788,6 @@ export default function App() {
                 currentUser
               }
             />
-
           )}
 
         </Box>

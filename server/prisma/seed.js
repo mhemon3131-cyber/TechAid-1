@@ -3,50 +3,50 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding TechAid database with real users and technicians...');
+  console.log('Seeding TechAid database with active user accounts...');
 
-  // 1. Customer User (Mehedi Hasan)
+  // 1. Customer User (Claire)
   const customerUser = await prisma.user.upsert({
-    where: { email: 'mehedi@bracu.ac.bd' },
-    update: {},
+    where: { email: 'claire@techaid.com' },
+    update: { name: 'Claire' },
     create: {
       id: 'usr-1',
-      name: 'Mehedi Hasan',
-      email: 'mehedi@bracu.ac.bd',
+      name: 'Claire',
+      email: 'claire@techaid.com',
       password: '123',
       role: 'CUSTOMER',
       phone: '+8801700000000',
-      avatar: 'MH'
+      avatar: 'CL'
     }
   });
 
-  // 2. Technician 1 User & Profile (Rafiq Ahmed)
-  const rafiqUser = await prisma.user.upsert({
-    where: { email: 'rafiq@techaid.com' },
-    update: {},
+  // 2. Technician User & Profile (TechAlex)
+  const alexUser = await prisma.user.upsert({
+    where: { email: 'techalex@techaid.com' },
+    update: { name: 'TechAlex' },
     create: {
-      id: 'usr-2',
-      name: 'Rafiq Ahmed',
-      email: 'rafiq@techaid.com',
+      id: 'usr-4',
+      name: 'TechAlex',
+      email: 'techalex@techaid.com',
       password: '123',
       role: 'TECHNICIAN',
-      phone: '+8801800000000',
-      avatar: 'RA'
+      phone: '+8801600000000',
+      avatar: 'TA'
     }
   });
 
-  const rafiqTech = await prisma.technician.upsert({
-    where: { userId: rafiqUser.id },
-    update: {},
+  const alexTech = await prisma.technician.upsert({
+    where: { userId: alexUser.id },
+    update: { name: 'TechAlex' },
     create: {
-      id: 'tech-1',
-      userId: rafiqUser.id,
-      name: 'Rafiq Ahmed',
-      specialty: 'Laptop & Desktop Specialist',
+      id: 'tech-3',
+      userId: alexUser.id,
+      name: 'TechAlex',
+      specialty: 'Network & Printer Specialist',
       rating: 4.9,
       distanceKm: 2.1,
       isAvailable: true,
-      avatar: 'RA',
+      avatar: 'TA',
       availableDays: 'Mon,Tue,Wed,Thu,Fri',
       workingHours: '09:00 AM - 06:00 PM',
       serviceAreas: 'Gulshan, Banani, Dhanmondi, Uttara',
@@ -54,84 +54,62 @@ async function main() {
     }
   });
 
-  // 3. Technician 2 User & Profile (Sara Noor)
-  const saraUser = await prisma.user.upsert({
-    where: { email: 'sara@techaid.com' },
-    update: {},
-    create: {
-      id: 'usr-3',
-      name: 'Sara Noor',
-      email: 'sara@techaid.com',
-      password: '123',
-      role: 'TECHNICIAN',
-      phone: '+8801900000000',
-      avatar: 'SN'
-    }
-  });
-
-  const saraTech = await prisma.technician.upsert({
-    where: { userId: saraUser.id },
-    update: {},
-    create: {
-      id: 'tech-2',
-      userId: saraUser.id,
-      name: 'Sara Noor',
-      specialty: 'Smartphone Repair & OS Recovery',
-      rating: 4.7,
-      distanceKm: 3.7,
-      isAvailable: true,
-      avatar: 'SN',
-      availableDays: 'Mon,Wed,Fri,Sat',
-      workingHours: '10:00 AM - 05:00 PM',
-      serviceAreas: 'Dhanmondi, Mohakhali, Mirpur',
-      maxDailyAppointments: 4
-    }
-  });
-
-  // 4. Initial Sample Service Request
-  const sampleRequest = await prisma.serviceRequest.upsert({
+  // 3. Sample Service Request
+  const req1 = await prisma.serviceRequest.upsert({
     where: { trackingId: 'REQ-2026-8942' },
     update: {},
     create: {
       id: 'req-101',
       trackingId: 'REQ-2026-8942',
       customerId: customerUser.id,
-      deviceCategory: 'Laptop',
-      title: 'Laptop won\'t turn on after update',
-      description: 'Laptop won\'t turn on after the last update, black screen even when plugged in...',
+      technicianId: alexUser.id,
+      deviceCategory: 'Internet',
+      title: 'Office Router & Wi-Fi Configuration',
+      description: 'High latency and frequent disconnects across all office laptops...',
       urgency: 'Critical',
-      serviceMethod: 'Home Visit',
+      serviceMethod: 'Live Chat',
       status: 'IN_PROGRESS',
       estimatedCost: '৳800 - 1,500',
       statusLogs: {
         create: [
-          { status: 'PENDING', note: 'Service request created by customer.' },
-          { status: 'ASSIGNED', note: 'Assigned to Technician Rafiq Ahmed.' },
-          { status: 'ACCEPTED', note: 'Technician accepted the job.' },
-          { status: 'IN_PROGRESS', note: 'Technician is diagnosing hardware issue.' }
+          { status: 'PENDING', note: 'Service request created by customer Claire.' },
+          { status: 'ACCEPTED', note: 'Technician TechAlex accepted the job.' }
         ]
       }
     }
   });
 
-  // 5. Initial Sample Appointment
-  await prisma.appointment.upsert({
-    where: { serviceRequestId: sampleRequest.id },
+  // 4. Conversation
+  const conv1 = await prisma.conversation.upsert({
+    where: { serviceRequestId: req1.id },
     update: {},
     create: {
-      id: 'app-501',
-      serviceRequestId: sampleRequest.id,
+      id: 'conv_usr-1_usr-4',
+      serviceRequestId: req1.id,
       customerId: customerUser.id,
-      technicianId: rafiqTech.id,
-      date: 'Mon 13',
-      timeSlot: '10:00 am',
-      serviceType: 'Home Visit',
-      status: 'APPROVED',
-      estimatedCost: '৳800 - 1,500'
+      technicianId: alexUser.id,
     }
   });
 
-  console.log('Database seeded with real records successfully!', { customerUser, rafiqTech, saraTech });
+  // 5. Initial Messages
+  await prisma.message.createMany({
+    data: [
+      {
+        conversationId: conv1.id,
+        senderId: customerUser.id,
+        content: 'Hello TechAlex, I need help setting up my office Wi-Fi router.',
+        createdAt: new Date(Date.now() - 300000)
+      },
+      {
+        conversationId: conv1.id,
+        senderId: alexUser.id,
+        content: 'Hello Claire! I am ready to assist with your router configuration.',
+        createdAt: new Date(Date.now() - 240000)
+      }
+    ]
+  }).catch(() => null);
+
+  console.log('Database seeded with active accounts Claire and TechAlex!');
 }
 
 main()

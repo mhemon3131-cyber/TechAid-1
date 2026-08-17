@@ -6,17 +6,19 @@ import {
   getRequestByTrackingId,
   getServiceProgress,
   updateServiceStatus,
-
   getLatestCustomerServiceRequest,
-  getRequestForTechnicianView
+  getRequestForTechnicianView,
+  getEmergencyQueue
 } from '../controllers/requestController.js';
 
 
-const router = express.Router();
+const router =
+  express.Router();
 
 
 // ==========================================================
-// EXISTING GROUP ROUTES
+// CREATE SERVICE REQUEST
+// POST /api/requests
 // ==========================================================
 
 router.post(
@@ -24,21 +26,42 @@ router.post(
   createServiceRequest
 );
 
+
+// ==========================================================
+// GET ALL SERVICE REQUESTS
+// GET /api/requests
+// ==========================================================
+
 router.get(
   '/',
   getAllServiceRequests
 );
 
 
+// ==========================================================
+// EMERGENCY SUPPORT QUEUE
+//
+// GET /api/requests/emergency/queue
+//
+// IMPORTANT:
+// Generic /:trackingId route-er age thakte hobe.
+// ==========================================================
+
+router.get(
+  '/emergency/queue',
+  getEmergencyQueue
+);
 
 
-
-// ----------------------------------------------------------
-// Customer-er latest request
+// ==========================================================
+// LATEST CUSTOMER REQUEST
 //
 // Example:
 // GET /api/requests/customer/usr-1/latest
-// ----------------------------------------------------------
+//
+// IMPORTANT:
+// Generic /:trackingId route-er age thakte hobe.
+// ==========================================================
 
 router.get(
   '/customer/:customerId/latest',
@@ -46,12 +69,14 @@ router.get(
 );
 
 
-// ----------------------------------------------------------
-// Technician-er jonno customer/request full details
+// ==========================================================
+// TECHNICIAN FULL REQUEST VIEW
 //
 // Example:
-// GET /api/requests/req-101/technician-view
-// ----------------------------------------------------------
+// GET /api/requests/REQ-2026-1234/technician-view
+//
+// Supports request DB ID / tracking ID from controller.
+// ==========================================================
 
 router.get(
   '/:requestId/technician-view',
@@ -60,7 +85,9 @@ router.get(
 
 
 // ==========================================================
-// EXISTING GROUP ROUTES
+// SERVICE PROGRESS
+//
+// GET /api/requests/REQ-2026-1234/progress
 // ==========================================================
 
 router.get(
@@ -68,13 +95,29 @@ router.get(
   getServiceProgress
 );
 
+
+// ==========================================================
+// UPDATE SERVICE STATUS
+//
+// PUT /api/requests/REQ-2026-1234/status
+// or
+// PUT /api/requests/<database-id>/status
+// ==========================================================
+
 router.put(
   '/:id/status',
   updateServiceStatus
 );
 
 
-// Ei generic dynamic route-ta last-er dike rakha safer.
+// ==========================================================
+// GET SINGLE REQUEST
+//
+// KEEP THIS GENERIC ROUTE LAST.
+//
+// GET /api/requests/REQ-2026-1234
+// ==========================================================
+
 router.get(
   '/:trackingId',
   getRequestByTrackingId

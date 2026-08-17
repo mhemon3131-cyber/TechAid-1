@@ -1,619 +1,1202 @@
-// Module 1 & Module 3 Feature 4 Controller: Real Prisma Database Operations
-import { PrismaClient } from '@prisma/client';
-import { uploadToCloudinary } from '../utils/cloudinary.js';
-
-const prisma = new PrismaClient();
-
-
 // ==========================================================
-// EXISTING GROUP CODE
-// ==========================================================
-
-
-// Helper to generate unique tracking ID e.g. REQ-2026-8942
-const generateTrackingId = () => {
-  const randomNum =
-    Math.floor(
-      1000 +
-      Math.random() *
-      9000
-    );
-
-  return `REQ-2026-${randomNum}`;
-};
-
-
-// ==========================================================
-// @desc    Create a new Service Request (Module 1 - Prisma DB)
-// @route   POST /api/requests
+// SERVICE REQUEST CONTROLLER
 //
-// EXISTING GROUPMATE CODE
-// ==========================================================
-
-export const createServiceRequest = async (req, res) => {
-  try {
-    const {
-      deviceCategory,
-      title,
-      description,
-      urgency,
-      serviceMethod,
-      attachments = [],
-      customerId
-    } = req.body;
-
-    if (
-      !deviceCategory ||
-      !description ||
-      !urgency ||
-      !serviceMethod
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          'Please provide device category, description, urgency, and service method.'
-      });
-    }
-
-    const trackingId =
-      generateTrackingId();
-
-    // 1. Process Cloudinary uploads
-    const processedAttachments = [];
-
-    for (const file of attachments) {
-      const cloudinaryResult =
-        await uploadToCloudinary(
-          null,
-          file.name || 'attachment.png',
-          file.type
-        );
-
-      processedAttachments.push({
-        fileUrl:
-          file.url ||
-          cloudinaryResult.url,
-
-        fileType:
-          file.type ||
-          'IMAGE',
-
-        fileName:
-          file.name ||
-          'Uploaded File'
-      });
-    }
-
-    // Default to Customer Mehedi Hasan if customerId not passed
-    const custId =
-      customerId ||
-      'usr-1';
-
-    // 2. Save directly to Prisma Database
-    const newRequest =
-      await prisma.serviceRequest.create({
-        data: {
-          trackingId,
-
-          customerId:
-            custId,
-
-          deviceCategory,
-
-          title:
-            title ||
-            `${deviceCategory} Support: ${description.slice(0, 30)}...`,
-
-          description,
-
-          urgency,
-
-          serviceMethod,
-
-          status:
-            'PENDING',
-
-          estimatedCost:
-            urgency === 'Critical'
-              ? '৳1,200 - 2,000'
-              : '৳800 - 1,500',
-
-          attachments: {
-            create:
-              processedAttachments
-          },
-
-          statusLogs: {
-            create: [
-              {
-                status:
-                  'PENDING',
-
-                note:
-                  'Service request created by customer in database.'
-              }
-            ]
-          }
-        },
-
-        include: {
-          attachments:
-            true,
-
-          statusLogs:
-            true,
-
-          customer:
-            true
-        }
-      });
-
-    res.status(201).json({
-      success: true,
-
-      message:
-        'Service request created successfully in Prisma database with unique tracking ID.',
-
-      data:
-        newRequest
-    });
-
-  } catch (error) {
-    console.error(
-      'Error creating service request in DB:',
-      error
-    );
-
-    res.status(500).json({
-      success: false,
-      message:
-        'Server database error while creating request.'
-    });
-  }
-};
-
-
-// ==========================================================
-// @desc    Get all Service Requests from Prisma DB
-// @route   GET /api/requests
+// Merged features:
 //
-// EXISTING GROUPMATE CODE
-// ==========================================================
-
-export const getAllServiceRequests = async (req, res) => {
-  try {
-    const requests =
-      await prisma.serviceRequest.findMany({
-        include: {
-          attachments:
-            true,
-
-          customer:
-            true,
-
-          statusLogs: {
-            orderBy: {
-              createdAt:
-                'asc'
-            }
-          }
-        },
-
-        orderBy: {
-          createdAt:
-            'desc'
-        }
-      });
-
-    res.json({
-      success: true,
-      count:
-        requests.length,
-      data:
-        requests
-    });
-
-  } catch (error) {
-    console.error(
-      'Error fetching service requests:',
-      error
-    );
-
-    res.status(500).json({
-      success: false,
-      message:
-        'Database error fetching requests.'
-    });
-  }
-};
-
-
-// ==========================================================
-// @desc    Get single request by Tracking ID from Prisma DB
-// @route   GET /api/requests/:trackingId
+// - Create Service Request
+// - Get All Requests
+// - Get Request by Tracking ID / DB ID
+// - Service Progress Tracking
+// - Service Status Update
+// - Status History
+// - Notification Trigger
+// - Conversation Auto Creation
+// - Latest Customer Request
+// - Technician Full Job View
+// - Emergency Support Queue
 //
-// EXISTING GROUPMATE CODE
+// REAL PRISMA DATABASE ONLY
 // ==========================================================
 
-export const getRequestByTrackingId = async (req, res) => {
-  try {
-    const {
-      trackingId
-    } = req.params;
+import {
+  PrismaClient
+} from '@prisma/client';
 
-    const request =
-      await prisma.serviceRequest.findFirst({
-        where: {
-          OR: [
-            {
-              trackingId:
-                trackingId.toUpperCase()
-            },
+import {
+  uploadToCloudinary
+} from '../utils/cloudinary.js';
 
-            {
-              id:
-                trackingId
-            }
-          ]
-        },
 
-        include: {
-          attachments:
-            true,
-
-          customer:
-            true,
-
-          statusLogs: {
-            orderBy: {
-              createdAt:
-                'asc'
-            }
-          }
-        }
-      });
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        message:
-          'Service request not found in database.'
-      });
-    }
-
-    res.json({
-      success: true,
-      data:
-        request
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message:
-        'Database query error.'
-    });
-  }
-};
+const prisma =
+  new PrismaClient();
 
 
 // ==========================================================
-// @desc    Get Progress Tracking Logs from Prisma DB
-//          (Module 3 Feature 4)
+// GENERATE TRACKING ID
 //
-// @route   GET /api/requests/:trackingId/progress
-//
-// EXISTING GROUPMATE CODE
+// Example:
+// REQ-2026-8942
 // ==========================================================
 
-export const getServiceProgress = async (req, res) => {
-  try {
-    const {
-      trackingId
-    } = req.params;
+const generateTrackingId =
+  () => {
 
-    const request =
-      await prisma.serviceRequest.findFirst({
-        where: {
-          OR: [
-            {
-              trackingId:
-                trackingId.toUpperCase()
-            },
-
-            {
-              id:
-                trackingId
-            }
-          ]
-        },
-
-        include: {
-          statusLogs: {
-            orderBy: {
-              createdAt:
-                'asc'
-            }
-          }
-        }
-      });
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        message:
-          'Service request tracking ID not found in database.'
-      });
-    }
-
-    const stagesOrder = [
-      'PENDING',
-      'ASSIGNED',
-      'ACCEPTED',
-      'IN_PROGRESS',
-      'ON_THE_WAY',
-      'COMPLETED'
-    ];
-
-    const currentStageIndex =
-      stagesOrder.indexOf(
-        request.status
+    const randomNum =
+      Math.floor(
+        1000 +
+        Math.random() *
+        9000
       );
 
-    res.json({
-      success: true,
 
-      data: {
-        trackingId:
-          request.trackingId,
-
-        deviceCategory:
-          request.deviceCategory,
-
-        title:
-          request.title,
-
-        currentStatus:
-          request.status,
-
-        currentStageIndex:
-          currentStageIndex >= 0
-            ? currentStageIndex
-            : 0,
-
-        stages:
-          stagesOrder,
-
-        logs:
-          request.statusLogs ||
-          [],
-
-        updatedAt:
-          request.updatedAt
-      }
-    });
-
-  } catch (error) {
-    console.error(
-      'Error fetching progress:',
-      error
-    );
-
-    res.status(500).json({
-      success: false,
-      message:
-        'Database error reading progress.'
-    });
-  }
-};
+    return `REQ-2026-${randomNum}`;
+  };
 
 
 // ==========================================================
-// @desc    Update Service Request Status Stage in Prisma DB
-//          (Module 3 Feature 4)
-//
-// @route   PUT /api/requests/:id/status
-//
-// FIX:
+// FIND REQUEST HELPER
 //
 // Supports:
-// - actual ServiceRequest.id
-// - tracking ID like REQ-2026-3917
 //
-// IMPORTANT:
-//
-// ServiceRequest update
-// and
-// StatusHistory create
-//
-// alada query-te hocche.
+// 1. Prisma ServiceRequest ID
+// 2. Tracking ID such as REQ-2026-1234
 // ==========================================================
 
-export const updateServiceStatus = async (req, res) => {
-  try {
-    const {
-      id
-    } = req.params;
-
-    const {
-      status,
-      note
-    } = req.body;
-
-
-    const validStatuses = [
-      'PENDING',
-      'ASSIGNED',
-      'ACCEPTED',
-      'IN_PROGRESS',
-      'ON_THE_WAY',
-      'COMPLETED'
-    ];
-
-
-    // ======================================================
-    // VALID STATUS CHECK
-    // ======================================================
+const findRequestByIdentifier =
+  async (
+    identifier,
+    include = undefined
+  ) => {
 
     if (
-      !validStatuses.includes(
-        status
-      )
+      !identifier
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          'Invalid status stage.'
-      });
+
+      return null;
     }
 
 
-    // ======================================================
-    // FIND REQUEST
-    //
-    // Supports:
-    // database ID
-    // tracking ID
-    // ======================================================
+    const cleanIdentifier =
+      String(
+        identifier
+      ).trim();
 
-    const request =
-      await prisma.serviceRequest.findFirst({
-        where: {
-          OR: [
-            {
-              id:
-                id
+
+    return prisma.serviceRequest.findFirst({
+
+      where: {
+
+        OR: [
+          {
+            id:
+              cleanIdentifier
+          },
+
+          {
+            trackingId:
+              cleanIdentifier.toUpperCase()
+          }
+        ]
+      },
+
+
+      ...(include
+        ? {
+            include
+          }
+        : {})
+    });
+  };
+
+
+// ==========================================================
+// CREATE SERVICE REQUEST
+//
+// POST /api/requests
+// ==========================================================
+
+export const createServiceRequest =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const {
+        deviceCategory,
+        title,
+        description,
+        urgency,
+        serviceMethod,
+        attachments = [],
+        customerId
+      } = req.body;
+
+
+      // ----------------------------------------------------
+      // VALIDATION
+      // ----------------------------------------------------
+
+      if (
+        !deviceCategory ||
+        !description ||
+        !urgency ||
+        !serviceMethod
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Please provide device category, description, urgency, and service method.'
+        });
+      }
+
+
+      // ----------------------------------------------------
+      // CUSTOMER
+      // ----------------------------------------------------
+
+      const custId =
+        customerId ||
+        'usr-1';
+
+
+      const customer =
+        await prisma.user.findUnique({
+
+          where: {
+
+            id:
+              custId
+          }
+        });
+
+
+      if (
+        !customer
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Customer account not found in database.'
+        });
+      }
+
+
+      // ----------------------------------------------------
+      // UNIQUE TRACKING ID
+      // ----------------------------------------------------
+
+      let trackingId =
+        generateTrackingId();
+
+
+      let existingTracking =
+        await prisma.serviceRequest.findUnique({
+
+          where: {
+
+            trackingId
+          }
+        });
+
+
+      while (
+        existingTracking
+      ) {
+
+        trackingId =
+          generateTrackingId();
+
+
+        existingTracking =
+          await prisma.serviceRequest.findUnique({
+
+            where: {
+
+              trackingId
+            }
+          });
+      }
+
+
+      // ----------------------------------------------------
+      // PROCESS ATTACHMENTS
+      // ----------------------------------------------------
+
+      const processedAttachments =
+        [];
+
+
+      for (
+        const file of attachments
+      ) {
+
+        let cloudinaryResult =
+          null;
+
+
+        // Existing uploaded URL thakle
+        // unnecessary Cloudinary call korbo na.
+        if (
+          !file?.url
+        ) {
+
+          try {
+
+            cloudinaryResult =
+              await uploadToCloudinary(
+                null,
+                file?.name ||
+                'attachment.png',
+                file?.type
+              );
+
+          } catch (
+            uploadError
+          ) {
+
+            console.error(
+              'Attachment upload failed:',
+              uploadError
+            );
+          }
+        }
+
+
+        const fileUrl =
+          file?.url ||
+          cloudinaryResult?.url ||
+          null;
+
+
+        if (
+          fileUrl
+        ) {
+
+          processedAttachments.push({
+
+            fileUrl,
+
+            fileType:
+              file?.type ||
+              'IMAGE',
+
+            fileName:
+              file?.name ||
+              'Uploaded File'
+          });
+        }
+      }
+
+
+      // ----------------------------------------------------
+      // CREATE REQUEST
+      // ----------------------------------------------------
+
+      const newRequest =
+        await prisma.serviceRequest.create({
+
+          data: {
+
+            trackingId,
+
+            customerId:
+              custId,
+
+            deviceCategory,
+
+            title:
+              title ||
+              `${deviceCategory} Support: ${String(
+                description
+              ).slice(
+                0,
+                30
+              )}...`,
+
+            description,
+
+            urgency,
+
+            serviceMethod,
+
+            status:
+              'PENDING',
+
+            estimatedCost:
+              urgency ===
+                'Critical' ||
+              urgency ===
+                'Emergency' ||
+              urgency ===
+                'EMERGENCY'
+                ? '৳1,200 - 2,000'
+                : '৳800 - 1,500',
+
+            attachments: {
+
+              create:
+                processedAttachments
             },
 
-            {
-              trackingId:
-                String(id).toUpperCase()
+            statusLogs: {
+
+              create: [
+
+                {
+                  status:
+                    'PENDING',
+
+                  note:
+                    'Service request created by customer in database.'
+                }
+              ]
             }
-          ]
+          },
+
+
+          include: {
+
+            attachments:
+              true,
+
+            statusLogs:
+              true,
+
+            customer:
+              true
+          }
+        });
+
+
+      // ----------------------------------------------------
+      // OPTIONAL NOTIFICATION
+      // ----------------------------------------------------
+
+      try {
+
+        const {
+          createNotificationHelper
+        } =
+          await import(
+            './notificationController.js'
+          );
+
+
+        await createNotificationHelper({
+
+          userId:
+            newRequest.customerId,
+
+          userEmail:
+            newRequest.customer
+              ?.email,
+
+          type:
+            'REQUEST_CREATED',
+
+          title:
+            `Service Request #${newRequest.trackingId} Created`,
+
+          message:
+            `Your technical issue "${newRequest.title}" has been submitted successfully.`
+        });
+
+
+      } catch (
+        notificationError
+      ) {
+
+        console.log(
+          'Request creation notification skipped:',
+          notificationError.message
+        );
+      }
+
+
+      return res.status(
+        201
+      ).json({
+
+        success:
+          true,
+
+        message:
+          'Service request created successfully in Prisma database with unique tracking ID.',
+
+        data:
+          newRequest
+      });
+
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        'Error creating service request in DB:',
+        error
+      );
+
+
+      return res.status(
+        500
+      ).json({
+
+        success:
+          false,
+
+        message:
+          'Server database error while creating request.',
+
+        details:
+          error.message
+      });
+    }
+  };
+
+
+// ==========================================================
+// GET ALL SERVICE REQUESTS
+//
+// GET /api/requests
+// ==========================================================
+
+export const getAllServiceRequests =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const requests =
+        await prisma.serviceRequest.findMany({
+
+          include: {
+
+            attachments:
+              true,
+
+            customer:
+              true,
+
+            appointment:
+              true,
+
+            statusLogs: {
+
+              orderBy: {
+
+                createdAt:
+                  'asc'
+              }
+            }
+          },
+
+
+          orderBy: {
+
+            createdAt:
+              'desc'
+          }
+        });
+
+
+      return res.json({
+
+        success:
+          true,
+
+        count:
+          requests.length,
+
+        data:
+          requests
+      });
+
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        'Error fetching service requests:',
+        error
+      );
+
+
+      return res.status(
+        500
+      ).json({
+
+        success:
+          false,
+
+        message:
+          'Database error fetching requests.',
+
+        details:
+          error.message
+      });
+    }
+  };
+
+
+// ==========================================================
+// GET REQUEST BY TRACKING ID / DB ID
+//
+// GET /api/requests/:trackingId
+// ==========================================================
+
+export const getRequestByTrackingId =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const {
+        trackingId
+      } = req.params;
+
+
+      const request =
+        await findRequestByIdentifier(
+          trackingId,
+
+          {
+            attachments:
+              true,
+
+            customer:
+              true,
+
+            appointment:
+              true,
+
+            technician:
+              true,
+
+            conversation:
+              true,
+
+            review:
+              true,
+
+            statusLogs: {
+
+              orderBy: {
+
+                createdAt:
+                  'asc'
+              }
+            }
+          }
+        );
+
+
+      if (
+        !request
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Service request not found in database.'
+        });
+      }
+
+
+      return res.json({
+
+        success:
+          true,
+
+        data:
+          request
+      });
+
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        'Error fetching service request:',
+        error
+      );
+
+
+      return res.status(
+        500
+      ).json({
+
+        success:
+          false,
+
+        message:
+          'Database query error.',
+
+        details:
+          error.message
+      });
+    }
+  };
+
+
+// ==========================================================
+// GET SERVICE PROGRESS
+//
+// GET /api/requests/:trackingId/progress
+// ==========================================================
+
+export const getServiceProgress =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const {
+        trackingId
+      } = req.params;
+
+
+      const request =
+        await findRequestByIdentifier(
+          trackingId,
+
+          {
+            statusLogs: {
+
+              orderBy: {
+
+                createdAt:
+                  'asc'
+              }
+            }
+          }
+        );
+
+
+      if (
+        !request
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Service request tracking ID not found in database.'
+        });
+      }
+
+
+      const stagesOrder = [
+        'PENDING',
+        'ASSIGNED',
+        'ACCEPTED',
+        'IN_PROGRESS',
+        'ON_THE_WAY',
+        'COMPLETED'
+      ];
+
+
+      const currentStageIndex =
+        stagesOrder.indexOf(
+          request.status
+        );
+
+
+      return res.json({
+
+        success:
+          true,
+
+        data: {
+
+          trackingId:
+            request.trackingId,
+
+          deviceCategory:
+            request.deviceCategory,
+
+          title:
+            request.title,
+
+          currentStatus:
+            request.status,
+
+          currentStageIndex:
+            currentStageIndex >=
+            0
+              ? currentStageIndex
+              : 0,
+
+          stages:
+            stagesOrder,
+
+          logs:
+            request.statusLogs ||
+            [],
+
+          updatedAt:
+            request.updatedAt
         }
       });
 
 
-    // ======================================================
-    // REQUEST NOT FOUND
-    // ======================================================
+    } catch (
+      error
+    ) {
 
-    if (!request) {
-      return res.status(404).json({
-        success: false,
+      console.error(
+        'Error fetching progress:',
+        error
+      );
+
+
+      return res.status(
+        500
+      ).json({
+
+        success:
+          false,
+
         message:
-          'Service request not found.'
+          'Database error reading progress.',
+
+        details:
+          error.message
       });
     }
+  };
 
 
-    // ======================================================
-    // STEP 1:
-    // UPDATE SERVICE REQUEST STATUS
-    // ======================================================
+// ==========================================================
+// UPDATE SERVICE STATUS
+//
+// PUT /api/requests/:id/status
+//
+// Supports:
+// - DB request ID
+// - Tracking ID
+//
+// Uses separate ServiceRequest update +
+// StatusHistory create to avoid previous Prisma nested
+// relation problems.
+// ==========================================================
 
-    await prisma.serviceRequest.update({
-      where: {
-        id:
-          request.id
-      },
+export const updateServiceStatus =
+  async (
+    req,
+    res
+  ) => {
 
-      data: {
-        status:
+    try {
+
+      const {
+        id
+      } = req.params;
+
+
+      const {
+        status,
+        note,
+        technicianId
+      } = req.body;
+
+
+      const validStatuses = [
+        'PENDING',
+        'ASSIGNED',
+        'ACCEPTED',
+        'IN_PROGRESS',
+        'ON_THE_WAY',
+        'COMPLETED'
+      ];
+
+
+      // ----------------------------------------------------
+      // STATUS VALIDATION
+      // ----------------------------------------------------
+
+      if (
+        !validStatuses.includes(
           status
+        )
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Invalid status stage.'
+        });
       }
-    });
 
 
-    // ======================================================
-    // STEP 2:
-    // CREATE STATUS HISTORY SEPARATELY
-    //
-    // This avoids nested Prisma relation error.
-    // ======================================================
+      // ----------------------------------------------------
+      // FIND TARGET REQUEST
+      // ----------------------------------------------------
 
-    await prisma.statusHistory.create({
-      data: {
-        serviceRequestId:
-          request.id,
+      const request =
+        await findRequestByIdentifier(
+          id
+        );
 
-        status:
-          status,
 
-        note:
-          note ||
-          `Status updated to ${status}.`
+      if (
+        !request
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success:
+            false,
+
+          message:
+            'Service request not found.'
+        });
       }
-    });
 
 
-    // ======================================================
-    // STEP 3:
-    // RELOAD UPDATED REQUEST + HISTORY
-    // ======================================================
+      // ----------------------------------------------------
+      // OPTIONAL TECHNICIAN USER VALIDATION
+      //
+      // ServiceRequest.technicianId in merged schema refers
+      // to User.id, NOT Technician.id.
+      // ----------------------------------------------------
 
-    const updated =
-      await prisma.serviceRequest.findUnique({
+      let technicianUserId =
+        null;
+
+
+      if (
+        technicianId
+      ) {
+
+        // First check if incoming ID is already User.id
+        const directUser =
+          await prisma.user.findUnique({
+
+            where: {
+
+              id:
+                technicianId
+            }
+          });
+
+
+        if (
+          directUser &&
+          directUser.role ===
+            'TECHNICIAN'
+        ) {
+
+          technicianUserId =
+            directUser.id;
+
+        } else {
+
+          // Otherwise technicianId may be Technician.id.
+          const technicianProfile =
+            await prisma.technician.findUnique({
+
+              where: {
+
+                id:
+                  technicianId
+              },
+
+              include: {
+
+                user:
+                  true
+              }
+            });
+
+
+          if (
+            technicianProfile
+              ?.user
+          ) {
+
+            technicianUserId =
+              technicianProfile.user.id;
+          }
+        }
+      }
+
+
+      // ----------------------------------------------------
+      // STEP 1:
+      // UPDATE REQUEST
+      // ----------------------------------------------------
+
+      await prisma.serviceRequest.update({
+
         where: {
+
           id:
             request.id
         },
 
-        include: {
-          statusLogs: {
-            orderBy: {
-              createdAt:
-                'asc'
-            }
-          }
+
+        data: {
+
+          status,
+
+          ...(technicianUserId
+            ? {
+
+                technicianId:
+                  technicianUserId
+              }
+            : {})
         }
       });
 
 
-    // ======================================================
-    // SUCCESS
-    // ======================================================
+      // ----------------------------------------------------
+      // STEP 2:
+      // CREATE HISTORY
+      // ----------------------------------------------------
 
-    return res.json({
-      success: true,
+      await prisma.statusHistory.create({
 
-      message:
-        `Service progress stage updated to ${status} in Prisma database.`,
+        data: {
 
-      data:
-        updated
-    });
+          serviceRequestId:
+            request.id,
 
-  } catch (error) {
-    console.error(
-      'Error updating status in DB:',
+          status,
+
+          note:
+            note ||
+            `Status updated to ${status}.`
+        }
+      });
+
+
+      // ----------------------------------------------------
+      // STEP 3:
+      // RELOAD UPDATED REQUEST
+      // ----------------------------------------------------
+
+      const updated =
+        await prisma.serviceRequest.findUnique({
+
+          where: {
+
+            id:
+              request.id
+          },
+
+
+          include: {
+
+            customer:
+              true,
+
+            technician:
+              true,
+
+            appointment:
+              true,
+
+            statusLogs: {
+
+              orderBy: {
+
+                createdAt:
+                  'asc'
+              }
+            }
+          }
+        });
+
+
+      // ----------------------------------------------------
+      // AUTO CREATE / UPDATE CONVERSATION
+      //
+      // Only when request is accepted and a technician
+      // User ID exists.
+      // ----------------------------------------------------
+
+      if (
+        status ===
+          'ACCEPTED' &&
+        updated?.technicianId
+      ) {
+
+        try {
+
+          await prisma.conversation.upsert({
+
+            where: {
+
+              serviceRequestId:
+                updated.id
+            },
+
+
+            create: {
+
+              serviceRequestId:
+                updated.id,
+
+              customerId:
+                updated.customerId,
+
+              technicianId:
+                updated.technicianId
+            },
+
+
+            update: {
+
+              technicianId:
+                updated.technicianId
+            }
+          });
+
+
+        } catch (
+          conversationError
+        ) {
+
+          console.log(
+            'Conversation auto-create skipped:',
+            conversationError.message
+          );
+        }
+      }
+
+
+      // ----------------------------------------------------
+      // CUSTOMER NOTIFICATION
+      // ----------------------------------------------------
+
+      try {
+
+        const {
+          createNotificationHelper
+        } =
+          await import(
+            './notificationController.js'
+          );
+
+
+        await createNotificationHelper({
+
+          userId:
+            updated.customerId,
+
+          userEmail:
+            updated.customer
+              ?.email,
+
+          type:
+            `REQUEST_${status}`,
+
+          title:
+            `Service Request #${updated.trackingId} Updated`,
+
+          message:
+            `Your technical issue "${updated.title}" status is now ${status}.`
+        });
+
+
+      } catch (
+        notificationError
+      ) {
+
+        console.log(
+          'Notification trigger skipped:',
+          notificationError.message
+        );
+      }
+
+
+      // ----------------------------------------------------
+      // SUCCESS
+      // ----------------------------------------------------
+
+      return res.json({
+
+        success:
+          true,
+
+        message:
+          `Service progress stage updated to ${status} in Prisma database.`,
+
+        data:
+          updated
+      });
+
+
+    } catch (
       error
-    );
+    ) {
 
-    return res.status(500).json({
-      success: false,
+      console.error(
+        'Error updating status in DB:',
+        error
+      );
 
-      message:
-        'Database error updating status.',
 
-      details:
-        error.message
-    });
-  }
-};
+      return res.status(
+        500
+      ).json({
 
+        success:
+          false,
+
+        message:
+          'Database error updating status.',
+
+        details:
+          error.message
+      });
+    }
+  };
 
 
 // ==========================================================
-// GET LATEST SERVICE REQUEST FOR A CUSTOMER
+// GET LATEST REQUEST FOR CUSTOMER
 //
-// Automatic Technician Assignment page-e all requests
-// frontend-e load/filter na kore directly latest request
-// retrieve kora jabe.
-//
-// Existing group code change kore na.
-//
-// @route
 // GET /api/requests/customer/:customerId/latest
 // ==========================================================
 
@@ -622,75 +1205,108 @@ export const getLatestCustomerServiceRequest =
     req,
     res
   ) => {
+
     try {
+
       const {
         customerId
       } = req.params;
 
 
-      if (!customerId) {
-        return res.status(400).json({
-          success: false,
+      if (
+        !customerId
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success:
+            false,
+
           message:
             'Customer ID is required.'
         });
       }
 
 
-      // Customer ID actually exists kina
       const customer =
         await prisma.user.findUnique({
+
           where: {
+
             id:
               customerId
           }
         });
 
 
-      if (!customer) {
-        return res.status(404).json({
-          success: false,
+      if (
+        !customer
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success:
+            false,
+
           message:
             'Customer not found.'
         });
       }
 
 
-      // Latest service request only
       const latestRequest =
         await prisma.serviceRequest.findFirst({
+
           where: {
+
             customerId
           },
 
+
           include: {
+
             attachments:
               true,
 
             customer:
               true,
 
+            appointment:
+              true,
+
             statusLogs: {
+
               orderBy: {
+
                 createdAt:
                   'asc'
               }
-            },
-
-            appointment:
-              true
+            }
           },
 
+
           orderBy: {
+
             createdAt:
               'desc'
           }
         });
 
 
-      if (!latestRequest) {
-        return res.status(404).json({
-          success: false,
+      if (
+        !latestRequest
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success:
+            false,
 
           message:
             'No service request found for this customer.'
@@ -699,50 +1315,45 @@ export const getLatestCustomerServiceRequest =
 
 
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         data:
           latestRequest
       });
 
-    } catch (error) {
+
+    } catch (
+      error
+    ) {
+
       console.error(
         'Get latest customer request error:',
         error
       );
 
 
-      return res.status(500).json({
-        success: false,
+      return res.status(
+        500
+      ).json({
+
+        success:
+          false,
 
         message:
-          'Server error while loading latest customer service request.'
+          'Server error while loading latest customer service request.',
+
+        details:
+          error.message
       });
     }
   };
 
 
-
 // ==========================================================
-// GET FULL REQUEST DETAILS FOR TECHNICIAN JOB VIEW
+// GET FULL REQUEST DETAILS FOR TECHNICIAN
 //
-// Technician-er Job Requests page-e accepted customer-er:
-//
-// Name
-// Phone
-// Email
-// Problem
-// Device
-// Urgency
-// Service Method
-// Appointment
-// Customer Location
-//
-// show korar jonno full request info provide kore.
-//
-// Existing request data modify kore na.
-//
-// @route
 // GET /api/requests/:requestId/technician-view
 // ==========================================================
 
@@ -751,29 +1362,19 @@ export const getRequestForTechnicianView =
     req,
     res
   ) => {
+
     try {
+
       const {
         requestId
       } = req.params;
 
 
       const request =
-        await prisma.serviceRequest.findFirst({
-          where: {
-            OR: [
-              {
-                id:
-                  requestId
-              },
+        await findRequestByIdentifier(
+          requestId,
 
-              {
-                trackingId:
-                  requestId.toUpperCase()
-              }
-            ]
-          },
-
-          include: {
+          {
             customer:
               true,
 
@@ -784,18 +1385,27 @@ export const getRequestForTechnicianView =
               true,
 
             statusLogs: {
+
               orderBy: {
+
                 createdAt:
                   'asc'
               }
             }
           }
-        });
+        );
 
 
-      if (!request) {
-        return res.status(404).json({
-          success: false,
+      if (
+        !request
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success:
+            false,
 
           message:
             'Service request not found.'
@@ -803,19 +1413,30 @@ export const getRequestForTechnicianView =
       }
 
 
+      // ----------------------------------------------------
+      // CUSTOMER LOCATION
+      // ----------------------------------------------------
+
       const requestLocation =
         await prisma.serviceRequestLocation.findUnique({
+
           where: {
+
             serviceRequestId:
               request.id
           }
         });
 
 
-      // Automatic assignment-er latest accepted record
+      // ----------------------------------------------------
+      // ACCEPTED AUTO ASSIGNMENT
+      // ----------------------------------------------------
+
       const acceptedAssignment =
         await prisma.technicianAssignment.findFirst({
+
           where: {
+
             serviceRequestId:
               request.id,
 
@@ -823,7 +1444,9 @@ export const getRequestForTechnicianView =
               'ACCEPTED'
           },
 
+
           orderBy: {
+
             attempt:
               'desc'
           }
@@ -831,15 +1454,14 @@ export const getRequestForTechnicianView =
 
 
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         data: {
 
-          // -----------------------------------------------
-          // Request information
-          // -----------------------------------------------
-
           request: {
+
             id:
               request.id,
 
@@ -875,37 +1497,32 @@ export const getRequestForTechnicianView =
           },
 
 
-          // -----------------------------------------------
-          // Customer contact information
-          // -----------------------------------------------
+          customer:
+            request.customer
+              ? {
 
-          customer: request.customer
-            ? {
-                id:
-                  request.customer.id,
+                  id:
+                    request.customer.id,
 
-                name:
-                  request.customer.name,
+                  name:
+                    request.customer.name,
 
-                email:
-                  request.customer.email,
+                  email:
+                    request.customer.email,
 
-                phone:
-                  request.customer.phone,
+                  phone:
+                    request.customer.phone,
 
-                avatar:
-                  request.customer.avatar
-              }
-            : null,
+                  avatar:
+                    request.customer.avatar
+                }
+              : null,
 
-
-          // -----------------------------------------------
-          // Confirmed appointment
-          // -----------------------------------------------
 
           appointment:
             request.appointment
               ? {
+
                   id:
                     request.appointment.id,
 
@@ -918,25 +1535,28 @@ export const getRequestForTechnicianView =
                       .customerId,
 
                   date:
-                    request.appointment.date,
+                    request.appointment
+                      .date,
 
                   timeSlot:
                     request.appointment
                       .timeSlot,
 
+                  serviceType:
+                    request.appointment
+                      .serviceType,
+
                   status:
-                    request.appointment.status
+                    request.appointment
+                      .status
                 }
               : null,
 
 
-          // -----------------------------------------------
-          // Automatic accepted assignment
-          // -----------------------------------------------
-
           automaticAssignment:
             acceptedAssignment
               ? {
+
                   id:
                     acceptedAssignment.id,
 
@@ -953,7 +1573,8 @@ export const getRequestForTechnicianView =
                       .assignedTimeSlot,
 
                   status:
-                    acceptedAssignment.status,
+                    acceptedAssignment
+                      .status,
 
                   totalScore:
                     acceptedAssignment
@@ -966,13 +1587,10 @@ export const getRequestForTechnicianView =
               : null,
 
 
-          // -----------------------------------------------
-          // Customer service location
-          // -----------------------------------------------
-
           location:
             requestLocation
               ? {
+
                   latitude:
                     requestLocation.latitude,
 
@@ -985,18 +1603,10 @@ export const getRequestForTechnicianView =
               : null,
 
 
-          // -----------------------------------------------
-          // Attachments
-          // -----------------------------------------------
-
           attachments:
             request.attachments ||
             [],
 
-
-          // -----------------------------------------------
-          // Existing progress logs
-          // -----------------------------------------------
 
           statusLogs:
             request.statusLogs ||
@@ -1004,18 +1614,157 @@ export const getRequestForTechnicianView =
         }
       });
 
-    } catch (error) {
+
+    } catch (
+      error
+    ) {
+
       console.error(
         'Technician request details error:',
         error
       );
 
 
-      return res.status(500).json({
-        success: false,
+      return res.status(
+        500
+      ).json({
+
+        success:
+          false,
 
         message:
-          'Server error while loading technician request details.'
+          'Server error while loading technician request details.',
+
+        details:
+          error.message
+      });
+    }
+  };
+
+
+// ==========================================================
+// EMERGENCY SUPPORT QUEUE
+//
+// GET /api/requests/emergency/queue
+//
+// REAL DATABASE ONLY.
+// No mock/fake emergency requests.
+// ==========================================================
+
+export const getEmergencyQueue =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const emergencyRequests =
+        await prisma.serviceRequest.findMany({
+
+          where: {
+
+            OR: [
+              {
+                urgency:
+                  'Emergency'
+              },
+
+              {
+                urgency:
+                  'Critical'
+              },
+
+              {
+                urgency:
+                  'EMERGENCY'
+              },
+
+              {
+                urgency:
+                  'HIGH'
+              }
+            ],
+
+
+            status: {
+
+              in: [
+                'PENDING',
+                'ASSIGNED',
+                'ACCEPTED',
+                'IN_PROGRESS',
+                'ON_THE_WAY'
+              ]
+            }
+          },
+
+
+          include: {
+
+            customer:
+              true,
+
+            attachments:
+              true,
+
+            appointment:
+              true,
+
+            statusLogs: {
+
+              orderBy: {
+
+                createdAt:
+                  'asc'
+              }
+            }
+          },
+
+
+          orderBy: {
+
+            createdAt:
+              'asc'
+          }
+        });
+
+
+      return res.json({
+
+        success:
+          true,
+
+        count:
+          emergencyRequests.length,
+
+        data:
+          emergencyRequests
+      });
+
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        'Get emergency queue error:',
+        error
+      );
+
+
+      return res.status(
+        500
+      ).json({
+
+        success:
+          false,
+
+        message:
+          'Failed to fetch emergency support queue.',
+
+        details:
+          error.message
       });
     }
   };

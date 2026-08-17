@@ -1,33 +1,41 @@
-import React, { useState } from 'react';
+import React, {
+  useState
+} from 'react';
 
 import {
+  Alert,
   Box,
-  Typography,
-  Paper,
   Button,
-  TextField,
   Chip,
-  Grid,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   CircularProgress,
-  Alert
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Grid,
+  Paper,
+  Stack,
+  TextField,
+  Typography
 } from '@mui/material';
 
 import {
-  Laptop,
-  Monitor,
-  Smartphone,
-  Printer,
-  Wifi,
-  MessageSquare,
-  Video,
-  Home,
-  UploadCloud,
+  AlertTriangle,
+  Calendar,
   CheckCircle2,
-  Calendar
+  Clock,
+  Home,
+  Laptop,
+  MessageSquare,
+  Monitor,
+  Printer,
+  ShieldAlert,
+  Smartphone,
+  UploadCloud,
+  Video,
+  Wifi,
+  Zap
 } from 'lucide-react';
 
 import {
@@ -37,8 +45,14 @@ import {
 
 export const CreateRequest = ({
   onNavigateToAppointment,
+  onNavigateToChat,
   currentUser
 }) => {
+
+  // ========================================================
+  // PAGE STATE
+  // ========================================================
+
   const [
     step,
     setStep
@@ -48,6 +62,12 @@ export const CreateRequest = ({
   const [
     loading,
     setLoading
+  ] = useState(false);
+
+
+  const [
+    emergencyLoading,
+    setEmergencyLoading
   ] = useState(false);
 
 
@@ -77,7 +97,7 @@ export const CreateRequest = ({
     description,
     setDescription
   ] = useState(
-    'Laptop won\'t turn on after the last update, black screen even when plugged in...'
+    "Laptop won't turn on after the last update, black screen even when plugged in..."
   );
 
 
@@ -108,6 +128,30 @@ export const CreateRequest = ({
         'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=500'
     }
   ]);
+
+
+  // ========================================================
+  // EMERGENCY REQUEST STATE
+  // ========================================================
+
+  const [
+    emergencyPhone,
+    setEmergencyPhone
+  ] = useState(
+    currentUser?.phone || ''
+  );
+
+
+  const [
+    emergencyNote,
+    setEmergencyNote
+  ] = useState('');
+
+
+  const isCustomer =
+    !currentUser ||
+    currentUser?.role ===
+      'CUSTOMER';
 
 
   // ========================================================
@@ -158,7 +202,7 @@ export const CreateRequest = ({
 
 
   // ========================================================
-  // URGENCY
+  // URGENCY LEVELS
   // ========================================================
 
   const urgencyLevels = [
@@ -221,21 +265,16 @@ export const CreateRequest = ({
 
   // ========================================================
   // FIXED SERVICE FEE
-  //
-  // Same price for every technician.
-  // Price depends only on service method.
-  //
-  // Live Chat  = ৳50
-  // Video Call = ৳100
-  // Home Visit = 300
   // ========================================================
 
   const getServiceFee =
     () => {
+
       if (
         serviceMethod ===
         'Video Call'
       ) {
+
         return '৳100';
       }
 
@@ -244,6 +283,7 @@ export const CreateRequest = ({
         serviceMethod ===
         'Home Visit'
       ) {
+
         return '৳300';
       }
 
@@ -257,20 +297,30 @@ export const CreateRequest = ({
   // ========================================================
 
   const handleFileUpload =
-    (e) => {
+    (event) => {
+
       const file =
-        e.target.files[0];
+        event.target.files?.[0];
 
 
-      if (file) {
-        const fileUrl =
-          URL.createObjectURL(
-            file
-          );
+      if (
+        !file
+      ) {
+
+        return;
+      }
 
 
-        setAttachments([
-          ...attachments,
+      const fileUrl =
+        URL.createObjectURL(
+          file
+        );
+
+
+      setAttachments(
+        (previous) => [
+
+          ...previous,
 
           {
             name:
@@ -281,43 +331,61 @@ export const CreateRequest = ({
                 'image/'
               )
                 ? 'IMAGE'
-                : 'FILE',
+
+                : file.type.startsWith(
+                    'video/'
+                  )
+                  ? 'VIDEO'
+
+                  : file.type.startsWith(
+                      'audio/'
+                    )
+                    ? 'VOICE'
+
+                    : 'FILE',
 
             url:
               fileUrl
           }
-        ]);
-      }
+        ]
+      );
     };
 
 
   // ========================================================
-  // SUBMIT REQUEST
+  // NORMAL SERVICE REQUEST
   // ========================================================
 
   const handleSubmit =
     async () => {
-      setLoading(true);
+
+      setLoading(
+        true
+      );
 
       setError('');
 
 
-      // Logged-in customer required
       if (
         !currentUser?.id
       ) {
+
         setError(
           'Customer account information is missing. Please log in again.'
         );
 
-        setLoading(false);
+        setLoading(
+          false
+        );
 
         return;
       }
 
 
       try {
+
         const payload = {
+
           deviceCategory,
 
           title:
@@ -346,17 +414,33 @@ export const CreateRequest = ({
 
 
         if (
-          response.success
+          response?.success
         ) {
+
           setSubmittedData(
             response.data
           );
+
+          return;
         }
 
+
+        throw new Error(
+          response?.message ||
+          'Failed to create service request.'
+        );
+
+
       } catch (err) {
+
         console.error(
           'Failed to create service request:',
           err
+        );
+
+
+        setSubmittedData(
+          null
         );
 
 
@@ -366,8 +450,155 @@ export const CreateRequest = ({
           'Failed to create service request. Please try again.'
         );
 
+
       } finally {
-        setLoading(false);
+
+        setLoading(
+          false
+        );
+      }
+    };
+
+
+  // ========================================================
+  // EMERGENCY SERVICE REQUEST
+  //
+  // REAL API ONLY.
+  // Backend fail korle fake tracking ID dekhabe na.
+  // ========================================================
+
+  const handleDispatchEmergency =
+    async () => {
+
+      setEmergencyLoading(
+        true
+      );
+
+      setError('');
+
+
+      if (
+        !currentUser?.id
+      ) {
+
+        setError(
+          'Customer account information is missing. Please log in again.'
+        );
+
+        setEmergencyLoading(
+          false
+        );
+
+        return;
+      }
+
+
+      if (
+        !emergencyPhone.trim()
+      ) {
+
+        setError(
+          'Please enter a contact phone number for emergency support.'
+        );
+
+        setEmergencyLoading(
+          false
+        );
+
+        return;
+      }
+
+
+      try {
+
+        const payload = {
+
+          deviceCategory,
+
+          title:
+            `EMERGENCY DISPATCH: ${deviceCategory} Critical Outage`,
+
+          description:
+            emergencyNote.trim() ||
+            description.trim() ||
+            'Critical emergency request requiring immediate technician dispatch.',
+
+          urgency:
+            'Critical',
+
+          serviceMethod:
+            'Emergency Dispatch',
+
+          attachments:
+            [],
+
+          customerId:
+            currentUser.id
+        };
+
+
+        const response =
+          await createServiceRequest(
+            payload
+          );
+
+
+        if (
+          !response?.success
+        ) {
+
+          throw new Error(
+            response?.message ||
+            'Emergency request could not be created.'
+          );
+        }
+
+
+        setSubmittedData({
+
+          ...response.data,
+
+          deviceCategory,
+
+          urgency:
+            'Critical',
+
+          serviceMethod:
+            'Emergency Dispatch',
+
+          status:
+            response.data?.status ||
+            'PENDING',
+
+          emergencyPhone
+        });
+
+
+      } catch (err) {
+
+        console.error(
+          'Emergency request error:',
+          err
+        );
+
+
+        setSubmittedData(
+          null
+        );
+
+
+        setError(
+          err?.response?.data?.message ||
+          err?.message ||
+          'Emergency request could not be dispatched. Please try again.'
+        );
+
+
+      } finally {
+
+        setEmergencyLoading(
+          false
+        );
       }
     };
 
@@ -377,13 +608,19 @@ export const CreateRequest = ({
   // ========================================================
 
   return (
+
     <Box
       sx={{
         flexGrow:
           1,
 
-        p:
-          4,
+        p: {
+          xs:
+            2,
+
+          md:
+            4
+        },
 
         backgroundColor:
           '#0D1527',
@@ -396,7 +633,9 @@ export const CreateRequest = ({
       }}
     >
 
-      {/* HEADER */}
+      {/* ===================================================
+          HEADER
+      =================================================== */}
 
       <Box
         sx={{
@@ -404,6 +643,7 @@ export const CreateRequest = ({
             3
         }}
       >
+
         <Typography
           variant="caption"
           sx={{
@@ -446,19 +686,22 @@ export const CreateRequest = ({
           }}
         >
           Step {step} of 2 —{' '}
-
           {
             step === 1
               ? 'Describe device & issue'
               : 'Review & Attach files'
           }
         </Typography>
+
       </Box>
 
 
-      {/* ERROR */}
+      {/* ===================================================
+          ERROR
+      =================================================== */}
 
       {error && (
+
         <Alert
           severity="error"
           sx={{
@@ -481,82 +724,106 @@ export const CreateRequest = ({
           STEP 1
       =================================================== */}
 
-      {step === 1
-        ? (
-          <Paper
-            elevation={0}
-            sx={{
-              backgroundColor:
-                '#172036',
+      {step === 1 ? (
 
-              borderRadius:
-                3,
+        <Grid
+          container
+          spacing={3}
+          sx={{
+            maxWidth:
+              isCustomer
+                ? 1200
+                : 800
+          }}
+        >
 
-              p:
-                4,
+          {/* =================================================
+              MAIN SERVICE REQUEST FORM
+          ================================================= */}
 
-              border:
-                '1px solid #2A364F',
-
-              maxWidth:
-                800
-            }}
+          <Grid
+            item
+            xs={12}
+            md={
+              isCustomer
+                ? 7.5
+                : 12
+            }
           >
 
-            {/* DEVICE CATEGORY */}
-
-            <Typography
-              variant="body2"
+            <Paper
+              elevation={0}
               sx={{
-                color:
-                  '#94A3B8',
+                backgroundColor:
+                  '#172036',
 
-                fontWeight:
-                  600,
+                borderRadius:
+                  3,
 
-                mb:
-                  1.5
+                p:
+                  3.5,
+
+                border:
+                  '1px solid #2A364F'
               }}
             >
-              Device Category
-            </Typography>
+
+              {/* DEVICE CATEGORY */}
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5
+                }}
+              >
+                Device Category
+              </Typography>
 
 
-            <Box
-              sx={{
-                display:
-                  'flex',
+              <Box
+                sx={{
+                  display:
+                    'flex',
 
-                gap:
-                  1.5,
+                  gap:
+                    1.5,
 
-                flexWrap:
-                  'wrap',
+                  flexWrap:
+                    'wrap',
 
-                mb:
-                  4
-              }}
-            >
-              {
-                categories.map(
-                  (cat) => {
+                  mb:
+                    3.5
+                }}
+              >
+
+                {categories.map(
+                  (category) => {
+
                     const selected =
                       deviceCategory ===
-                      cat.label;
+                      category.label;
 
 
                     return (
+
                       <Button
                         key={
-                          cat.label
+                          category.label
                         }
                         onClick={() =>
                           setDeviceCategory(
-                            cat.label
+                            category.label
                           )
                         }
                         startIcon={
-                          cat.icon
+                          category.icon
                         }
                         sx={{
                           backgroundColor:
@@ -587,6 +854,7 @@ export const CreateRequest = ({
                             '8px',
 
                           '&:hover': {
+
                             backgroundColor:
                               selected
                                 ? '#00A8FF'
@@ -594,147 +862,152 @@ export const CreateRequest = ({
                           }
                         }}
                       >
-                        {cat.label}
+                        {category.label}
                       </Button>
                     );
                   }
-                )
-              }
-            </Box>
+                )}
+
+              </Box>
 
 
-            {/* DESCRIPTION */}
+              {/* DESCRIPTION */}
 
-            <Typography
-              variant="body2"
-              sx={{
-                color:
-                  '#94A3B8',
-
-                fontWeight:
-                  600,
-
-                mb:
-                  1.5
-              }}
-            >
-              Describe the issue
-            </Typography>
-
-
-            <TextField
-              multiline
-              rows={4}
-              fullWidth
-              value={
-                description
-              }
-              onChange={(e) =>
-                setDescription(
-                  e.target.value
-                )
-              }
-              placeholder="Please describe what problem you are facing..."
-              sx={{
-                mb:
-                  4,
-
-                backgroundColor:
-                  '#0F172A',
-
-                borderRadius:
-                  2,
-
-                '& .MuiOutlinedInput-root': {
+              <Typography
+                variant="body2"
+                sx={{
                   color:
-                    '#FFF',
+                    '#94A3B8',
 
-                  '& fieldset': {
-                    borderColor:
-                      '#2A364F'
-                  },
+                  fontWeight:
+                    600,
 
-                  '&:hover fieldset': {
-                    borderColor:
-                      '#00A8FF'
-                  },
+                  mb:
+                    1.5
+                }}
+              >
+                Describe the issue
+              </Typography>
 
-                  '&.Mui-focused fieldset': {
-                    borderColor:
-                      '#00A8FF'
-                  }
+
+              <TextField
+                multiline
+                rows={4}
+                fullWidth
+                value={
+                  description
                 }
-              }}
-            />
+                onChange={(event) =>
+                  setDescription(
+                    event.target.value
+                  )
+                }
+                placeholder="Please describe what problem you are facing..."
+                sx={{
+                  mb:
+                    3.5,
+
+                  backgroundColor:
+                    '#0F172A',
+
+                  borderRadius:
+                    2,
+
+                  '& .MuiOutlinedInput-root':
+                    {
+                      color:
+                        '#FFF',
+
+                      '& fieldset':
+                        {
+                          borderColor:
+                            '#2A364F'
+                        },
+
+                      '&:hover fieldset':
+                        {
+                          borderColor:
+                            '#00A8FF'
+                        },
+
+                      '&.Mui-focused fieldset':
+                        {
+                          borderColor:
+                            '#00A8FF'
+                        }
+                    }
+                }}
+              />
 
 
-            {/* URGENCY + SERVICE METHOD */}
-
-            <Grid
-              container
-              spacing={3}
-              sx={{
-                mb:
-                  4
-              }}
-            >
-
-              {/* URGENCY */}
+              {/* URGENCY + SERVICE METHOD */}
 
               <Grid
-                item
-                xs={12}
-                md={6}
+                container
+                spacing={3}
+                sx={{
+                  mb:
+                    3.5
+                }}
               >
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color:
-                      '#94A3B8',
 
-                    fontWeight:
-                      600,
-
-                    mb:
-                      1.5
-                  }}
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
                 >
-                  Urgency
-                </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color:
+                        '#94A3B8',
+
+                      fontWeight:
+                        600,
+
+                      mb:
+                        1.5
+                    }}
+                  >
+                    Urgency
+                  </Typography>
 
 
-                <Box
-                  sx={{
-                    display:
-                      'flex',
+                  <Box
+                    sx={{
+                      display:
+                        'flex',
 
-                    gap:
-                      1
-                  }}
-                >
-                  {
-                    urgencyLevels.map(
-                      (lvl) => {
+                      gap:
+                        1
+                    }}
+                  >
+
+                    {urgencyLevels.map(
+                      (level) => {
+
                         const selected =
                           urgency ===
-                          lvl.label;
+                          level.label;
 
 
                         return (
+
                           <Button
                             key={
-                              lvl.label
+                              level.label
                             }
                             fullWidth
                             onClick={() =>
                               setUrgency(
-                                lvl.label
+                                level.label
                               )
                             }
                             sx={{
                               backgroundColor:
                                 selected
-                                  ? lvl.color
+                                  ? level.color
                                   : '#0F172A',
 
                               color:
@@ -744,7 +1017,7 @@ export const CreateRequest = ({
 
                               border:
                                 selected
-                                  ? `1px solid ${lvl.color}`
+                                  ? `1px solid ${level.color}`
                                   : '1px solid #2A364F',
 
                               py:
@@ -753,80 +1026,83 @@ export const CreateRequest = ({
                               fontWeight:
                                 700,
 
-                              '&:hover': {
-                                backgroundColor:
-                                  selected
-                                    ? lvl.color
-                                    : '#1E293B'
-                              }
+                              '&:hover':
+                                {
+                                  backgroundColor:
+                                    selected
+                                      ? level.color
+                                      : '#1E293B'
+                                }
                             }}
                           >
-                            {lvl.label}
+                            {level.label}
                           </Button>
                         );
                       }
-                    )
-                  }
-                </Box>
-              </Grid>
+                    )}
+
+                  </Box>
+
+                </Grid>
 
 
-              {/* SERVICE METHOD */}
-
-              <Grid
-                item
-                xs={12}
-                md={6}
-              >
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color:
-                      '#94A3B8',
-
-                    fontWeight:
-                      600,
-
-                    mb:
-                      1.5
-                  }}
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
                 >
-                  Service method
-                </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color:
+                        '#94A3B8',
+
+                      fontWeight:
+                        600,
+
+                      mb:
+                        1.5
+                    }}
+                  >
+                    Service method
+                  </Typography>
 
 
-                <Box
-                  sx={{
-                    display:
-                      'flex',
+                  <Box
+                    sx={{
+                      display:
+                        'flex',
 
-                    flexDirection:
-                      'column',
+                      flexDirection:
+                        'column',
 
-                    gap:
-                      1
-                  }}
-                >
-                  {
-                    serviceMethods.map(
-                      (sm) => {
+                      gap:
+                        1
+                    }}
+                  >
+
+                    {serviceMethods.map(
+                      (method) => {
+
                         const selected =
                           serviceMethod ===
-                          sm.label;
+                          method.label;
 
 
                         return (
+
                           <Button
                             key={
-                              sm.label
+                              method.label
                             }
                             onClick={() =>
                               setServiceMethod(
-                                sm.label
+                                method.label
                               )
                             }
                             startIcon={
-                              sm.icon
+                              method.icon
                             }
                             sx={{
                               justifyContent:
@@ -853,370 +1129,98 @@ export const CreateRequest = ({
                               py:
                                 1,
 
-                              '&:hover': {
-                                backgroundColor:
-                                  selected
-                                    ? 'rgba(0, 168, 255, 0.25)'
-                                    : '#1E293B'
-                              }
+                              '&:hover':
+                                {
+                                  backgroundColor:
+                                    selected
+                                      ? 'rgba(0, 168, 255, 0.25)'
+                                      : '#1E293B'
+                                }
                             }}
                           >
-                            {sm.label}
+                            {method.label}
                           </Button>
                         );
                       }
-                    )
-                  }
-                </Box>
+                    )}
+
+                  </Box>
+
+                </Grid>
+
               </Grid>
 
-            </Grid>
 
+              {/* CONTINUE */}
 
-            {/* CONTINUE */}
-
-            <Box
-              sx={{
-                display:
-                  'flex',
-
-                justifyContent:
-                  'flex-end'
-              }}
-            >
-              <Button
-                variant="contained"
-                onClick={() =>
-                  setStep(2)
-                }
-                disabled={
-                  !description.trim()
-                }
+              <Box
                 sx={{
-                  backgroundColor:
-                    '#00A8FF',
+                  display:
+                    'flex',
 
-                  color:
-                    '#0D1527',
+                  justifyContent:
+                    'flex-end'
+                }}
+              >
 
-                  px:
-                    4,
-
-                  py:
-                    1.2,
-
-                  fontSize:
-                    '1rem',
-
-                  fontWeight:
-                    700,
-
-                  '&:hover': {
-                    backgroundColor:
-                      '#38BDF8'
+                <Button
+                  variant="contained"
+                  onClick={() =>
+                    setStep(
+                      2
+                    )
                   }
-                }}
-              >
-                Continue to Step 2
-              </Button>
-            </Box>
-
-          </Paper>
-        )
-
-        : (
-
-          /* =================================================
-             STEP 2
-          ================================================= */
-
-          <Grid
-            container
-            spacing={4}
-            sx={{
-              maxWidth:
-                1000
-            }}
-          >
-
-            {/* UPLOAD SIDE */}
-
-            <Grid
-              item
-              xs={12}
-              md={7}
-            >
-              <Paper
-                elevation={0}
-                sx={{
-                  backgroundColor:
-                    '#172036',
-
-                  borderRadius:
-                    3,
-
-                  p:
-                    4,
-
-                  border:
-                    '1px solid #2A364F',
-
-                  height:
-                    '100%'
-                }}
-              >
-                <Typography
-                  variant="h6"
+                  disabled={
+                    !description.trim()
+                  }
                   sx={{
+                    backgroundColor:
+                      '#00A8FF',
+
                     color:
-                      '#FFF',
+                      '#0D1527',
 
-                    fontWeight:
-                      600,
-
-                    mb:
-                      1
-                  }}
-                >
-                  Add photos and review
-                </Typography>
-
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color:
-                      '#94A3B8',
-
-                    mb:
-                      3
-                  }}
-                >
-                  Upload screenshots, photos, voice notes, or short video of your issue (Stored via Cloudinary API).
-                </Typography>
-
-
-                {/* UPLOAD */}
-
-                <Box
-                  component="label"
-                  sx={{
-                    border:
-                      '2px dashed #2A364F',
-
-                    borderRadius:
-                      3,
-
-                    p:
+                    px:
                       4,
 
-                    display:
-                      'flex',
+                    py:
+                      1.2,
 
-                    flexDirection:
-                      'column',
+                    fontSize:
+                      '0.95rem',
 
-                    alignItems:
-                      'center',
+                    fontWeight:
+                      700,
 
-                    justifyContent:
-                      'center',
-
-                    cursor:
-                      'pointer',
-
-                    backgroundColor:
-                      '#0F172A',
-
-                    transition:
-                      'all 0.2s',
-
-                    '&:hover': {
-                      borderColor:
-                        '#00A8FF',
-
-                      backgroundColor:
-                        'rgba(0, 168, 255, 0.05)'
-                    }
+                    '&:hover':
+                      {
+                        backgroundColor:
+                          '#38BDF8'
+                      }
                   }}
                 >
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*,video/*,audio/*"
-                    onChange={
-                      handleFileUpload
-                    }
-                  />
+                  Continue to Step 2
+                </Button>
+
+              </Box>
+
+            </Paper>
+
+          </Grid>
 
 
-                  <UploadCloud
-                    size={48}
-                    color="#00A8FF"
-                    style={{
-                      marginBottom:
-                        12
-                    }}
-                  />
+          {/* =================================================
+              MAIN BRANCH - EMERGENCY SUPPORT
+          ================================================= */}
 
-
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color:
-                        '#FFF',
-
-                      fontWeight:
-                        600
-                    }}
-                  >
-                    Tap to add photos or short video...
-                  </Typography>
-
-
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color:
-                        '#64748B',
-
-                      mt:
-                        0.5
-                    }}
-                  >
-                    Supports PNG, JPG, MP4, MP3 (Cloudinary Upload)
-                  </Typography>
-                </Box>
-
-
-                {/* FILE LIST */}
-
-                {
-                  attachments.length > 0 &&
-                  (
-                    <Box
-                      sx={{
-                        mt:
-                          3
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color:
-                            '#94A3B8',
-
-                          fontWeight:
-                            600
-                        }}
-                      >
-                        Attached Files ({attachments.length}):
-                      </Typography>
-
-
-                      <Box
-                        sx={{
-                          display:
-                            'flex',
-
-                          gap:
-                            1.5,
-
-                          mt:
-                            1,
-
-                          flexWrap:
-                            'wrap'
-                        }}
-                      >
-                        {
-                          attachments.map(
-                            (
-                              att,
-                              idx
-                            ) => (
-                              <Chip
-                                key={
-                                  idx
-                                }
-                                label={
-                                  att.name
-                                }
-                                onDelete={() =>
-                                  setAttachments(
-                                    attachments.filter(
-                                      (
-                                        _,
-                                        i
-                                      ) =>
-                                        i !== idx
-                                    )
-                                  )
-                                }
-                                sx={{
-                                  backgroundColor:
-                                    '#0F172A',
-
-                                  color:
-                                    '#00A8FF',
-
-                                  border:
-                                    '1px solid #2A364F'
-                                }}
-                              />
-                            )
-                          )
-                        }
-                      </Box>
-                    </Box>
-                  )
-                }
-
-
-                {/* BACK */}
-
-                <Box
-                  sx={{
-                    display:
-                      'flex',
-
-                    gap:
-                      2,
-
-                    mt:
-                      4
-                  }}
-                >
-                  <Button
-                    onClick={() =>
-                      setStep(1)
-                    }
-                    sx={{
-                      color:
-                        '#94A3B8',
-
-                      border:
-                        '1px solid #2A364F',
-
-                      px:
-                        3
-                    }}
-                  >
-                    Back
-                  </Button>
-                </Box>
-
-              </Paper>
-            </Grid>
-
-
-            {/* SUMMARY */}
+          {isCustomer && (
 
             <Grid
               item
               xs={12}
-              md={5}
+              md={4.5}
             >
+
               <Paper
                 elevation={0}
                 sx={{
@@ -1230,7 +1234,10 @@ export const CreateRequest = ({
                     3,
 
                   border:
-                    '1px solid #2A364F',
+                    '1px solid #EF4444',
+
+                  boxShadow:
+                    '0 0 20px rgba(239, 68, 68, 0.15)',
 
                   display:
                     'flex',
@@ -1241,26 +1248,584 @@ export const CreateRequest = ({
                   justifyContent:
                     'space-between',
 
-                  minHeight:
-                    320
+                  height:
+                    '100%'
                 }}
               >
+
                 <Box>
 
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{
+                      mb:
+                        1.5
+                    }}
+                  >
+
+                    <Box
+                      sx={{
+                        width:
+                          32,
+
+                        height:
+                          32,
+
+                        borderRadius:
+                          '8px',
+
+                        backgroundColor:
+                          'rgba(239, 68, 68, 0.2)',
+
+                        display:
+                          'flex',
+
+                        alignItems:
+                          'center',
+
+                        justifyContent:
+                          'center',
+
+                        color:
+                          '#EF4444'
+                      }}
+                    >
+                      <ShieldAlert
+                        size={20}
+                      />
+                    </Box>
+
+
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        color:
+                          '#F8FAFC',
+
+                        fontWeight:
+                          800,
+
+                        fontSize:
+                          '1.05rem'
+                      }}
+                    >
+                      Request Emergency Support
+                    </Typography>
+
+                  </Stack>
+
+
                   <Typography
-                    variant="subtitle1"
+                    variant="body2"
                     sx={{
                       color:
-                        '#FFF',
+                        '#94A3B8',
+
+                      fontSize:
+                        '0.825rem',
+
+                      mb:
+                        2.5,
+
+                      lineHeight:
+                        1.5
+                    }}
+                  >
+                    Need immediate help for a critical server, laptop, or network outage? Request immediate technician dispatch to your priority queue.
+                  </Typography>
+
+
+                  <Divider
+                    sx={{
+                      borderColor:
+                        '#2A364F',
+
+                      mb:
+                        2.5
+                    }}
+                  />
+
+
+                  <Stack
+                    spacing={1.5}
+                    sx={{
+                      mb:
+                        3
+                    }}
+                  >
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.2}
+                    >
+                      <Zap
+                        size={16}
+                        color="#EF4444"
+                      />
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#E2E8F0',
+
+                          fontWeight:
+                            600
+                        }}
+                      >
+                        Priority emergency response
+                      </Typography>
+                    </Stack>
+
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.2}
+                    >
+                      <Clock
+                        size={16}
+                        color="#F59E0B"
+                      />
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#E2E8F0',
+
+                          fontWeight:
+                            600
+                        }}
+                      >
+                        Immediate technician alert
+                      </Typography>
+                    </Stack>
+
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.2}
+                    >
+                      <AlertTriangle
+                        size={16}
+                        color="#00A8FF"
+                      />
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#E2E8F0',
+
+                          fontWeight:
+                            600
+                        }}
+                      >
+                        Priority queue routing
+                      </Typography>
+                    </Stack>
+
+                  </Stack>
+
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color:
+                        '#94A3B8',
 
                       fontWeight:
                         700,
 
+                      display:
+                        'block',
+
                       mb:
-                        2
+                        1
                     }}
                   >
-                    Summary
+                    Contact Phone for Emergency Dispatch
+                  </Typography>
+
+
+                  <TextField
+                    size="small"
+                    fullWidth
+                    value={
+                      emergencyPhone
+                    }
+                    onChange={(event) =>
+                      setEmergencyPhone(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Enter phone number..."
+                    sx={{
+                      mb:
+                        2,
+
+                      backgroundColor:
+                        '#0F172A',
+
+                      borderRadius:
+                        2,
+
+                      '& .MuiOutlinedInput-root':
+                        {
+                          color:
+                            '#FFF',
+
+                          fontSize:
+                            '0.85rem',
+
+                          '& fieldset':
+                            {
+                              borderColor:
+                                '#2A364F'
+                            },
+
+                          '&:hover fieldset':
+                            {
+                              borderColor:
+                                '#EF4444'
+                            }
+                        }
+                    }}
+                  />
+
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color:
+                        '#94A3B8',
+
+                      fontWeight:
+                        700,
+
+                      display:
+                        'block',
+
+                      mb:
+                        1
+                    }}
+                  >
+                    Emergency Note (Optional)
+                  </Typography>
+
+
+                  <TextField
+                    size="small"
+                    multiline
+                    rows={2}
+                    fullWidth
+                    value={
+                      emergencyNote
+                    }
+                    onChange={(event) =>
+                      setEmergencyNote(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Briefly state critical emergency details..."
+                    sx={{
+                      mb:
+                        2,
+
+                      backgroundColor:
+                        '#0F172A',
+
+                      borderRadius:
+                        2,
+
+                      '& .MuiOutlinedInput-root':
+                        {
+                          color:
+                            '#FFF',
+
+                          fontSize:
+                            '0.85rem',
+
+                          '& fieldset':
+                            {
+                              borderColor:
+                                '#2A364F'
+                            },
+
+                          '&:hover fieldset':
+                            {
+                              borderColor:
+                                '#EF4444'
+                            }
+                        }
+                    }}
+                  />
+
+                </Box>
+
+
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={
+                    handleDispatchEmergency
+                  }
+                  disabled={
+                    emergencyLoading
+                  }
+                  startIcon={
+                    emergencyLoading
+                      ? (
+                        <CircularProgress
+                          size={18}
+                          color="inherit"
+                        />
+                      )
+                      : (
+                        <ShieldAlert
+                          size={18}
+                        />
+                      )
+                  }
+                  sx={{
+                    backgroundColor:
+                      '#EF4444',
+
+                    color:
+                      '#FFFFFF',
+
+                    py:
+                      1.4,
+
+                    fontWeight:
+                      800,
+
+                    fontSize:
+                      '0.9rem',
+
+                    borderRadius:
+                      2,
+
+                    boxShadow:
+                      '0 4px 14px rgba(239, 68, 68, 0.4)',
+
+                    '&:hover':
+                      {
+                        backgroundColor:
+                          '#DC2626'
+                      }
+                  }}
+                >
+                  {
+                    emergencyLoading
+                      ? 'Dispatching...'
+                      : 'Dispatch Emergency Request'
+                  }
+                </Button>
+
+              </Paper>
+
+            </Grid>
+          )}
+
+        </Grid>
+
+      ) : (
+
+        /* =================================================
+           STEP 2
+        ================================================= */
+
+        <Grid
+          container
+          spacing={4}
+          sx={{
+            maxWidth:
+              1000
+          }}
+        >
+
+          {/* =================================================
+              ATTACHMENTS
+          ================================================= */}
+
+          <Grid
+            item
+            xs={12}
+            md={7}
+          >
+
+            <Paper
+              elevation={0}
+              sx={{
+                backgroundColor:
+                  '#172036',
+
+                borderRadius:
+                  3,
+
+                p:
+                  4,
+
+                border:
+                  '1px solid #2A364F',
+
+                height:
+                  '100%'
+              }}
+            >
+
+              <Typography
+                variant="h6"
+                sx={{
+                  color:
+                    '#FFF',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1
+                }}
+              >
+                Add photos and review
+              </Typography>
+
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color:
+                    '#94A3B8',
+
+                  mb:
+                    3
+                }}
+              >
+                Upload screenshots, photos, voice notes, or short video of your issue (Stored via Cloudinary API).
+              </Typography>
+
+
+              <Box
+                component="label"
+                sx={{
+                  border:
+                    '2px dashed #2A364F',
+
+                  borderRadius:
+                    3,
+
+                  p:
+                    4,
+
+                  display:
+                    'flex',
+
+                  flexDirection:
+                    'column',
+
+                  alignItems:
+                    'center',
+
+                  justifyContent:
+                    'center',
+
+                  cursor:
+                    'pointer',
+
+                  backgroundColor:
+                    '#0F172A',
+
+                  transition:
+                    'all 0.2s',
+
+                  '&:hover':
+                    {
+                      borderColor:
+                        '#00A8FF',
+
+                      backgroundColor:
+                        'rgba(0, 168, 255, 0.05)'
+                    }
+                }}
+              >
+
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*,video/*,audio/*"
+                  onChange={
+                    handleFileUpload
+                  }
+                />
+
+
+                <UploadCloud
+                  size={48}
+                  color="#00A8FF"
+                  style={{
+                    marginBottom:
+                      12
+                  }}
+                />
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color:
+                      '#FFF',
+
+                    fontWeight:
+                      600
+                  }}
+                >
+                  Tap to add photos or short video...
+                </Typography>
+
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color:
+                      '#64748B',
+
+                    mt:
+                      0.5
+                  }}
+                >
+                  Supports PNG, JPG, MP4, MP3 (Cloudinary Upload)
+                </Typography>
+
+              </Box>
+
+
+              {attachments.length >
+                0 && (
+
+                <Box
+                  sx={{
+                    mt:
+                      3
+                  }}
+                >
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color:
+                        '#94A3B8',
+
+                      fontWeight:
+                        600
+                    }}
+                  >
+                    Attached Files ({attachments.length}):
                   </Typography>
 
 
@@ -1270,187 +1835,343 @@ export const CreateRequest = ({
                         'flex',
 
                       gap:
-                        1,
+                        1.5,
 
-                      mb:
-                        2,
+                      mt:
+                        1,
 
                       flexWrap:
                         'wrap'
                     }}
                   >
 
-                    <Chip
-                      label={
-                        deviceCategory
-                      }
-                      size="small"
-                      sx={{
-                        backgroundColor:
-                          '#00A8FF',
+                    {attachments.map(
+                      (
+                        attachment,
+                        index
+                      ) => (
 
-                        color:
-                          '#0D1527',
+                        <Chip
+                          key={
+                            index
+                          }
+                          label={
+                            attachment.name
+                          }
+                          onDelete={() =>
+                            setAttachments(
+                              attachments.filter(
+                                (
+                                  _,
+                                  attachmentIndex
+                                ) =>
+                                  attachmentIndex !==
+                                  index
+                              )
+                            )
+                          }
+                          sx={{
+                            backgroundColor:
+                              '#0F172A',
 
-                        fontWeight:
-                          700
-                      }}
-                    />
+                            color:
+                              '#00A8FF',
 
-
-                    <Chip
-                      label={
-                        urgency
-                      }
-                      size="small"
-                      sx={{
-                        backgroundColor:
-                          urgency ===
-                          'Critical'
-                            ? '#EF4444'
-
-                            : urgency ===
-                              'Moderate'
-                              ? '#F59E0B'
-                              : '#3B82F6',
-
-                        color:
-                          '#FFF',
-
-                        fontWeight:
-                          700
-                      }}
-                    />
-
-
-                    <Chip
-                      label={
-                        serviceMethod
-                      }
-                      size="small"
-                      sx={{
-                        backgroundColor:
-                          'rgba(56, 189, 248, 0.2)',
-
-                        color:
-                          '#38BDF8',
-
-                        fontWeight:
-                          600
-                      }}
-                    />
+                            border:
+                              '1px solid #2A364F'
+                          }}
+                        />
+                      )
+                    )}
 
                   </Box>
 
-
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color:
-                        '#E2E8F0',
-
-                      mb:
-                        3,
-
-                      lineHeight:
-                        1.6
-                    }}
-                  >
-                    {description}
-                  </Typography>
-
-
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color:
-                        '#94A3B8',
-
-                      display:
-                        'block'
-                    }}
-                  >
-                    Service fee:
-                  </Typography>
-
-
-                  {/* DYNAMIC SERVICE METHOD FEE */}
-
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      color:
-                        '#00A8FF',
-
-                      fontWeight:
-                        700
-                    }}
-                  >
-                    {getServiceFee()}
-                  </Typography>
-
                 </Box>
+              )}
 
 
-                {/* SUBMIT */}
+              <Box
+                sx={{
+                  display:
+                    'flex',
+
+                  gap:
+                    2,
+
+                  mt:
+                    4
+                }}
+              >
 
                 <Button
-                  variant="contained"
-                  fullWidth
-                  onClick={
-                    handleSubmit
-                  }
-                  disabled={
-                    loading
-                  }
-                  startIcon={
-                    loading
-                      ? (
-                        <CircularProgress
-                          size={18}
-                          color="inherit"
-                        />
-                      )
-                      : null
+                  onClick={() =>
+                    setStep(
+                      1
+                    )
                   }
                   sx={{
-                    backgroundColor:
-                      '#00A8FF',
-
                     color:
-                      '#0D1527',
+                      '#94A3B8',
 
-                    py:
-                      1.5,
+                    border:
+                      '1px solid #2A364F',
+
+                    px:
+                      3
+                  }}
+                >
+                  Back
+                </Button>
+
+              </Box>
+
+            </Paper>
+
+          </Grid>
+
+
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
+
+          <Grid
+            item
+            xs={12}
+            md={5}
+          >
+
+            <Paper
+              elevation={0}
+              sx={{
+                backgroundColor:
+                  '#172036',
+
+                borderRadius:
+                  3,
+
+                p:
+                  3,
+
+                border:
+                  '1px solid #2A364F',
+
+                display:
+                  'flex',
+
+                flexDirection:
+                  'column',
+
+                justifyContent:
+                  'space-between',
+
+                minHeight:
+                  320
+              }}
+            >
+
+              <Box>
+
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    color:
+                      '#FFF',
 
                     fontWeight:
                       700,
 
-                    fontSize:
-                      '1rem',
+                    mb:
+                      2
+                  }}
+                >
+                  Summary
+                </Typography>
 
-                    mt:
+
+                <Box
+                  sx={{
+                    display:
+                      'flex',
+
+                    gap:
+                      1,
+
+                    mb:
+                      2,
+
+                    flexWrap:
+                      'wrap'
+                  }}
+                >
+
+                  <Chip
+                    label={
+                      deviceCategory
+                    }
+                    size="small"
+                    sx={{
+                      backgroundColor:
+                        '#00A8FF',
+
+                      color:
+                        '#0D1527',
+
+                      fontWeight:
+                        700
+                    }}
+                  />
+
+
+                  <Chip
+                    label={
+                      urgency
+                    }
+                    size="small"
+                    sx={{
+                      backgroundColor:
+                        urgency ===
+                        'Critical'
+                          ? '#EF4444'
+
+                          : urgency ===
+                            'Moderate'
+                            ? '#F59E0B'
+                            : '#3B82F6',
+
+                      color:
+                        '#FFF',
+
+                      fontWeight:
+                        700
+                    }}
+                  />
+
+
+                  <Chip
+                    label={
+                      serviceMethod
+                    }
+                    size="small"
+                    sx={{
+                      backgroundColor:
+                        'rgba(56, 189, 248, 0.2)',
+
+                      color:
+                        '#38BDF8',
+
+                      fontWeight:
+                        600
+                    }}
+                  />
+
+                </Box>
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color:
+                      '#E2E8F0',
+
+                    mb:
                       3,
 
-                    '&:hover': {
+                    lineHeight:
+                      1.6
+                  }}
+                >
+                  {description}
+                </Typography>
+
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color:
+                      '#94A3B8',
+
+                    display:
+                      'block'
+                  }}
+                >
+                  Service fee:
+                </Typography>
+
+
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color:
+                      '#00A8FF',
+
+                    fontWeight:
+                      700
+                  }}
+                >
+                  {getServiceFee()}
+                </Typography>
+
+              </Box>
+
+
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={
+                  handleSubmit
+                }
+                disabled={
+                  loading
+                }
+                startIcon={
+                  loading
+                    ? (
+                      <CircularProgress
+                        size={18}
+                        color="inherit"
+                      />
+                    )
+                    : null
+                }
+                sx={{
+                  backgroundColor:
+                    '#00A8FF',
+
+                  color:
+                    '#0D1527',
+
+                  py:
+                    1.5,
+
+                  fontWeight:
+                    700,
+
+                  fontSize:
+                    '1rem',
+
+                  mt:
+                    3,
+
+                  '&:hover':
+                    {
                       backgroundColor:
                         '#38BDF8'
                     }
-                  }}
-                >
-                  {
-                    loading
-                      ? 'Submitting Request...'
-                      : 'Submit Request'
-                  }
-                </Button>
+                }}
+              >
+                {
+                  loading
+                    ? 'Submitting Request...'
+                    : 'Submit Request'
+                }
+              </Button>
 
-              </Paper>
-            </Grid>
+            </Paper>
 
           </Grid>
-        )
-      }
+
+        </Grid>
+      )}
 
 
       {/* ===================================================
@@ -1521,7 +2242,13 @@ export const CreateRequest = ({
                 700
             }}
           >
-            Request Submitted!
+            {
+              submittedData
+                ?.serviceMethod ===
+                'Emergency Dispatch'
+                ? 'Emergency Request Dispatched!'
+                : 'Request Submitted!'
+            }
           </Typography>
 
         </DialogTitle>
@@ -1533,6 +2260,7 @@ export const CreateRequest = ({
               'center'
           }}
         >
+
           <Typography
             variant="body2"
             sx={{
@@ -1543,7 +2271,15 @@ export const CreateRequest = ({
                 2
             }}
           >
-            Your service request has been logged successfully with unique Tracking ID:
+            {
+              submittedData
+                ?.serviceMethod ===
+                'Emergency Dispatch'
+
+                ? 'Your critical emergency request has been placed in the priority queue.'
+
+                : 'Your service request has been logged successfully with unique Tracking ID:'
+            }
           </Typography>
 
 
@@ -1568,6 +2304,7 @@ export const CreateRequest = ({
                 2
             }}
           >
+
             <Typography
               variant="h6"
               sx={{
@@ -1586,6 +2323,7 @@ export const CreateRequest = ({
                   ?.trackingId
               }
             </Typography>
+
           </Box>
 
 
@@ -1596,7 +2334,11 @@ export const CreateRequest = ({
                 '#64748B'
             }}
           >
-            Status: PENDING
+            Status: {
+              submittedData
+                ?.status ||
+              'PENDING'
+            }
           </Typography>
 
         </DialogContent>
@@ -1611,49 +2353,104 @@ export const CreateRequest = ({
               3,
 
             px:
-              3
+              3,
+
+            flexDirection:
+              'column',
+
+            gap:
+              1.5
           }}
         >
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={() => {
-              setSubmittedData(
-                null
-              );
 
-              if (
-                onNavigateToAppointment
-              ) {
-                onNavigateToAppointment();
+          {onNavigateToChat && (
+
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => {
+
+                setSubmittedData(
+                  null
+                );
+
+                onNavigateToChat();
+              }}
+              startIcon={
+                <MessageSquare
+                  size={18}
+                />
               }
-            }}
-            startIcon={
-              <Calendar
-                size={18}
-              />
-            }
-            sx={{
-              backgroundColor:
-                '#00A8FF',
-
-              color:
-                '#0D1527',
-
-              py:
-                1.2,
-
-              fontWeight:
-                700,
-
-              '&:hover': {
+              sx={{
                 backgroundColor:
-                  '#38BDF8'
+                  '#00A8FF',
+
+                color:
+                  '#0D1527',
+
+                py:
+                  1.2,
+
+                fontWeight:
+                  700,
+
+                '&:hover':
+                  {
+                    backgroundColor:
+                      '#38BDF8'
+                  }
+              }}
+            >
+              Open Live Chat & Calls
+            </Button>
+          )}
+
+
+          {onNavigateToAppointment && (
+
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => {
+
+                setSubmittedData(
+                  null
+                );
+
+                onNavigateToAppointment();
+              }}
+              startIcon={
+                <Calendar
+                  size={18}
+                />
               }
-            }}
-          >
-            Schedule Appointment (Module 2)
-          </Button>
+              sx={{
+                color:
+                  '#00A8FF',
+
+                borderColor:
+                  '#00A8FF',
+
+                py:
+                  1.2,
+
+                fontWeight:
+                  700,
+
+                '&:hover':
+                  {
+                    backgroundColor:
+                      'rgba(0, 168, 255, 0.1)',
+
+                    borderColor:
+                      '#00A8FF'
+                  }
+              }}
+            >
+              Schedule Appointment
+            </Button>
+          )}
+
         </DialogActions>
 
       </Dialog>

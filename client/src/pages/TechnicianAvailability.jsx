@@ -1,42 +1,113 @@
-import React, { useState, useEffect } from 'react';
+import React, {
+  useEffect,
+  useState
+} from 'react';
+
 import {
+  Alert,
   Box,
-  Typography,
-  Paper,
   Button,
   Chip,
-  Grid,
-  Switch,
-  FormControlLabel,
-  Slider,
-  Alert,
   CircularProgress,
-  Divider
+  Divider,
+  FormControlLabel,
+  Grid,
+  Paper,
+  Slider,
+  Switch,
+  Typography
 } from '@mui/material';
+
 import {
   Calendar,
   Clock,
   MapPin,
-  Shield,
   Save,
+  Shield,
   Users
 } from 'lucide-react';
+
 import axios from 'axios';
 
-export const TechnicianAvailability = ({ currentUser }) => {
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [error, setError] = useState('');
 
-  // Availability State
-  const [isAvailable, setIsAvailable] = useState(true);
-  const [selectedDays, setSelectedDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
-  const [workingHours, setWorkingHours] = useState('09:00 AM - 06:00 PM');
-  const [serviceAreas, setServiceAreas] = useState(['Gulshan', 'Banani', 'Dhanmondi', 'Uttara']);
-  const [maxAppointments, setMaxAppointments] = useState(5);
+export const TechnicianAvailability = ({
+  currentUser
+}) => {
 
-  const allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const [
+    loading,
+    setLoading
+  ] = useState(false);
+
+  const [
+    saving,
+    setSaving
+  ] = useState(false);
+
+  const [
+    msg,
+    setMsg
+  ] = useState('');
+
+  const [
+    error,
+    setError
+  ] = useState('');
+
+
+  // ========================================================
+  // AVAILABILITY STATE
+  // ========================================================
+
+  const [
+    isAvailable,
+    setIsAvailable
+  ] = useState(true);
+
+  const [
+    selectedDays,
+    setSelectedDays
+  ] = useState([
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri'
+  ]);
+
+  const [
+    workingHours,
+    setWorkingHours
+  ] = useState(
+    '09:00 AM - 06:00 PM'
+  );
+
+  const [
+    serviceAreas,
+    setServiceAreas
+  ] = useState([
+    'Gulshan',
+    'Banani',
+    'Dhanmondi',
+    'Uttara'
+  ]);
+
+  const [
+    maxAppointments,
+    setMaxAppointments
+  ] = useState(5);
+
+
+  const allDays = [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun'
+  ];
+
 
   const allHoursOptions = [
     '08:00 AM - 04:00 PM',
@@ -44,6 +115,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
     '10:00 AM - 07:00 PM',
     '12:00 PM - 09:00 PM'
   ];
+
 
   const allAreasOptions = [
     'Gulshan',
@@ -58,271 +130,400 @@ export const TechnicianAvailability = ({ currentUser }) => {
 
 
   // ========================================================
-  // ONLY ADDED:
-  // DUPLICATE / EMPTY SERVICE AREA REMOVE
+  // REMOVE DUPLICATE / EMPTY SERVICE AREAS
   // ========================================================
 
-  const cleanServiceAreas = (areas = []) => {
-    const list =
-      Array.isArray(areas)
-        ? areas
-        : String(areas || '').split(',');
+  const cleanServiceAreas =
+    (areas = []) => {
 
-    return [
-      ...new Set(
-        list
-          .map((area) =>
-            String(area).trim()
-          )
-          .filter(Boolean)
-      )
-    ];
-  };
-
-
-  useEffect(() => {
-    fetchAvailability();
-  }, [currentUser]);
-
-
-  const fetchAvailability = async () => {
-    setLoading(true);
-
-    try {
-      const techId =
-        currentUser?.technicianId ||
-        'tech-1';
-
-      const res =
-        await axios.get(
-          `http://localhost:5000/api/technicians/availability/${techId}`
-        );
-
-      if (res.data.success) {
-        const data =
-          res.data.data;
-
-        setIsAvailable(
-          data.isAvailable
-        );
-
-        setSelectedDays(
-          data.availableDays ||
-          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-        );
-
-        setWorkingHours(
-          data.workingHours ||
-          '09:00 AM - 06:00 PM'
-        );
-
-        // ONLY CHANGED:
-        // duplicate service area remove
-        setServiceAreas(
-          cleanServiceAreas(
-            data.serviceAreas || []
-          )
-        );
-
-        setMaxAppointments(
-          data.maxDailyAppointments ||
-          5
-        );
-      }
-
-    } catch (err) {
-      console.warn(
-        'Backend server offline for availability fetch.'
-      );
-
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const handleDayToggle = (day) => {
-    if (selectedDays.includes(day)) {
-      setSelectedDays(
-        selectedDays.filter(
-          (d) =>
-            d !== day
+      const list =
+        Array.isArray(
+          areas
         )
-      );
-
-    } else {
-      setSelectedDays([
-        ...selectedDays,
-        day
-      ]);
-    }
-  };
+          ? areas
+          : String(
+              areas || ''
+            ).split(',');
 
 
-  // ========================================================
-  // ONLY CHANGED:
-  // DUPLICATE AREA ADD HOBE NA
-  // ========================================================
-
-  const handleAreaToggle = (area) => {
-
-    const cleanAreas =
-      cleanServiceAreas(
-        serviceAreas
-      );
-
-
-    if (
-      cleanAreas.includes(area)
-    ) {
-
-      setServiceAreas(
-        cleanAreas.filter(
-          (a) =>
-            a !== area
+      return [
+        ...new Set(
+          list
+            .map(
+              (area) =>
+                String(
+                  area
+                ).trim()
+            )
+            .filter(Boolean)
         )
-      );
-
-    } else {
-
-      setServiceAreas(
-        cleanServiceAreas([
-          ...cleanAreas,
-          area
-        ])
-      );
-    }
-  };
-
-
-  const handleSave = async () => {
-    setSaving(true);
-    setMsg('');
-    setError('');
-
-
-    // ONLY ADDED:
-    // current selected areas clean kore exact list save korbe
-    const latestServiceAreas =
-      cleanServiceAreas(
-        serviceAreas
-      );
-
-
-    const payload = {
-      isAvailable,
-      availableDays: selectedDays,
-      workingHours,
-
-      // ONLY CHANGED
-      serviceAreas:
-        latestServiceAreas,
-
-      maxDailyAppointments:
-        maxAppointments
+      ];
     };
 
 
-    try {
-      const techId =
-        currentUser?.technicianId ||
-        'tech-1';
+  // ========================================================
+  // LOAD AVAILABILITY
+  // ========================================================
+
+  useEffect(() => {
+
+    fetchAvailability();
+
+  }, [currentUser]);
 
 
-      const res =
-        await axios.put(
-          `http://localhost:5000/api/technicians/availability/${techId}`,
-          payload
+  const fetchAvailability =
+    async () => {
+
+      setLoading(
+        true
+      );
+
+      setError('');
+
+
+      try {
+
+        const techId =
+          currentUser?.technicianId ||
+          currentUser?.id ||
+          'tech-1';
+
+
+        const res =
+          await axios.get(
+            `http://localhost:5000/api/technicians/availability/${techId}`
+          );
+
+
+        if (
+          res.data.success
+        ) {
+
+          const data =
+            res.data.data;
+
+
+          setIsAvailable(
+            data.isAvailable
+          );
+
+
+          setSelectedDays(
+            data.availableDays ||
+            [
+              'Mon',
+              'Tue',
+              'Wed',
+              'Thu',
+              'Fri'
+            ]
+          );
+
+
+          setWorkingHours(
+            data.workingHours ||
+            '09:00 AM - 06:00 PM'
+          );
+
+
+          setServiceAreas(
+            cleanServiceAreas(
+              data.serviceAreas ||
+              []
+            )
+          );
+
+
+          setMaxAppointments(
+            data.maxDailyAppointments ||
+            5
+          );
+        }
+
+
+      } catch (err) {
+
+        console.warn(
+          'Availability fetch error:',
+          err
+        );
+
+
+        setError(
+          err?.response?.data?.message ||
+          'Unable to load technician availability.'
+        );
+
+
+      } finally {
+
+        setLoading(
+          false
+        );
+      }
+    };
+
+
+  // ========================================================
+  // DAY TOGGLE
+  // ========================================================
+
+  const handleDayToggle =
+    (day) => {
+
+      if (
+        selectedDays.includes(
+          day
+        )
+      ) {
+
+        setSelectedDays(
+          selectedDays.filter(
+            (selectedDay) =>
+              selectedDay !==
+              day
+          )
+        );
+
+      } else {
+
+        setSelectedDays([
+          ...selectedDays,
+          day
+        ]);
+      }
+    };
+
+
+  // ========================================================
+  // AREA TOGGLE
+  // ========================================================
+
+  const handleAreaToggle =
+    (area) => {
+
+      const cleanAreas =
+        cleanServiceAreas(
+          serviceAreas
         );
 
 
       if (
-        res.data.success
+        cleanAreas.includes(
+          area
+        )
       ) {
 
-        // backend-er latest saved list state-e rakha
         setServiceAreas(
-          cleanServiceAreas(
-            res.data.data?.serviceAreas ||
-            latestServiceAreas
+          cleanAreas.filter(
+            (selectedArea) =>
+              selectedArea !==
+              area
           )
         );
 
+      } else {
 
-        setMsg(
-          'Technician working schedule updated in database!'
+        setServiceAreas(
+          cleanServiceAreas([
+            ...cleanAreas,
+            area
+          ])
         );
       }
+    };
 
-    } catch (err) {
 
-      console.error(
-        'Availability save error:',
-        err
+  // ========================================================
+  // SAVE
+  // ========================================================
+
+  const handleSave =
+    async () => {
+
+      setSaving(
+        true
       );
 
+      setMsg('');
 
-      setError(
-        err?.response?.data?.message ||
-        'Unable to save technician schedule.'
-      );
+      setError('');
 
-    } finally {
-      setSaving(false);
-    }
-  };
 
+      const latestServiceAreas =
+        cleanServiceAreas(
+          serviceAreas
+        );
+
+
+      const payload = {
+
+        isAvailable,
+
+        availableDays:
+          selectedDays,
+
+        workingHours,
+
+        serviceAreas:
+          latestServiceAreas,
+
+        maxDailyAppointments:
+          maxAppointments
+      };
+
+
+      try {
+
+        const techId =
+          currentUser?.technicianId ||
+          currentUser?.id ||
+          'tech-1';
+
+
+        const res =
+          await axios.put(
+            `http://localhost:5000/api/technicians/availability/${techId}`,
+            payload
+          );
+
+
+        if (
+          res.data.success
+        ) {
+
+          setServiceAreas(
+            cleanServiceAreas(
+              res.data.data
+                ?.serviceAreas ||
+              latestServiceAreas
+            )
+          );
+
+
+          setMsg(
+            'Technician working schedule updated in database!'
+          );
+        }
+
+
+      } catch (err) {
+
+        console.error(
+          'Availability save error:',
+          err
+        );
+
+
+        setError(
+          err?.response?.data?.message ||
+          'Unable to save technician schedule.'
+        );
+
+
+      } finally {
+
+        setSaving(
+          false
+        );
+      }
+    };
+
+
+  // ========================================================
+  // PAGE
+  // ========================================================
 
   return (
+
     <Box
       sx={{
-        flexGrow: 1,
-        p: 4,
-        backgroundColor: '#0D1527',
-        minHeight: '100vh',
-        overflowY: 'auto'
+        flexGrow:
+          1,
+
+        p:
+          4,
+
+        backgroundColor:
+          '#0D1527',
+
+        minHeight:
+          '100vh',
+
+        overflowY:
+          'auto'
       }}
     >
 
-      {/* Header */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
-      <Box sx={{ mb: 4 }}>
+      <Box
+        sx={{
+          mb:
+            4
+        }}
+      >
+
         <Typography
           variant="h5"
           sx={{
-            color: '#FFF',
-            fontWeight: 700
+            color:
+              '#FFF',
+
+            fontWeight:
+              700
           }}
         >
           Technician Availability Management
         </Typography>
 
+
         <Typography
           variant="body2"
           sx={{
-            color: '#94A3B8'
+            color:
+              '#94A3B8'
           }}
         >
           Configuring schedule for:{' '}
+
           <strong
             style={{
-              color: '#00A8FF'
+              color:
+                '#00A8FF'
             }}
           >
-            {currentUser?.name || 'Technician'}
+            {
+              currentUser?.name ||
+              'Technician'
+            }
           </strong>
         </Typography>
+
       </Box>
 
 
+      {/* =================================================
+          SUCCESS
+      ================================================= */}
+
       {msg && (
+
         <Alert
           severity="success"
           sx={{
-            mb: 3,
+            mb:
+              3,
+
             backgroundColor:
               'rgba(16, 185, 129, 0.15)',
-            color: '#10B981',
+
+            color:
+              '#10B981',
+
             border:
               '1px solid #10B981'
           }}
@@ -332,14 +533,23 @@ export const TechnicianAvailability = ({ currentUser }) => {
       )}
 
 
+      {/* =================================================
+          ERROR
+      ================================================= */}
+
       {error && (
+
         <Alert
           severity="error"
           sx={{
-            mb: 3,
+            mb:
+              3,
+
             backgroundColor:
               'rgba(239, 68, 68, 0.15)',
-            color: '#EF4444'
+
+            color:
+              '#EF4444'
           }}
         >
           {error}
@@ -359,9 +569,14 @@ export const TechnicianAvailability = ({ currentUser }) => {
           container
           spacing={4}
           sx={{
-            maxWidth: 950
+            maxWidth:
+              950
           }}
         >
+
+          {/* =================================================
+              LEFT CONFIG
+          ================================================= */}
 
           <Grid
             item
@@ -374,34 +589,57 @@ export const TechnicianAvailability = ({ currentUser }) => {
               sx={{
                 backgroundColor:
                   '#172036',
-                borderRadius: 3,
-                p: 4,
+
+                borderRadius:
+                  3,
+
+                p:
+                  4,
+
                 border:
                   '1px solid #2A364F'
               }}
             >
 
-              {/* Online Status Toggle */}
+              {/* =============================================
+                  ONLINE STATUS
+              ============================================= */}
 
               <Box
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
+                  display:
+                    'flex',
+
+                  alignItems:
+                    'center',
+
                   justifyContent:
                     'space-between',
-                  mb: 3,
-                  p: 2,
+
+                  mb:
+                    3,
+
+                  p:
+                    2,
+
                   backgroundColor:
                     '#0F172A',
-                  borderRadius: 2
+
+                  borderRadius:
+                    2
                 }}
               >
 
                 <Box
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5
+                    display:
+                      'flex',
+
+                    alignItems:
+                      'center',
+
+                    gap:
+                      1.5
                   }}
                 >
 
@@ -414,27 +652,37 @@ export const TechnicianAvailability = ({ currentUser }) => {
                     }
                   />
 
+
                   <Box>
+
                     <Typography
                       variant="subtitle1"
                       sx={{
-                        color: '#FFF',
-                        fontWeight: 700
+                        color:
+                          '#FFF',
+
+                        fontWeight:
+                          700
                       }}
                     >
                       Service Availability Status
                     </Typography>
 
+
                     <Typography
                       variant="caption"
                       sx={{
-                        color: '#94A3B8'
+                        color:
+                          '#94A3B8'
                       }}
                     >
-                      {isAvailable
-                        ? 'Active — Accepting customer bookings'
-                        : 'Inactive — Temporarily offline'}
+                      {
+                        isAvailable
+                          ? 'Active — Accepting customer bookings'
+                          : 'Inactive — Temporarily offline'
+                      }
                     </Typography>
+
                   </Box>
 
                 </Box>
@@ -442,11 +690,14 @@ export const TechnicianAvailability = ({ currentUser }) => {
 
                 <FormControlLabel
                   control={
+
                     <Switch
-                      checked={isAvailable}
-                      onChange={(e) =>
+                      checked={
+                        isAvailable
+                      }
+                      onChange={(event) =>
                         setIsAvailable(
-                          e.target.checked
+                          event.target.checked
                         )
                       }
                       color="primary"
@@ -462,112 +713,158 @@ export const TechnicianAvailability = ({ currentUser }) => {
                 sx={{
                   borderColor:
                     '#2A364F',
-                  my: 3
+
+                  my:
+                    3
                 }}
               />
 
 
-              {/* 1. Working Days */}
+              {/* =============================================
+                  AVAILABLE DAYS
+              ============================================= */}
 
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  fontWeight: 600,
-                  mb: 1.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5,
+
+                  display:
+                    'flex',
+
+                  alignItems:
+                    'center',
+
+                  gap:
+                    1
                 }}
               >
                 <Calendar
                   size={18}
                   color="#00A8FF"
                 />
+
                 Available Days
               </Typography>
 
 
               <Box
                 sx={{
-                  display: 'flex',
-                  gap: 1,
-                  flexWrap: 'wrap',
-                  mb: 4
+                  display:
+                    'flex',
+
+                  gap:
+                    1,
+
+                  flexWrap:
+                    'wrap',
+
+                  mb:
+                    4
                 }}
               >
 
-                {allDays.map((day) => {
+                {allDays.map(
+                  (day) => {
 
-                  const selected =
-                    selectedDays.includes(
-                      day
-                    );
+                    const selected =
+                      selectedDays.includes(
+                        day
+                      );
 
 
-                  return (
-                    <Button
-                      key={day}
-                      onClick={() =>
-                        handleDayToggle(
+                    return (
+
+                      <Button
+                        key={
                           day
-                        )
-                      }
-                      sx={{
-                        backgroundColor:
-                          selected
-                            ? '#00A8FF'
-                            : '#0F172A',
-
-                        color:
-                          selected
-                            ? '#0D1527'
-                            : '#94A3B8',
-
-                        border:
-                          selected
-                            ? '1px solid #00A8FF'
-                            : '1px solid #2A364F',
-
-                        fontWeight: 700,
-
-                        px: 2.5,
-
-                        py: 1,
-
-                        '&:hover': {
+                        }
+                        onClick={() =>
+                          handleDayToggle(
+                            day
+                          )
+                        }
+                        sx={{
                           backgroundColor:
                             selected
                               ? '#00A8FF'
-                              : '#1E293B'
-                        }
-                      }}
-                    >
-                      {day}
-                    </Button>
-                  );
-                })}
+                              : '#0F172A',
+
+                          color:
+                            selected
+                              ? '#0D1527'
+                              : '#94A3B8',
+
+                          border:
+                            selected
+                              ? '1px solid #00A8FF'
+                              : '1px solid #2A364F',
+
+                          fontWeight:
+                            700,
+
+                          px:
+                            2.5,
+
+                          py:
+                            1,
+
+                          '&:hover':
+                            {
+                              backgroundColor:
+                                selected
+                                  ? '#00A8FF'
+                                  : '#1E293B'
+                            }
+                        }}
+                      >
+                        {day}
+                      </Button>
+                    );
+                  }
+                )}
 
               </Box>
 
 
-              {/* 2. Working Hours */}
+              {/* =============================================
+                  WORKING HOURS
+              ============================================= */}
 
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  fontWeight: 600,
-                  mb: 1.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5,
+
+                  display:
+                    'flex',
+
+                  alignItems:
+                    'center',
+
+                  gap:
+                    1
                 }}
               >
                 <Clock
                   size={18}
                   color="#00A8FF"
                 />
+
                 Working Hours
               </Typography>
 
@@ -576,7 +873,8 @@ export const TechnicianAvailability = ({ currentUser }) => {
                 container
                 spacing={1.5}
                 sx={{
-                  mb: 4
+                  mb:
+                    4
                 }}
               >
 
@@ -589,10 +887,13 @@ export const TechnicianAvailability = ({ currentUser }) => {
 
 
                     return (
+
                       <Grid
                         item
                         xs={6}
-                        key={hours}
+                        key={
+                          hours
+                        }
                       >
 
                         <Button
@@ -618,19 +919,22 @@ export const TechnicianAvailability = ({ currentUser }) => {
                                 ? '1px solid #00A8FF'
                                 : '1px solid #2A364F',
 
-                            py: 1.2,
+                            py:
+                              1.2,
 
-                            fontWeight: 600,
+                            fontWeight:
+                              600,
 
                             fontSize:
                               '0.85rem',
 
-                            '&:hover': {
-                              backgroundColor:
-                                selected
-                                  ? 'rgba(0, 168, 255, 0.25)'
-                                  : '#1E293B'
-                            }
+                            '&:hover':
+                              {
+                                backgroundColor:
+                                  selected
+                                    ? 'rgba(0, 168, 255, 0.25)'
+                                    : '#1E293B'
+                              }
                           }}
                         >
                           {hours}
@@ -644,33 +948,54 @@ export const TechnicianAvailability = ({ currentUser }) => {
               </Grid>
 
 
-              {/* 3. Supported Service Areas */}
+              {/* =============================================
+                  SERVICE AREAS
+              ============================================= */}
 
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  fontWeight: 600,
-                  mb: 1.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5,
+
+                  display:
+                    'flex',
+
+                  alignItems:
+                    'center',
+
+                  gap:
+                    1
                 }}
               >
                 <MapPin
                   size={18}
                   color="#00A8FF"
                 />
+
                 Supported Service Areas
               </Typography>
 
 
               <Box
                 sx={{
-                  display: 'flex',
-                  gap: 1,
-                  flexWrap: 'wrap',
-                  mb: 4
+                  display:
+                    'flex',
+
+                  gap:
+                    1,
+
+                  flexWrap:
+                    'wrap',
+
+                  mb:
+                    4
                 }}
               >
 
@@ -678,15 +1003,22 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   (area) => {
 
                     const selected =
-                      serviceAreas.includes(
+                      cleanServiceAreas(
+                        serviceAreas
+                      ).includes(
                         area
                       );
 
 
                     return (
+
                       <Chip
-                        key={area}
-                        label={area}
+                        key={
+                          area
+                        }
+                        label={
+                          area
+                        }
                         onClick={() =>
                           handleAreaToggle(
                             area
@@ -708,13 +1040,17 @@ export const TechnicianAvailability = ({ currentUser }) => {
                               ? '1px solid #00A8FF'
                               : '1px solid #2A364F',
 
-                          fontWeight: 600,
+                          fontWeight:
+                            600,
 
-                          py: 2,
+                          py:
+                            2,
 
-                          px: 1,
+                          px:
+                            1,
 
-                          cursor: 'pointer'
+                          cursor:
+                            'pointer'
                         }}
                       />
                     );
@@ -724,45 +1060,74 @@ export const TechnicianAvailability = ({ currentUser }) => {
               </Box>
 
 
-              {/* 4. Maximum Daily Appointments Limit */}
+              {/* =============================================
+                  MAX DAILY APPOINTMENTS
+              ============================================= */}
 
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#94A3B8',
-                  fontWeight: 600,
-                  mb: 1.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
+                  color:
+                    '#94A3B8',
+
+                  fontWeight:
+                    600,
+
+                  mb:
+                    1.5,
+
+                  display:
+                    'flex',
+
+                  alignItems:
+                    'center',
+
+                  gap:
+                    1
                 }}
               >
                 <Users
                   size={18}
                   color="#00A8FF"
                 />
+
                 Maximum Daily Appointments Limit
               </Typography>
 
 
               <Box
                 sx={{
-                  px: 2,
-                  py: 2,
+                  px:
+                    2,
+
+                  py:
+                    2,
+
                   backgroundColor:
                     '#0F172A',
-                  borderRadius: 2,
-                  mb: 4
+
+                  borderRadius:
+                    2,
+
+                  mb:
+                    4
                 }}
               >
 
                 <Typography
                   variant="h6"
                   sx={{
-                    color: '#00A8FF',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    mb: 1
+                    color:
+                      '#00A8FF',
+
+                    fontWeight:
+                      700,
+
+                    textAlign:
+                      'center',
+
+                    mb:
+                      1
                   }}
                 >
                   {maxAppointments} Appointments / Day
@@ -770,42 +1135,56 @@ export const TechnicianAvailability = ({ currentUser }) => {
 
 
                 <Slider
-                  value={maxAppointments}
+                  value={
+                    maxAppointments
+                  }
                   min={1}
                   max={10}
                   step={1}
                   marks
                   valueLabelDisplay="auto"
-                  onChange={(e, val) =>
+                  onChange={(
+                    _,
+                    value
+                  ) =>
                     setMaxAppointments(
-                      val
+                      value
                     )
                   }
                   sx={{
-                    color: '#00A8FF',
+                    color:
+                      '#00A8FF',
 
-                    '& .MuiSlider-thumb': {
-                      backgroundColor:
-                        '#00A8FF'
-                    },
+                    '& .MuiSlider-thumb':
+                      {
+                        backgroundColor:
+                          '#00A8FF'
+                      },
 
-                    '& .MuiSlider-track': {
-                      backgroundColor:
-                        '#00A8FF'
-                    }
+                    '& .MuiSlider-track':
+                      {
+                        backgroundColor:
+                          '#00A8FF'
+                      }
                   }}
                 />
 
               </Box>
 
 
-              {/* Save Schedule Button */}
+              {/* =============================================
+                  SAVE
+              ============================================= */}
 
               <Button
                 variant="contained"
                 fullWidth
-                onClick={handleSave}
-                disabled={saving}
+                onClick={
+                  handleSave
+                }
+                disabled={
+                  saving
+                }
                 startIcon={
                   saving
                     ? (
@@ -836,15 +1215,18 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   fontSize:
                     '1rem',
 
-                  '&:hover': {
-                    backgroundColor:
-                      '#38BDF8'
-                  }
+                  '&:hover':
+                    {
+                      backgroundColor:
+                        '#38BDF8'
+                    }
                 }}
               >
-                {saving
-                  ? 'Saving Schedule...'
-                  : 'Save Availability Config'}
+                {
+                  saving
+                    ? 'Saving Schedule...'
+                    : 'Save Availability Config'
+                }
               </Button>
 
             </Paper>
@@ -852,7 +1234,9 @@ export const TechnicianAvailability = ({ currentUser }) => {
           </Grid>
 
 
-          {/* Right Summary Preview Card */}
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
 
           <Grid
             item
@@ -908,6 +1292,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
               >
 
                 <Box>
+
                   <Typography
                     variant="caption"
                     sx={{
@@ -917,6 +1302,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   >
                     Working Days
                   </Typography>
+
 
                   <Typography
                     variant="body2"
@@ -928,14 +1314,21 @@ export const TechnicianAvailability = ({ currentUser }) => {
                         600
                     }}
                   >
-                    {selectedDays.join(
-                      ', '
-                    )}
+                    {
+                      selectedDays.length >
+                      0
+                        ? selectedDays.join(
+                            ', '
+                          )
+                        : 'No days selected'
+                    }
                   </Typography>
+
                 </Box>
 
 
                 <Box>
+
                   <Typography
                     variant="caption"
                     sx={{
@@ -945,6 +1338,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   >
                     Shift Hours
                   </Typography>
+
 
                   <Typography
                     variant="body2"
@@ -958,10 +1352,12 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   >
                     {workingHours}
                   </Typography>
+
                 </Box>
 
 
                 <Box>
+
                   <Typography
                     variant="caption"
                     sx={{
@@ -971,6 +1367,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   >
                     Covered Neighborhoods
                   </Typography>
+
 
                   <Typography
                     variant="body2"
@@ -985,13 +1382,22 @@ export const TechnicianAvailability = ({ currentUser }) => {
                     {
                       cleanServiceAreas(
                         serviceAreas
-                      ).join(', ')
+                      ).length >
+                      0
+                        ? cleanServiceAreas(
+                            serviceAreas
+                          ).join(
+                            ', '
+                          )
+                        : 'No service area selected'
                     }
                   </Typography>
+
                 </Box>
 
 
                 <Box>
+
                   <Typography
                     variant="caption"
                     sx={{
@@ -1001,6 +1407,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   >
                     Daily Capacity
                   </Typography>
+
 
                   <Typography
                     variant="body2"
@@ -1014,6 +1421,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
                   >
                     Max {maxAppointments} slots / day
                   </Typography>
+
                 </Box>
 
               </Box>
@@ -1024,6 +1432,7 @@ export const TechnicianAvailability = ({ currentUser }) => {
 
         </Grid>
       )}
+
     </Box>
   );
 };

@@ -26,6 +26,7 @@ import {
   Clock,
   Mail,
   MapPin,
+  MessageSquare,
   Phone,
   RefreshCw,
   User,
@@ -41,28 +42,11 @@ import {
 
 // ==========================================================
 // TECHNICIAN JOB REQUEST MANAGEMENT
-//
-// Existing group appointment feature + Member 4 automatic
-// assignment jobs ek page-e show korbe.
-//
-// Automatic flow:
-//
-// Customer service request
-//      ↓
-// Best technician auto suggested
-//      ↓
-// Customer accepts
-//      ↓
-// Appointment created
-//      ↓
-// Ei Technician Job Requests page-e show
-//      ↓
-// Customer name / email / phone / issue / location /
-// date / time / service method shob visible
 // ==========================================================
 
 export const TechnicianDashboard = ({
-  currentUser
+  currentUser,
+  onOpenChat
 }) => {
 
   // ========================================================
@@ -76,7 +60,7 @@ export const TechnicianDashboard = ({
 
 
   // ========================================================
-  // MEMBER 4 AUTO-ASSIGNED ACCEPTED JOBS
+  // AUTO-ASSIGNED ACCEPTED JOBS
   // ========================================================
 
   const [
@@ -104,8 +88,7 @@ export const TechnicianDashboard = ({
 
 
   // ========================================================
-  // RESCHEDULE MODAL
-  // EXISTING FEATURE
+  // RESCHEDULE
   // ========================================================
 
   const [
@@ -117,7 +100,9 @@ export const TechnicianDashboard = ({
   const [
     newSelectedDate,
     setNewSelectedDate
-  ] = useState('Mon 13');
+  ] = useState(
+    'Mon 13'
+  );
 
 
   const [
@@ -130,24 +115,43 @@ export const TechnicianDashboard = ({
 
   const dateOptions = [
     {
-      day: 'Sun',
-      dateNum: '12'
+      day:
+        'Sun',
+
+      dateNum:
+        '12'
     },
+
     {
-      day: 'Mon',
-      dateNum: '13'
+      day:
+        'Mon',
+
+      dateNum:
+        '13'
     },
+
     {
-      day: 'Tue',
-      dateNum: '14'
+      day:
+        'Tue',
+
+      dateNum:
+        '14'
     },
+
     {
-      day: 'Wed',
-      dateNum: '15'
+      day:
+        'Wed',
+
+      dateNum:
+        '15'
     },
+
     {
-      day: 'Thu',
-      dateNum: '16'
+      day:
+        'Thu',
+
+      dateNum:
+        '16'
     }
   ];
 
@@ -163,16 +167,45 @@ export const TechnicianDashboard = ({
 
 
   // ========================================================
-  // LOAD DATA WHEN TECHNICIAN CHANGES
+  // TECHNICIAN ID
+  //
+  // Supports both:
+  // currentUser.technicianId
+  // currentUser.id
+  // ========================================================
+
+  const getTechnicianId =
+    () => {
+
+      return (
+        currentUser?.technicianId ||
+        currentUser?.id ||
+        null
+      );
+    };
+
+
+  // ========================================================
+  // LOAD WHEN USER CHANGES
   // ========================================================
 
   useEffect(() => {
 
+    const technicianId =
+      getTechnicianId();
+
+
     if (
-      currentUser?.technicianId
+      technicianId
     ) {
 
       fetchData();
+
+    } else {
+
+      setError(
+        'Technician profile ID is missing. Please log in again using your technician account.'
+      );
     }
 
   }, [
@@ -181,20 +214,22 @@ export const TechnicianDashboard = ({
 
 
   // ========================================================
-  // FETCH BOTH TYPES OF JOB DATA
+  // FETCH BOTH JOB TYPES
   //
-  // 1. Existing Appointment Module data
-  // 2. Member 4 accepted automatic assignments
+  // 1. Regular appointments
+  // 2. Automatic accepted assignments
   // ========================================================
 
   const fetchData =
     async () => {
 
       const technicianId =
-        currentUser?.technicianId;
+        getTechnicianId();
 
 
-      if (!technicianId) {
+      if (
+        !technicianId
+      ) {
 
         setError(
           'Technician profile ID is missing. Please log in again using your technician account.'
@@ -204,7 +239,9 @@ export const TechnicianDashboard = ({
       }
 
 
-      setLoading(true);
+      setLoading(
+        true
+      );
 
       setError('');
 
@@ -212,7 +249,7 @@ export const TechnicianDashboard = ({
       try {
 
         // ==================================================
-        // EXISTING GROUP APPOINTMENTS
+        // REGULAR APPOINTMENTS
         // ==================================================
 
         try {
@@ -224,21 +261,30 @@ export const TechnicianDashboard = ({
 
 
           if (
-            appointmentResponse.data
+            appointmentResponse
+              .data
               .success
           ) {
 
             setAppointments(
-              appointmentResponse.data
-                .data || []
+              appointmentResponse
+                .data
+                .data ||
+              []
             );
+
+          } else {
+
+            setAppointments([]);
           }
 
 
-        } catch (appointmentError) {
+        } catch (
+          appointmentError
+        ) {
 
           console.error(
-            'Failed to load existing appointments:',
+            'Failed to load appointments:',
             appointmentError
           );
 
@@ -248,7 +294,7 @@ export const TechnicianDashboard = ({
 
 
         // ==================================================
-        // MEMBER 4 AUTOMATIC ACCEPTED JOBS
+        // AUTOMATIC ACCEPTED JOBS
         // ==================================================
 
         try {
@@ -260,20 +306,28 @@ export const TechnicianDashboard = ({
 
 
           if (
-            automaticResponse?.success
+            automaticResponse
+              ?.success
           ) {
 
             setAutomaticJobs(
-              automaticResponse.data ||
+              automaticResponse
+                .data ||
               []
             );
+
+          } else {
+
+            setAutomaticJobs([]);
           }
 
 
-        } catch (automaticError) {
+        } catch (
+          automaticError
+        ) {
 
           console.error(
-            'Failed to load automatic technician jobs:',
+            'Failed to load automatic jobs:',
             automaticError
           );
 
@@ -284,23 +338,110 @@ export const TechnicianDashboard = ({
 
       } finally {
 
-        setLoading(false);
+        setLoading(
+          false
+        );
       }
     };
 
 
   // ========================================================
-  // EXISTING APPOINTMENT STATUS UPDATE
+  // SERVICE REQUEST STATUS SYNC
+  //
+  // Appointment APPROVED -> Request ACCEPTED
+  // ========================================================
+
+  const syncRequestStatus =
+    async (
+      appItem,
+      status
+    ) => {
+
+      const requestIdentifier =
+        appItem?.trackingId ||
+        appItem?.serviceRequest
+          ?.trackingId ||
+        appItem?.serviceRequestId ||
+        null;
+
+
+      if (
+        !requestIdentifier
+      ) {
+
+        return;
+      }
+
+
+      let requestStatus =
+        status;
+
+
+      if (
+        status ===
+        'APPROVED'
+      ) {
+
+        requestStatus =
+          'ACCEPTED';
+      }
+
+
+      // Appointment-only states are not
+      // necessarily valid ServiceStatus values.
+      if (
+        status ===
+        'RESCHEDULED' ||
+        status ===
+        'REJECTED'
+      ) {
+
+        return;
+      }
+
+
+      try {
+
+        await axios.put(
+          `http://localhost:5000/api/requests/${requestIdentifier}/status`,
+
+          {
+            status:
+              requestStatus,
+
+            note:
+              `Technician ${currentUser?.name || ''} updated status to ${requestStatus}.`
+          }
+        );
+
+
+      } catch (
+        syncError
+      ) {
+
+        console.warn(
+          'Service request status sync failed:',
+          syncError
+        );
+      }
+    };
+
+
+  // ========================================================
+  // APPOINTMENT STATUS UPDATE
   // ========================================================
 
   const handleStatusUpdate =
     async (
       id,
       status,
-      extraData = {}
+      extraData = {},
+      appItem = null
     ) => {
 
-      setLoading(true);
+      setLoading(
+        true
+      );
 
       setMsg('');
 
@@ -312,6 +453,7 @@ export const TechnicianDashboard = ({
         const response =
           await axios.put(
             `http://localhost:5000/api/appointments/${id}/status`,
+
             {
               status,
               ...extraData
@@ -323,11 +465,17 @@ export const TechnicianDashboard = ({
           response.data.success
         ) {
 
+          await syncRequestStatus(
+            appItem,
+            status
+          );
+
+
           setMsg(
             `Appointment ${status
               .toLowerCase()
               .replace(
-                '_',
+                /_/g,
                 ' '
               )} successfully.`
           );
@@ -339,8 +487,15 @@ export const TechnicianDashboard = ({
 
       } catch (err) {
 
+        console.error(
+          'Appointment status update failed:',
+          err
+        );
+
+
         setError(
-          err?.response?.data
+          err?.response
+            ?.data
             ?.message ||
           'Failed to update appointment status.'
         );
@@ -348,7 +503,10 @@ export const TechnicianDashboard = ({
 
       } finally {
 
-        setLoading(false);
+        setLoading(
+          false
+        );
+
 
         setRescheduleTarget(
           null
@@ -359,7 +517,6 @@ export const TechnicianDashboard = ({
 
   // ========================================================
   // RESCHEDULE CONFIRM
-  // EXISTING GROUP FEATURE
   // ========================================================
 
   const handleConfirmReschedule =
@@ -368,39 +525,49 @@ export const TechnicianDashboard = ({
       if (
         !rescheduleTarget
       ) {
+
         return;
       }
 
 
+      const parts =
+        newSelectedDate.split(
+          ' '
+        );
+
+
+      const dayName =
+        parts[0];
+
+
+      const dateNumber =
+        parts[1];
+
+
       const formattedDate =
-        `Mon Jul ${
-          newSelectedDate.split(
-            ' '
-          )[1]
-        }, 2026`;
+        `${dayName} Jul ${dateNumber}, 2026`;
 
 
       handleStatusUpdate(
         rescheduleTarget.id,
+
         'RESCHEDULED',
+
         {
           newDate:
             formattedDate,
 
           newTimeSlot:
             newTimeSlot
-        }
+        },
+
+        rescheduleTarget
       );
     };
 
 
   // ========================================================
-  // AUTO JOB -> APPOINTMENT ID
-  //
-  // Customer automatic technician accept korle backend
-  // Appointment create kore.
-  //
-  // Ei helper appointment status actions-e oi ID use korbe.
+  // AUTO JOB APPOINTMENT ID
   // ========================================================
 
   const getAutoJobAppointmentId =
@@ -414,7 +581,7 @@ export const TechnicianDashboard = ({
 
 
   // ========================================================
-  // DISPLAY LOCATION
+  // LOCATION DISPLAY
   // ========================================================
 
   const getLocationText =
@@ -460,18 +627,27 @@ export const TechnicianDashboard = ({
 
 
   // ========================================================
-  // STATUS CHIP STYLE
+  // STATUS STYLE
   // ========================================================
 
   const getStatusStyle =
     (status) => {
 
       if (
-        status === 'APPROVED' ||
-        status === 'ACCEPTED'
+        status ===
+          'APPROVED' ||
+        status ===
+          'ACCEPTED' ||
+        status ===
+          'IN_PROGRESS' ||
+        status ===
+          'ON_THE_WAY' ||
+        status ===
+          'COMPLETED'
       ) {
 
         return {
+
           backgroundColor:
             'rgba(16, 185, 129, 0.2)',
 
@@ -482,10 +658,12 @@ export const TechnicianDashboard = ({
 
 
       if (
-        status === 'REJECTED'
+        status ===
+        'REJECTED'
       ) {
 
         return {
+
           backgroundColor:
             'rgba(239, 68, 68, 0.2)',
 
@@ -496,10 +674,12 @@ export const TechnicianDashboard = ({
 
 
       if (
-        status === 'RESCHEDULED'
+        status ===
+        'RESCHEDULED'
       ) {
 
         return {
+
           backgroundColor:
             'rgba(59, 130, 246, 0.2)',
 
@@ -510,6 +690,7 @@ export const TechnicianDashboard = ({
 
 
       return {
+
         backgroundColor:
           'rgba(245, 158, 11, 0.2)',
 
@@ -520,16 +701,10 @@ export const TechnicianDashboard = ({
 
 
   // ========================================================
-  // REMOVE DUPLICATE EXISTING APPOINTMENTS
+  // REMOVE DUPLICATE APPOINTMENTS
   //
-  // Automatic accepted assignment creates an Appointment.
-  //
-  // Tai same job:
-  // - automaticJobs-e ache
-  // - appointments-eo ache
-  //
-  // Customer full details-er automatic card-ta retain korbo,
-  // duplicate basic appointment card hide korbo.
+  // Auto assignment also creates Appointment.
+  // So duplicate normal card hide.
   // ========================================================
 
   const automaticAppointmentIds =
@@ -537,18 +712,22 @@ export const TechnicianDashboard = ({
       automaticJobs
         .map(
           (job) =>
-            job?.appointment?.id
+            job?.appointment
+              ?.id
         )
-        .filter(Boolean)
+        .filter(
+          Boolean
+        )
     );
 
 
   const normalAppointments =
     appointments.filter(
       (appointment) =>
-        !automaticAppointmentIds.has(
-          appointment.id
-        )
+        !automaticAppointmentIds
+          .has(
+            appointment.id
+          )
     );
 
 
@@ -678,7 +857,6 @@ export const TechnicianDashboard = ({
         >
           {msg}
         </Alert>
-
       )}
 
 
@@ -697,7 +875,6 @@ export const TechnicianDashboard = ({
         >
           {error}
         </Alert>
-
       )}
 
 
@@ -715,11 +892,13 @@ export const TechnicianDashboard = ({
         >
 
           <Chip
-            label={`${totalJobs} Job Request${
-              totalJobs === 1
-                ? ''
-                : 's'
-            }`}
+            label={
+              `${totalJobs} Job Request${
+                totalJobs === 1
+                  ? ''
+                  : 's'
+              }`
+            }
             sx={{
               backgroundColor:
                 'rgba(0,168,255,0.12)',
@@ -733,12 +912,11 @@ export const TechnicianDashboard = ({
           />
 
         </Box>
-
       )}
 
 
       {/* ===================================================
-          LOADING
+          CONTENT
       =================================================== */}
 
       {loading ? (
@@ -773,10 +951,6 @@ export const TechnicianDashboard = ({
         </Box>
 
       ) : totalJobs === 0 ? (
-
-        /* =================================================
-           EMPTY
-        ================================================= */
 
         <Paper
           elevation={0}
@@ -852,7 +1026,7 @@ export const TechnicianDashboard = ({
         >
 
           {/* =================================================
-              MEMBER 4 AUTOMATIC ACCEPTED JOBS
+              AUTO ACCEPTED JOBS
           ================================================= */}
 
           {automaticJobs.map(
@@ -896,13 +1070,59 @@ export const TechnicianDashboard = ({
                 );
 
 
+              const chatItem = {
+
+                ...appointment,
+
+                customerId:
+                  customer.id,
+
+                customerName:
+                  customer.name,
+
+                customerEmail:
+                  customer.email,
+
+                serviceRequestId:
+                  request.id,
+
+                trackingId:
+                  request.trackingId,
+
+                requestTitle:
+                  request.title,
+
+                title:
+                  request.title,
+
+                deviceCategory:
+                  request.deviceCategory
+              };
+
+
+              const statusItem = {
+
+                ...appointment,
+
+                serviceRequestId:
+                  request.id,
+
+                trackingId:
+                  request.trackingId,
+
+                serviceRequest:
+                  request
+              };
+
+
               return (
 
                 <Grid
                   item
                   xs={12}
                   key={
-                    job.assignmentId
+                    job.assignmentId ||
+                    appointmentId
                   }
                 >
 
@@ -923,9 +1143,7 @@ export const TechnicianDashboard = ({
                     }}
                   >
 
-                    {/* =======================================
-                        TOP
-                    ======================================= */}
+                    {/* TOP */}
 
                     <Box
                       sx={{
@@ -1057,9 +1275,7 @@ export const TechnicianDashboard = ({
                     </Box>
 
 
-                    {/* =======================================
-                        CUSTOMER CONTACT
-                    ======================================= */}
+                    {/* CONTACT */}
 
                     <Paper
                       elevation={0}
@@ -1291,9 +1507,7 @@ export const TechnicianDashboard = ({
                     </Paper>
 
 
-                    {/* =======================================
-                        ISSUE
-                    ======================================= */}
+                    {/* ISSUE */}
 
                     <Box
                       sx={{
@@ -1350,9 +1564,7 @@ export const TechnicianDashboard = ({
                     </Box>
 
 
-                    {/* =======================================
-                        REQUEST INFO
-                    ======================================= */}
+                    {/* REQUEST INFO */}
 
                     <Box
                       sx={{
@@ -1426,9 +1638,7 @@ export const TechnicianDashboard = ({
                     </Box>
 
 
-                    {/* =======================================
-                        DATE / TIME / LOCATION
-                    ======================================= */}
+                    {/* DATE/TIME/LOCATION */}
 
                     <Box
                       sx={{
@@ -1543,13 +1753,6 @@ export const TechnicianDashboard = ({
                         <MapPin
                           size={16}
                           color="#10B981"
-                          style={{
-                            marginTop:
-                              2,
-
-                            flexShrink:
-                              0
-                          }}
                         />
 
 
@@ -1572,179 +1775,334 @@ export const TechnicianDashboard = ({
                     </Box>
 
 
-                    {/* =======================================
-                        AUTO ASSIGNED SLOT NOTICE
-                    ======================================= */}
+                    {/* ACTIONS */}
 
-                    <Alert
-                      severity="info"
+                    <Box
                       sx={{
-                        mb:
-                          2.5,
+                        display:
+                          'flex',
 
-                        backgroundColor:
-                          'rgba(0,168,255,.08)',
+                        gap:
+                          1.5,
 
-                        color:
-                          '#38BDF8'
+                        justifyContent:
+                          'flex-end',
+
+                        flexWrap:
+                          'wrap'
                       }}
                     >
-                      This date and time were automatically selected from your available schedule. The confirmed slot is reserved for this customer.
-                    </Alert>
 
-
-                    {/* =======================================
-                        ACTIONS
-                    ======================================= */}
-
-                    {appointmentId && (
-
-                      <Box
+                      <Button
+                        size="small"
+                        onClick={() =>
+                          onOpenChat &&
+                          onOpenChat(
+                            chatItem
+                          )
+                        }
+                        startIcon={
+                          <MessageSquare
+                            size={16}
+                          />
+                        }
                         sx={{
-                          display:
-                            'flex',
+                          color:
+                            '#00A8FF',
 
-                          gap:
+                          backgroundColor:
+                            'rgba(0,168,255,.12)',
+
+                          border:
+                            '1px solid #00A8FF',
+
+                          px:
                             2,
 
-                          justifyContent:
-                            'flex-end',
-
-                          flexWrap:
-                            'wrap'
+                          fontWeight:
+                            700
                         }}
                       >
-
-                        {/* RESCHEDULE */}
-
-                        <Button
-                          onClick={() =>
-                            setRescheduleTarget({
-                              ...appointment,
-
-                              id:
-                                appointmentId,
-
-                              customerName:
-                                customer.name
-                            })
-                          }
-                          startIcon={
-                            <RefreshCw
-                              size={16}
-                            />
-                          }
-                          sx={{
-                            color:
-                              '#94A3B8',
-
-                            backgroundColor:
-                              '#0F172A',
-
-                            border:
-                              '1px solid #2A364F',
-
-                            px:
-                              2.5,
-
-                            '&:hover':
-                              {
-                                backgroundColor:
-                                  '#1E293B'
-                              }
-                          }}
-                        >
-                          Reschedule
-                        </Button>
+                        Open Live Chat
+                      </Button>
 
 
-                        {/* DECLINE */}
+                      {appointmentId && (
 
-                        <Button
-                          onClick={() =>
-                            handleStatusUpdate(
-                              appointmentId,
-                              'REJECTED'
-                            )
-                          }
-                          startIcon={
-                            <X
-                              size={16}
-                            />
-                          }
-                          sx={{
-                            color:
-                              '#EF4444',
-
-                            backgroundColor:
-                              'rgba(239,68,68,.1)',
-
-                            border:
-                              '1px solid rgba(239,68,68,.3)',
-
-                            px:
-                              2.5
-                          }}
-                        >
-                          Decline
-                        </Button>
-
-
-                        {/* Already customer accepted,
-                            appointment backend-e APPROVED.
-                            So redundant Accept button hide. */}
-
-                        {displayStatus !==
-                          'APPROVED' && (
-
+                        <>
                           <Button
-                            variant="contained"
+                            size="small"
                             onClick={() =>
-                              handleStatusUpdate(
-                                appointmentId,
-                                'APPROVED'
-                              )
+                              setRescheduleTarget({
+
+                                ...statusItem,
+
+                                id:
+                                  appointmentId,
+
+                                customerName:
+                                  customer.name
+                              })
                             }
                             startIcon={
-                              <Check
+                              <RefreshCw
                                 size={16}
                               />
                             }
                             sx={{
-                              backgroundColor:
-                                '#00A8FF',
-
                               color:
-                                '#0D1527',
+                                '#94A3B8',
 
-                              fontWeight:
-                                700,
+                              backgroundColor:
+                                '#0F172A',
+
+                              border:
+                                '1px solid #2A364F',
 
                               px:
-                                3
+                                2
                             }}
                           >
-                            Accept Appointment
+                            Reschedule
                           </Button>
 
-                        )}
 
-                      </Box>
+                          {(
+                            displayStatus ===
+                              'PENDING'
+                          ) && (
 
-                    )}
+                            <>
+                              <Button
+                                size="small"
+                                onClick={() =>
+                                  handleStatusUpdate(
+                                    appointmentId,
+                                    'REJECTED',
+                                    {},
+                                    statusItem
+                                  )
+                                }
+                                startIcon={
+                                  <X
+                                    size={16}
+                                  />
+                                }
+                                sx={{
+                                  color:
+                                    '#EF4444',
+
+                                  backgroundColor:
+                                    'rgba(239,68,68,.1)',
+
+                                  border:
+                                    '1px solid rgba(239,68,68,.3)',
+
+                                  px:
+                                    2
+                                }}
+                              >
+                                Decline
+                              </Button>
+
+
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() =>
+                                  handleStatusUpdate(
+                                    appointmentId,
+                                    'APPROVED',
+                                    {},
+                                    statusItem
+                                  )
+                                }
+                                startIcon={
+                                  <Check
+                                    size={16}
+                                  />
+                                }
+                                sx={{
+                                  backgroundColor:
+                                    '#00A8FF',
+
+                                  color:
+                                    '#0D1527',
+
+                                  fontWeight:
+                                    700,
+
+                                  px:
+                                    2.5
+                                }}
+                              >
+                                Accept Appointment
+                              </Button>
+                            </>
+                          )}
+
+
+                          {(
+                            displayStatus ===
+                              'APPROVED' ||
+                            displayStatus ===
+                              'ACCEPTED'
+                          ) && (
+
+                            <>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() =>
+                                  handleStatusUpdate(
+                                    appointmentId,
+                                    'IN_PROGRESS',
+                                    {},
+                                    statusItem
+                                  )
+                                }
+                                sx={{
+                                  backgroundColor:
+                                    '#3B82F6',
+
+                                  color:
+                                    '#FFF',
+
+                                  fontWeight:
+                                    700
+                                }}
+                              >
+                                Start Diagnosing
+                              </Button>
+
+
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() =>
+                                  handleStatusUpdate(
+                                    appointmentId,
+                                    'ON_THE_WAY',
+                                    {},
+                                    statusItem
+                                  )
+                                }
+                                sx={{
+                                  backgroundColor:
+                                    '#F59E0B',
+
+                                  color:
+                                    '#0D1527',
+
+                                  fontWeight:
+                                    700
+                                }}
+                              >
+                                On the Way
+                              </Button>
+
+
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() =>
+                                  handleStatusUpdate(
+                                    appointmentId,
+                                    'COMPLETED',
+                                    {},
+                                    statusItem
+                                  )
+                                }
+                                sx={{
+                                  backgroundColor:
+                                    '#10B981',
+
+                                  color:
+                                    '#0D1527',
+
+                                  fontWeight:
+                                    700
+                                }}
+                              >
+                                Mark Completed
+                              </Button>
+                            </>
+                          )}
+
+
+                          {(
+                            displayStatus ===
+                              'IN_PROGRESS' ||
+                            displayStatus ===
+                              'ON_THE_WAY'
+                          ) && (
+
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() =>
+                                handleStatusUpdate(
+                                  appointmentId,
+                                  'COMPLETED',
+                                  {},
+                                  statusItem
+                                )
+                              }
+                              startIcon={
+                                <Check
+                                  size={16}
+                                />
+                              }
+                              sx={{
+                                backgroundColor:
+                                  '#10B981',
+
+                                color:
+                                  '#0D1527',
+
+                                fontWeight:
+                                  700
+                              }}
+                            >
+                              Complete Service
+                            </Button>
+                          )}
+
+
+                          {displayStatus ===
+                            'COMPLETED' && (
+
+                            <Chip
+                              label="Service Completed"
+                              color="success"
+                            />
+                          )}
+
+
+                          {displayStatus ===
+                            'REJECTED' && (
+
+                            <Chip
+                              label="Appointment Declined"
+                              color="error"
+                            />
+                          )}
+
+                        </>
+                      )}
+
+                    </Box>
 
                   </Paper>
 
                 </Grid>
-
               );
             }
           )}
 
 
           {/* =================================================
-              EXISTING GROUP APPOINTMENTS
-              UNCHANGED FUNCTIONALITY
+              NORMAL APPOINTMENTS
           ================================================= */}
 
           {normalAppointments.map(
@@ -1850,7 +2208,8 @@ export const TechnicianDashboard = ({
                             }}
                           >
                             {
-                              app.customerName
+                              app.customerName ||
+                              'Customer'
                             }
                           </Typography>
 
@@ -2031,15 +2390,13 @@ export const TechnicianDashboard = ({
                     </Box>
 
 
-                    {/* EXISTING ACTIONS */}
-
                     <Box
                       sx={{
                         display:
                           'flex',
 
                         gap:
-                          2,
+                          1.5,
 
                         justifyContent:
                           'flex-end',
@@ -2050,73 +2407,246 @@ export const TechnicianDashboard = ({
                     >
 
                       <Button
+                        size="small"
                         onClick={() =>
-                          setRescheduleTarget(
+                          onOpenChat &&
+                          onOpenChat(
                             app
                           )
                         }
                         startIcon={
-                          <RefreshCw
+                          <MessageSquare
                             size={16}
                           />
                         }
                         sx={{
                           color:
-                            '#94A3B8',
+                            '#00A8FF',
 
                           backgroundColor:
-                            '#0F172A',
+                            'rgba(0,168,255,.12)',
 
                           border:
-                            '1px solid #2A364F',
+                            '1px solid #00A8FF',
 
                           px:
-                            2.5
+                            2,
+
+                          fontWeight:
+                            700
                         }}
                       >
-                        Reschedule
+                        Open Live Chat
                       </Button>
 
 
-                      <Button
-                        onClick={() =>
-                          handleStatusUpdate(
-                            app.id,
-                            'REJECTED'
-                          )
-                        }
-                        startIcon={
-                          <X
-                            size={16}
-                          />
-                        }
-                        sx={{
-                          color:
-                            '#EF4444',
+                      {app.status ===
+                        'PENDING' && (
 
-                          backgroundColor:
-                            'rgba(239,68,68,.1)',
+                        <>
+                          <Button
+                            size="small"
+                            onClick={() =>
+                              setRescheduleTarget(
+                                app
+                              )
+                            }
+                            startIcon={
+                              <RefreshCw
+                                size={16}
+                              />
+                            }
+                            sx={{
+                              color:
+                                '#94A3B8',
 
-                          border:
-                            '1px solid rgba(239,68,68,.3)',
+                              backgroundColor:
+                                '#0F172A',
 
-                          px:
-                            2.5
-                        }}
-                      >
-                        Decline
-                      </Button>
+                              border:
+                                '1px solid #2A364F',
+
+                              px:
+                                2
+                            }}
+                          >
+                            Reschedule
+                          </Button>
 
 
-                      {app.status !==
-                        'APPROVED' && (
+                          <Button
+                            size="small"
+                            onClick={() =>
+                              handleStatusUpdate(
+                                app.id,
+                                'REJECTED',
+                                {},
+                                app
+                              )
+                            }
+                            startIcon={
+                              <X
+                                size={16}
+                              />
+                            }
+                            sx={{
+                              color:
+                                '#EF4444',
+
+                              backgroundColor:
+                                'rgba(239,68,68,.1)',
+
+                              border:
+                                '1px solid rgba(239,68,68,.3)',
+
+                              px:
+                                2
+                            }}
+                          >
+                            Decline
+                          </Button>
+
+
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() =>
+                              handleStatusUpdate(
+                                app.id,
+                                'APPROVED',
+                                {},
+                                app
+                              )
+                            }
+                            startIcon={
+                              <Check
+                                size={16}
+                              />
+                            }
+                            sx={{
+                              backgroundColor:
+                                '#00A8FF',
+
+                              color:
+                                '#0D1527',
+
+                              fontWeight:
+                                700,
+
+                              px:
+                                2.5
+                            }}
+                          >
+                            Accept Appointment
+                          </Button>
+                        </>
+                      )}
+
+
+                      {(
+                        app.status ===
+                          'APPROVED' ||
+                        app.status ===
+                          'ACCEPTED'
+                      ) && (
+
+                        <>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() =>
+                              handleStatusUpdate(
+                                app.id,
+                                'IN_PROGRESS',
+                                {},
+                                app
+                              )
+                            }
+                            sx={{
+                              backgroundColor:
+                                '#3B82F6',
+
+                              color:
+                                '#FFF',
+
+                              fontWeight:
+                                700
+                            }}
+                          >
+                            Start Diagnosing
+                          </Button>
+
+
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() =>
+                              handleStatusUpdate(
+                                app.id,
+                                'ON_THE_WAY',
+                                {},
+                                app
+                              )
+                            }
+                            sx={{
+                              backgroundColor:
+                                '#F59E0B',
+
+                              color:
+                                '#0D1527',
+
+                              fontWeight:
+                                700
+                            }}
+                          >
+                            On the Way
+                          </Button>
+
+
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() =>
+                              handleStatusUpdate(
+                                app.id,
+                                'COMPLETED',
+                                {},
+                                app
+                              )
+                            }
+                            sx={{
+                              backgroundColor:
+                                '#10B981',
+
+                              color:
+                                '#0D1527',
+
+                              fontWeight:
+                                700
+                            }}
+                          >
+                            Mark Completed
+                          </Button>
+                        </>
+                      )}
+
+
+                      {(
+                        app.status ===
+                          'IN_PROGRESS' ||
+                        app.status ===
+                          'ON_THE_WAY'
+                      ) && (
 
                         <Button
+                          size="small"
                           variant="contained"
                           onClick={() =>
                             handleStatusUpdate(
                               app.id,
-                              'APPROVED'
+                              'COMPLETED',
+                              {},
+                              app
                             )
                           }
                           startIcon={
@@ -2126,21 +2656,37 @@ export const TechnicianDashboard = ({
                           }
                           sx={{
                             backgroundColor:
-                              '#00A8FF',
+                              '#10B981',
 
                             color:
                               '#0D1527',
 
                             fontWeight:
-                              700,
-
-                            px:
-                              3
+                              700
                           }}
                         >
-                          Accept Appointment
+                          Complete Service
                         </Button>
+                      )}
 
+
+                      {app.status ===
+                        'COMPLETED' && (
+
+                        <Chip
+                          label="Service Completed"
+                          color="success"
+                        />
+                      )}
+
+
+                      {app.status ===
+                        'REJECTED' && (
+
+                        <Chip
+                          label="Appointment Declined"
+                          color="error"
+                        />
                       )}
 
                     </Box>
@@ -2148,18 +2694,16 @@ export const TechnicianDashboard = ({
                   </Paper>
 
                 </Grid>
-
               );
             }
           )}
 
         </Grid>
-
       )}
 
 
       {/* ===================================================
-          EXISTING RESCHEDULE MODAL
+          RESCHEDULE MODAL
       =================================================== */}
 
       <Dialog
@@ -2220,10 +2764,11 @@ export const TechnicianDashboard = ({
             <strong>
               {
                 rescheduleTarget
-                  ?.customerName
+                  ?.customerName ||
+                'Customer'
               }
             </strong>
-            :
+            .
           </Typography>
 
 
@@ -2261,10 +2806,10 @@ export const TechnicianDashboard = ({
           >
 
             {dateOptions.map(
-              (d) => {
+              (date) => {
 
                 const label =
-                  `${d.day} ${d.dateNum}`;
+                  `${date.day} ${date.dateNum}`;
 
 
                 const selected =
@@ -2326,18 +2871,17 @@ export const TechnicianDashboard = ({
                           'block'
                       }}
                     >
-                      {d.day}
+                      {date.day}
                     </Typography>
 
 
                     <Typography
                       variant="body2"
                     >
-                      {d.dateNum}
+                      {date.dateNum}
                     </Typography>
 
                   </Box>
-
                 );
               }
             )}
@@ -2430,7 +2974,6 @@ export const TechnicianDashboard = ({
                     </Button>
 
                   </Grid>
-
                 );
               }
             )}
