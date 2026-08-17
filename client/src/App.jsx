@@ -70,6 +70,7 @@ export default function App() {
             <CreateRequest
               currentUser={currentUser}
               onNavigateToAppointment={() => setActiveTab('appointments')}
+              onNavigateToChat={() => setActiveTab('chat')}
             />
           )}
 
@@ -100,7 +101,13 @@ export default function App() {
 
           {/* Technician Dashboard Console */}
           {activeTab === 'tech-dashboard' && (
-            <TechnicianDashboard currentUser={currentUser} />
+            <TechnicianDashboard
+              currentUser={currentUser}
+              onOpenChat={(app) => {
+                if (app?.serviceRequestId) setActiveConvId(`conv_${app.serviceRequestId}`);
+                setActiveTab('chat');
+              }}
+            />
           )}
 
           {/* Module 3 Feature 3: Technician Availability Management */}

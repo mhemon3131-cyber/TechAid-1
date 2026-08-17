@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { createServiceRequest } from '../services/api';
 
-export const CreateRequest = ({ onNavigateToAppointment, currentUser }) => {
+export const CreateRequest = ({ onNavigateToAppointment, onNavigateToChat, currentUser }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [emergencyLoading, setEmergencyLoading] = useState(false);
@@ -664,9 +664,28 @@ export const CreateRequest = ({ onNavigateToAppointment, currentUser }) => {
             Status: PENDING • Technicians notified for priority response
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', pb: 3, px: 3 }}>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3, px: 3, flexDirection: 'column', gap: 1.5 }}>
           <Button
             variant="contained"
+            fullWidth
+            onClick={() => {
+              setSubmittedData(null);
+              if (onNavigateToChat) onNavigateToChat();
+            }}
+            startIcon={<MessageSquare size={18} />}
+            sx={{
+              backgroundColor: '#00A8FF',
+              color: '#0D1527',
+              py: 1.2,
+              fontWeight: 700,
+              '&:hover': { backgroundColor: '#38BDF8' }
+            }}
+          >
+            Open Live Chat & Calls (Real-Time Communication)
+          </Button>
+
+          <Button
+            variant="outlined"
             fullWidth
             onClick={() => {
               setSubmittedData(null);
@@ -674,11 +693,11 @@ export const CreateRequest = ({ onNavigateToAppointment, currentUser }) => {
             }}
             startIcon={<Calendar size={18} />}
             sx={{
-              backgroundColor: '#00A8FF',
-              color: '#0D1527',
+              color: '#00A8FF',
+              borderColor: '#00A8FF',
               py: 1.2,
               fontWeight: 700,
-              '&:hover': { backgroundColor: '#38BDF8' }
+              '&:hover': { backgroundColor: 'rgba(0, 168, 255, 0.1)', borderColor: '#00A8FF' }
             }}
           >
             Schedule Appointment (Module 2)

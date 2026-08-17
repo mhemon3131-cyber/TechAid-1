@@ -21,11 +21,12 @@ import {
   Clock,
   MapPin,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from 'lucide-react';
 import axios from 'axios';
 
-export const TechnicianDashboard = ({ currentUser }) => {
+export const TechnicianDashboard = ({ currentUser, onOpenChat }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
@@ -60,7 +61,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
     setLoading(true);
     try {
       const techId = currentUser?.technicianId || currentUser?.id;
-      const res = await axios.get(`http://localhost:1345/api/appointments?technicianId=${techId}`);
+      const res = await axios.get(`http://localhost:1257/api/appointments?technicianId=${techId}`);
       if (res.data.success) {
         setAppointments(res.data.data);
       }
@@ -75,7 +76,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
     setLoading(true);
     setMsg('');
     try {
-      await axios.put(`http://localhost:1345/api/appointments/${id}/status`, { status, ...extraData });
+      await axios.put(`http://localhost:1257/api/appointments/${id}/status`, { status, ...extraData });
 
       // Dual update: Directly synchronize service request status in database
       const reqIdentifier = appItem?.trackingId || appItem?.serviceRequestId;
@@ -83,7 +84,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
         let reqStage = status;
         if (status === 'APPROVED') reqStage = 'ACCEPTED';
         try {
-          await axios.put(`http://localhost:1345/api/requests/${reqIdentifier}/status`, {
+          await axios.put(`http://localhost:1257/api/requests/${reqIdentifier}/status`, {
             status: reqStage,
             note: `Technician ${currentUser?.name || ''} updated status to ${reqStage}.`
           });
@@ -214,6 +215,21 @@ export const TechnicianDashboard = ({ currentUser }) => {
 
                 {/* Action Buttons based on Status */}
                 <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <Button
+                    size="small"
+                    onClick={() => onOpenChat && onOpenChat(app)}
+                    startIcon={<MessageSquare size={16} />}
+                    sx={{
+                      color: '#00A8FF',
+                      backgroundColor: 'rgba(0, 168, 255, 0.12)',
+                      border: '1px solid #00A8FF',
+                      px: 2,
+                      fontWeight: 700,
+                      '&:hover': { backgroundColor: 'rgba(0, 168, 255, 0.25)' }
+                    }}
+                  >
+                    Open Live Chat
+                  </Button>
                   {app.status === 'PENDING' && (
                     <>
                       <Button
