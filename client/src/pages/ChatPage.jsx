@@ -64,12 +64,33 @@ export default function ChatPage({ currentUser, initialConvId }) {
         },
       })
       .then((res) => {
-        const list = res.data || [];
+        let list = res.data || [];
+        const activeId = preferredConvId || initialConvId;
+
+        // Guaranteed fallback creation if requested conversation is not yet returned
+        if (activeId && !list.some((c) => c.id === activeId)) {
+          const parts = activeId.split('_');
+          const targetName = isTechnician
+            ? (parts[1] && !parts[1].startsWith('usr') ? parts[1] : 'Customer')
+            : (parts[2] && !parts[2].startsWith('usr') ? parts[2] : 'Technician');
+
+          const fallbackConv = {
+            id: activeId,
+            customerId: isTechnician ? (parts[1] || 'usr-1') : activeUser.id,
+            technicianId: isTechnician ? activeUser.id : (parts[2] || 'usr-4'),
+            customer: { id: parts[1] || 'usr-1', name: isTechnician ? targetName : activeUser.name, email: 'customer@techaid.com' },
+            technician: { id: parts[2] || 'usr-4', name: isTechnician ? activeUser.name : targetName, email: 'tech@techaid.com' },
+            serviceRequest: { title: 'Technical Troubleshooting & Repair', deviceCategory: 'Laptop' },
+            messages: []
+          };
+          list = [fallbackConv, ...list];
+        }
+
         setConversations(list);
         setSelectedConv((prevSelected) => {
-          const activeId = preferredConvId || initialConvId || prevSelected?.id;
-          if (activeId) {
-            const match = list.find((c) => c.id === activeId);
+          const targetId = activeId || prevSelected?.id;
+          if (targetId) {
+            const match = list.find((c) => c.id === targetId);
             return match || list[0] || null;
           }
           return list[0] || null;
