@@ -46,7 +46,6 @@ import 'leaflet/dist/leaflet.css';
 
 import {
   reverseGeocodeLocation,
-  saveTechnicianLocation,
   searchLocations
 } from '../services/api';
 
@@ -76,6 +75,7 @@ L.Icon.Default.mergeOptions({
 const isValidBangladeshPhone = (
   value
 ) => {
+
   return /^(013|014|015|016|017|018|019)\d{8}$/.test(
     String(value || '').trim()
   );
@@ -89,15 +89,18 @@ const isValidBangladeshPhone = (
 const MapController = ({
   position
 }) => {
+
   const map =
     useMap();
 
 
   useEffect(() => {
+
     if (
       position?.latitude !== undefined &&
       position?.longitude !== undefined
     ) {
+
       map.flyTo(
         [
           Number(
@@ -138,8 +141,11 @@ const MapController = ({
 const MapClickHandler = ({
   onMapSelect
 }) => {
+
   useMapEvents({
+
     click(event) {
+
       onMapSelect(
         event.latlng.lat,
         event.latlng.lng
@@ -285,6 +291,7 @@ export const Auth = ({
   const getCleanLocationName = (
     location
   ) => {
+
     if (!location) {
       return '';
     }
@@ -312,6 +319,7 @@ export const Auth = ({
     if (
       unique.length > 0
     ) {
+
       return unique
         .slice(0, 3)
         .join(', ');
@@ -321,6 +329,7 @@ export const Auth = ({
     if (
       location.displayName
     ) {
+
       return location.displayName
         .split(',')
         .slice(0, 3)
@@ -339,6 +348,7 @@ export const Auth = ({
   const handleRoleChange = (
     role
   ) => {
+
     setRoleTab(
       role
     );
@@ -375,9 +385,21 @@ export const Auth = ({
 
   // ========================================================
   // LOCATION SEARCH
+  // ONLY CUSTOMER USES THIS SECTION
   // ========================================================
 
   useEffect(() => {
+
+    if (
+      roleTab !== 'CUSTOMER'
+    ) {
+
+      setLocationSuggestions([]);
+
+      return;
+    }
+
+
     const query =
       locationQuery.trim();
 
@@ -386,6 +408,7 @@ export const Auth = ({
       !editingLocation ||
       query.length < 2
     ) {
+
       setLocationSuggestions([]);
 
       return;
@@ -395,12 +418,14 @@ export const Auth = ({
     const timer =
       setTimeout(
         async () => {
+
           setLocationSearchLoading(
             true
           );
 
 
           try {
+
             const response =
               await searchLocations(
                 query
@@ -420,11 +445,13 @@ export const Auth = ({
             if (
               results.length > 0
             ) {
+
               const best =
                 results[0];
 
 
               setPendingLocation({
+
                 latitude:
                   Number(
                     best.latitude
@@ -447,6 +474,7 @@ export const Auth = ({
             }
 
           } catch (err) {
+
             console.log(
               'Location search failed:',
               err.message
@@ -458,6 +486,7 @@ export const Auth = ({
             );
 
           } finally {
+
             setLocationSearchLoading(
               false
             );
@@ -476,7 +505,8 @@ export const Auth = ({
 
   }, [
     locationQuery,
-    editingLocation
+    editingLocation,
+    roleTab
   ]);
 
 
@@ -487,7 +517,9 @@ export const Auth = ({
   const handleSuggestionSelect = (
     location
   ) => {
+
     const locationData = {
+
       latitude:
         Number(
           location.latitude
@@ -534,6 +566,7 @@ export const Auth = ({
       latitude,
       longitude
     ) => {
+
       setMapLocationLoading(
         true
       );
@@ -542,6 +575,7 @@ export const Auth = ({
 
 
       let locationData = {
+
         latitude,
 
         longitude,
@@ -561,6 +595,7 @@ export const Auth = ({
 
 
       try {
+
         const response =
           await reverseGeocodeLocation(
             latitude,
@@ -571,7 +606,9 @@ export const Auth = ({
         if (
           response?.data
         ) {
+
           locationData = {
+
             ...locationData,
 
             ...response.data,
@@ -582,6 +619,7 @@ export const Auth = ({
         }
 
       } catch (err) {
+
         console.log(
           'Reverse geocode failed:',
           err.message
@@ -616,12 +654,14 @@ export const Auth = ({
 
   const useCurrentLocation =
     async () => {
+
       setError('');
 
 
       if (
         !navigator.geolocation
       ) {
+
         setError(
           'Current location is not supported by this browser.'
         );
@@ -636,12 +676,14 @@ export const Auth = ({
 
 
       try {
+
         const position =
           await new Promise(
             (
               resolve,
               reject
             ) => {
+
               navigator.geolocation
                 .getCurrentPosition(
                   resolve,
@@ -667,21 +709,25 @@ export const Auth = ({
         );
 
       } catch (locationError) {
+
         if (
           locationError.code ===
           1
         ) {
+
           setError(
             'Location permission is blocked. Allow location access or search manually.'
           );
 
         } else {
+
           setError(
             'Unable to detect current location. Please search manually.'
           );
         }
 
       } finally {
+
         setCurrentLocationLoading(
           false
         );
@@ -694,9 +740,11 @@ export const Auth = ({
   // ========================================================
 
   const confirmLocation = () => {
+
     if (
       !pendingLocation
     ) {
+
       setError(
         'Please search or select a location first.'
       );
@@ -706,6 +754,7 @@ export const Auth = ({
 
 
     setSelectedLocation({
+
       ...pendingLocation,
 
       capturedAt:
@@ -732,6 +781,7 @@ export const Auth = ({
   // ========================================================
 
   const changeLocation = () => {
+
     setPendingLocation(
       selectedLocation
     );
@@ -763,6 +813,7 @@ export const Auth = ({
 
   const cancelLocationChange =
     () => {
+
       setPendingLocation(
         selectedLocation
       );
@@ -784,41 +835,76 @@ export const Auth = ({
 
   // ========================================================
   // COMPLETE LOGIN
+  //
+  // CUSTOMER:
+  // Location OPTIONAL.
+  //
+  // Location selected hole save hobe.
+  // Location na dile login/register still hobe.
+  //
+  // TECHNICIAN:
+  // Login/register-er somoy location lagbe na.
+  // Availability Config theke manage korbe.
   // ========================================================
 
   const completeLogin =
     async (
       user
     ) => {
-      if (
-        !selectedLocation
-      ) {
-        setError(
-          'Please set your location before continuing.'
-        );
-
-        return;
-      }
-
 
       if (
         user.role ===
         'CUSTOMER'
       ) {
-        localStorage.setItem(
-          'techaid_customer_location',
 
-          JSON.stringify(
-            selectedLocation
-          )
+        // -----------------------------------------------
+        // Customer location selected korle save
+        // -----------------------------------------------
+
+        if (
+          selectedLocation
+        ) {
+
+          localStorage.setItem(
+            'techaid_customer_location',
+
+            JSON.stringify(
+              selectedLocation
+            )
+          );
+
+
+          onLoginSuccess({
+
+            ...user,
+
+            currentLocation:
+              selectedLocation
+          });
+
+
+          return;
+        }
+
+
+        // -----------------------------------------------
+        // Customer location na dileo login successful
+        //
+        // Old/stale location remove kore dei jate
+        // auto assignment vul location use na kore.
+        // -----------------------------------------------
+
+        localStorage.removeItem(
+          'techaid_customer_location'
         );
 
 
         onLoginSuccess({
+
           ...user,
 
           currentLocation:
-            selectedLocation
+            null
         });
 
 
@@ -830,59 +916,21 @@ export const Auth = ({
         user.role ===
         'TECHNICIAN'
       ) {
-        const technicianId =
-          user.technicianId;
 
+        // Technician login/register-er somoy
+        // kono location save hobe na.
 
-        if (!technicianId) {
-          setError(
-            'Technician profile is missing.'
-          );
-
-          return;
-        }
-
-
-        localStorage.setItem(
-          'techaid_technician_location',
-
-          JSON.stringify(
-            selectedLocation
-          )
+        onLoginSuccess(
+          user
         );
 
-
-        try {
-          await saveTechnicianLocation(
-            technicianId,
-
-            selectedLocation.latitude,
-
-            selectedLocation.longitude
-          );
-
-        } catch (err) {
-          console.log(
-            'Technician location save failed:',
-            err.message
-          );
-
-
-          setError(
-            'Login succeeded, but technician location could not be saved.'
-          );
-
-          return;
-        }
-
-
-        onLoginSuccess({
-          ...user,
-
-          currentLocation:
-            selectedLocation
-        });
+        return;
       }
+
+
+      onLoginSuccess(
+        user
+      );
     };
 
 
@@ -892,6 +940,7 @@ export const Auth = ({
 
   const handleLogin =
     async () => {
+
       setError('');
 
 
@@ -909,6 +958,7 @@ export const Auth = ({
         !cleanEmail ||
         !cleanPassword
       ) {
+
         setError(
           'Please enter email and password.'
         );
@@ -917,15 +967,11 @@ export const Auth = ({
       }
 
 
-      if (
-        !selectedLocation
-      ) {
-        setError(
-          'Please set your location before login.'
-        );
-
-        return;
-      }
+      // ====================================================
+      // LOCATION VALIDATION REMOVED
+      //
+      // Customer location optional.
+      // ====================================================
 
 
       setLoading(
@@ -934,6 +980,7 @@ export const Auth = ({
 
 
       try {
+
         const response =
           await axios.post(
             'http://localhost:5000/api/auth/login',
@@ -954,12 +1001,14 @@ export const Auth = ({
         if (
           response.data.success
         ) {
+
           await completeLogin(
             response.data.user
           );
         }
 
       } catch (err) {
+
         console.log(
           'Login failed:',
           err?.response?.data ||
@@ -973,6 +1022,7 @@ export const Auth = ({
         );
 
       } finally {
+
         setLoading(
           false
         );
@@ -986,6 +1036,7 @@ export const Auth = ({
 
   const handleRegister =
     async () => {
+
       setError('');
 
 
@@ -1013,6 +1064,7 @@ export const Auth = ({
         !cleanPassword ||
         !cleanPhone
       ) {
+
         setError(
           'Please provide name, email, password and phone number.'
         );
@@ -1026,6 +1078,7 @@ export const Auth = ({
           cleanPhone
         )
       ) {
+
         setError(
           'Enter a valid 11-digit Bangladesh mobile number.'
         );
@@ -1034,15 +1087,11 @@ export const Auth = ({
       }
 
 
-      if (
-        !selectedLocation
-      ) {
-        setError(
-          'Please set your location before creating the account.'
-        );
-
-        return;
-      }
+      // ====================================================
+      // CUSTOMER LOCATION VALIDATION REMOVED
+      //
+      // Location optional.
+      // ====================================================
 
 
       setLoading(
@@ -1051,6 +1100,7 @@ export const Auth = ({
 
 
       try {
+
         const response =
           await axios.post(
             'http://localhost:5000/api/auth/register',
@@ -1083,12 +1133,14 @@ export const Auth = ({
         if (
           response.data.success
         ) {
+
           await completeLogin(
             response.data.user
           );
         }
 
       } catch (err) {
+
         console.log(
           'Registration failed:',
           err?.response?.data ||
@@ -1102,6 +1154,7 @@ export const Auth = ({
         );
 
       } finally {
+
         setLoading(
           false
         );
@@ -1136,6 +1189,7 @@ export const Auth = ({
   // ========================================================
 
   return (
+
     <Box
       sx={{
         minHeight:
@@ -1228,10 +1282,12 @@ export const Auth = ({
                 'center'
             }}
           >
+
             <Shield
               size={31}
               color="#0D1527"
             />
+
           </Box>
 
 
@@ -1246,6 +1302,7 @@ export const Auth = ({
             }}
           >
             Tech
+
             <span
               style={{
                 color:
@@ -1254,6 +1311,7 @@ export const Auth = ({
             >
               Aid
             </span>
+
           </Typography>
 
 
@@ -1301,6 +1359,7 @@ export const Auth = ({
               />
             }
             onClick={() => {
+
               setIsRegisterMode(
                 false
               );
@@ -1334,6 +1393,7 @@ export const Auth = ({
               />
             }
             onClick={() => {
+
               setIsRegisterMode(
                 true
               );
@@ -1448,64 +1508,146 @@ export const Auth = ({
         </Grid>
 
 
-        {/* LOCATION */}
+        {/* =================================================
+            CUSTOMER LOCATION ONLY
+            OPTIONAL
+        ================================================= */}
 
-        {selectedLocation &&
-        !editingLocation ? (
+        {roleTab ===
+          'CUSTOMER' && (
 
-          <Box
-            sx={{
-              backgroundColor:
-                '#0F172A',
+          <>
 
-              border:
-                '1px solid #334155',
-
-              borderRadius:
-                2,
-
-              p:
-                2,
-
-              mb:
-                2
-            }}
-          >
-
-            <Box
+            <Typography
+              variant="caption"
               sx={{
                 display:
-                  'flex',
+                  'block',
 
-                alignItems:
-                  'center',
+                mb:
+                  1,
 
-                justifyContent:
-                  'space-between',
-
-                gap:
-                  2
+                color:
+                  '#94A3B8'
               }}
             >
+              Location is optional. You can skip it and continue.
+            </Typography>
+
+
+            {selectedLocation &&
+            !editingLocation ? (
 
               <Box
                 sx={{
-                  display:
-                    'flex',
+                  backgroundColor:
+                    '#0F172A',
 
-                  alignItems:
-                    'center',
+                  border:
+                    '1px solid #334155',
 
-                  gap:
-                    1
+                  borderRadius:
+                    2,
+
+                  p:
+                    2,
+
+                  mb:
+                    2
                 }}
               >
 
-                <MapPin
-                  size={18}
-                  color="#10B981"
-                />
+                <Box
+                  sx={{
+                    display:
+                      'flex',
 
+                    alignItems:
+                      'center',
+
+                    justifyContent:
+                      'space-between',
+
+                    gap:
+                      2
+                  }}
+                >
+
+                  <Box
+                    sx={{
+                      display:
+                        'flex',
+
+                      alignItems:
+                        'center',
+
+                      gap:
+                        1
+                    }}
+                  >
+
+                    <MapPin
+                      size={18}
+                      color="#10B981"
+                    />
+
+
+                    <Typography
+                      sx={{
+                        color:
+                          '#FFFFFF',
+
+                        fontWeight:
+                          700
+                      }}
+                    >
+                      {
+                        getCleanLocationName(
+                          selectedLocation
+                        )
+                      }
+                    </Typography>
+
+                  </Box>
+
+
+                  <Button
+                    size="small"
+                    onClick={
+                      changeLocation
+                    }
+                    sx={{
+                      color:
+                        '#00A8FF'
+                    }}
+                  >
+                    Change
+                  </Button>
+
+                </Box>
+
+              </Box>
+
+            ) : (
+
+              <Box
+                sx={{
+                  backgroundColor:
+                    '#0F172A',
+
+                  border:
+                    '1px solid #334155',
+
+                  borderRadius:
+                    2,
+
+                  p:
+                    2,
+
+                  mb:
+                    2
+                }}
+              >
 
                 <Typography
                   sx={{
@@ -1513,456 +1655,420 @@ export const Auth = ({
                       '#FFFFFF',
 
                     fontWeight:
-                      700
+                      800,
+
+                    mb:
+                      0.3
                   }}
                 >
-                  {
-                    getCleanLocationName(
-                      selectedLocation
-                    )
-                  }
+                  Set Location
                 </Typography>
-
-              </Box>
-
-
-              <Button
-                size="small"
-                onClick={
-                  changeLocation
-                }
-                sx={{
-                  color:
-                    '#00A8FF'
-                }}
-              >
-                Change
-              </Button>
-
-            </Box>
-
-          </Box>
-
-        ) : (
-
-          <Box
-            sx={{
-              backgroundColor:
-                '#0F172A',
-
-              border:
-                '1px solid #334155',
-
-              borderRadius:
-                2,
-
-              p:
-                2,
-
-              mb:
-                2
-            }}
-          >
-
-            <Typography
-              sx={{
-                color:
-                  '#FFFFFF',
-
-                fontWeight:
-                  800,
-
-                mb:
-                  1.2
-              }}
-            >
-              Set Location
-            </Typography>
-
-
-            <TextField
-              fullWidth
-              size="small"
-              value={
-                locationQuery
-              }
-              onChange={(e) =>
-                setLocationQuery(
-                  e.target.value
-                )
-              }
-              placeholder="Search any Bangladesh location..."
-              InputProps={{
-                startAdornment:
-                  (
-                    <Search
-                      size={17}
-                      style={{
-                        marginRight:
-                          8
-                      }}
-                    />
-                  )
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root':
-                  {
-                    color:
-                      '#FFFFFF',
-
-                    backgroundColor:
-                      '#172036'
-                  }
-              }}
-            />
-
-
-            {locationSearchLoading && (
-
-              <Box
-                sx={{
-                  display:
-                    'flex',
-
-                  alignItems:
-                    'center',
-
-                  gap:
-                    1,
-
-                  mt:
-                    1
-                }}
-              >
-
-                <CircularProgress
-                  size={16}
-                />
 
 
                 <Typography
                   variant="caption"
                   sx={{
+                    display:
+                      'block',
+
                     color:
-                      '#94A3B8'
+                      '#64748B',
+
+                    mb:
+                      1.2
                   }}
                 >
-                  Searching location...
+                  Optional
                 </Typography>
 
-              </Box>
-            )}
 
-
-            {locationSuggestions.length >
-              0 && (
-
-              <Box
-                sx={{
-                  mt:
-                    1,
-
-                  maxHeight:
-                    180,
-
-                  overflowY:
-                    'auto',
-
-                  border:
-                    '1px solid #334155',
-
-                  borderRadius:
-                    1
-                }}
-              >
-
-                {locationSuggestions.map(
-                  (
-                    location,
-                    index
-                  ) => (
-
-                    <Button
-                      key={
-                        `${location.latitude}-${location.longitude}-${index}`
-                      }
-                      fullWidth
-                      onClick={() =>
-                        handleSuggestionSelect(
-                          location
-                        )
-                      }
-                      sx={{
-                        justifyContent:
-                          'flex-start',
-
-                        textAlign:
-                          'left',
-
-                        textTransform:
-                          'none',
-
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={
+                    locationQuery
+                  }
+                  onChange={(e) =>
+                    setLocationQuery(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Search any Bangladesh location..."
+                  InputProps={{
+                    startAdornment:
+                      (
+                        <Search
+                          size={17}
+                          style={{
+                            marginRight:
+                              8
+                          }}
+                        />
+                      )
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root':
+                      {
                         color:
-                          '#E2E8F0',
+                          '#FFFFFF',
 
-                        borderRadius:
-                          0,
+                        backgroundColor:
+                          '#172036'
+                      }
+                  }}
+                />
 
-                        py:
-                          1,
 
-                        borderBottom:
-                          index <
-                          locationSuggestions.length -
-                            1
-                            ? '1px solid #263247'
-                            : 'none'
+                {locationSearchLoading && (
+
+                  <Box
+                    sx={{
+                      display:
+                        'flex',
+
+                      alignItems:
+                        'center',
+
+                      gap:
+                        1,
+
+                      mt:
+                        1
+                    }}
+                  >
+
+                    <CircularProgress
+                      size={16}
+                    />
+
+
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color:
+                          '#94A3B8'
                       }}
                     >
+                      Searching location...
+                    </Typography>
 
-                      <MapPin
-                        size={14}
-                        style={{
-                          marginRight:
-                            8,
-
-                          flexShrink:
-                            0
-                        }}
-                      />
-
-
-                      {
-                        location.displayName
-                      }
-
-                    </Button>
-                  )
+                  </Box>
                 )}
 
-              </Box>
-            )}
+
+                {locationSuggestions.length >
+                  0 && (
+
+                  <Box
+                    sx={{
+                      mt:
+                        1,
+
+                      maxHeight:
+                        180,
+
+                      overflowY:
+                        'auto',
+
+                      border:
+                        '1px solid #334155',
+
+                      borderRadius:
+                        1
+                    }}
+                  >
+
+                    {locationSuggestions.map(
+                      (
+                        location,
+                        index
+                      ) => (
+
+                        <Button
+                          key={
+                            `${location.latitude}-${location.longitude}-${index}`
+                          }
+                          fullWidth
+                          onClick={() =>
+                            handleSuggestionSelect(
+                              location
+                            )
+                          }
+                          sx={{
+                            justifyContent:
+                              'flex-start',
+
+                            textAlign:
+                              'left',
+
+                            textTransform:
+                              'none',
+
+                            color:
+                              '#E2E8F0',
+
+                            borderRadius:
+                              0,
+
+                            py:
+                              1,
+
+                            borderBottom:
+                              index <
+                              locationSuggestions.length -
+                                1
+                                ? '1px solid #263247'
+                                : 'none'
+                          }}
+                        >
+
+                          <MapPin
+                            size={14}
+                            style={{
+                              marginRight:
+                                8,
+
+                              flexShrink:
+                                0
+                            }}
+                          />
 
 
-            <Box
-              sx={{
-                mt:
-                  1.5,
+                          {
+                            location.displayName
+                          }
 
-                height:
-                  280,
+                        </Button>
+                      )
+                    )}
 
-                borderRadius:
-                  2,
-
-                overflow:
-                  'hidden',
-
-                border:
-                  '1px solid #334155'
-              }}
-            >
-
-              <MapContainer
-                center={
-                  mapCenter
-                }
-                zoom={
-                  pendingLocation
-                    ? 16
-                    : 11
-                }
-                style={{
-                  width:
-                    '100%',
-
-                  height:
-                    '100%'
-                }}
-              >
-
-                <TileLayer
-                  attribution="&copy; OpenStreetMap contributors"
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+                  </Box>
+                )}
 
 
-                <MapController
-                  position={
-                    pendingLocation
-                  }
-                />
+                <Box
+                  sx={{
+                    mt:
+                      1.5,
+
+                    height:
+                      280,
+
+                    borderRadius:
+                      2,
+
+                    overflow:
+                      'hidden',
+
+                    border:
+                      '1px solid #334155'
+                  }}
+                >
+
+                  <MapContainer
+                    center={
+                      mapCenter
+                    }
+                    zoom={
+                      pendingLocation
+                        ? 16
+                        : 11
+                    }
+                    style={{
+                      width:
+                        '100%',
+
+                      height:
+                        '100%'
+                    }}
+                  >
+
+                    <TileLayer
+                      attribution="&copy; OpenStreetMap contributors"
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
 
 
-                <MapClickHandler
-                  onMapSelect={
-                    handleMapSelect
-                  }
-                />
+                    <MapController
+                      position={
+                        pendingLocation
+                      }
+                    />
+
+
+                    <MapClickHandler
+                      onMapSelect={
+                        handleMapSelect
+                      }
+                    />
+
+
+                    {pendingLocation && (
+
+                      <Marker
+                        position={[
+                          Number(
+                            pendingLocation.latitude
+                          ),
+
+                          Number(
+                            pendingLocation.longitude
+                          )
+                        ]}
+                      >
+
+                        <Popup>
+                          {
+                            getCleanLocationName(
+                              pendingLocation
+                            )
+                          }
+                        </Popup>
+
+                      </Marker>
+                    )}
+
+                  </MapContainer>
+
+                </Box>
 
 
                 {pendingLocation && (
 
-                  <Marker
-                    position={[
-                      Number(
-                        pendingLocation.latitude
-                      ),
+                  <Typography
+                    sx={{
+                      color:
+                        '#E2E8F0',
 
-                      Number(
-                        pendingLocation.longitude
-                      )
-                    ]}
+                      mt:
+                        1,
+
+                      fontSize:
+                        14
+                    }}
                   >
-
-                    <Popup>
-                      {
-                        getCleanLocationName(
-                          pendingLocation
-                        )
-                      }
-                    </Popup>
-
-                  </Marker>
+                    📍 {
+                      getCleanLocationName(
+                        pendingLocation
+                      )
+                    }
+                  </Typography>
                 )}
 
-              </MapContainer>
 
-            </Box>
+                {mapLocationLoading && (
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display:
+                        'block',
+
+                      mt:
+                        1,
+
+                      color:
+                        '#94A3B8'
+                    }}
+                  >
+                    Checking selected location...
+                  </Typography>
+                )}
 
 
-            {pendingLocation && (
+                <Button
+                  fullWidth
+                  onClick={
+                    useCurrentLocation
+                  }
+                  disabled={
+                    currentLocationLoading
+                  }
+                  startIcon={
+                    currentLocationLoading
+                      ? (
+                        <CircularProgress
+                          size={16}
+                          color="inherit"
+                        />
+                      )
+                      : (
+                        <Navigation
+                          size={17}
+                        />
+                      )
+                  }
+                  sx={{
+                    mt:
+                      1.5,
 
-              <Typography
-                sx={{
-                  color:
-                    '#E2E8F0',
+                    border:
+                      '1px solid #334155',
 
-                  mt:
-                    1,
+                    color:
+                      '#00A8FF'
+                  }}
+                >
+                  {
+                    currentLocationLoading
+                      ? 'Finding Location...'
+                      : 'Use My Current Location'
+                  }
+                </Button>
 
-                  fontSize:
-                    14
-                }}
-              >
-                📍 {
-                  getCleanLocationName(
-                    pendingLocation
-                  )
-                }
-              </Typography>
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  disabled={
+                    !pendingLocation ||
+                    mapLocationLoading
+                  }
+                  onClick={
+                    confirmLocation
+                  }
+                  sx={{
+                    mt:
+                      1,
+
+                    backgroundColor:
+                      '#00A8FF',
+
+                    color:
+                      '#0D1527',
+
+                    fontWeight:
+                      800
+                  }}
+                >
+                  Use This Location
+                </Button>
+
+
+                {selectedLocation && (
+
+                  <Button
+                    fullWidth
+                    onClick={
+                      cancelLocationChange
+                    }
+                    sx={{
+                      mt:
+                        0.5,
+
+                      color:
+                        '#94A3B8'
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                )}
+
+              </Box>
             )}
 
+          </>
 
-            {mapLocationLoading && (
-
-              <Typography
-                variant="caption"
-                sx={{
-                  display:
-                    'block',
-
-                  mt:
-                    1,
-
-                  color:
-                    '#94A3B8'
-                }}
-              >
-                Checking selected location...
-              </Typography>
-            )}
-
-
-            <Button
-              fullWidth
-              onClick={
-                useCurrentLocation
-              }
-              disabled={
-                currentLocationLoading
-              }
-              startIcon={
-                currentLocationLoading
-                  ? (
-                    <CircularProgress
-                      size={16}
-                      color="inherit"
-                    />
-                  )
-                  : (
-                    <Navigation
-                      size={17}
-                    />
-                  )
-              }
-              sx={{
-                mt:
-                  1.5,
-
-                border:
-                  '1px solid #334155',
-
-                color:
-                  '#00A8FF'
-              }}
-            >
-              {
-                currentLocationLoading
-                  ? 'Finding Location...'
-                  : 'Use My Current Location'
-              }
-            </Button>
-
-
-            <Button
-              fullWidth
-              variant="contained"
-              disabled={
-                !pendingLocation ||
-                mapLocationLoading
-              }
-              onClick={
-                confirmLocation
-              }
-              sx={{
-                mt:
-                  1,
-
-                backgroundColor:
-                  '#00A8FF',
-
-                color:
-                  '#0D1527',
-
-                fontWeight:
-                  800
-              }}
-            >
-              Use This Location
-            </Button>
-
-
-            {selectedLocation && (
-
-              <Button
-                fullWidth
-                onClick={
-                  cancelLocationChange
-                }
-                sx={{
-                  mt:
-                    0.5,
-
-                  color:
-                    '#94A3B8'
-                }}
-              >
-                Cancel
-              </Button>
-            )}
-
-          </Box>
         )}
 
 
@@ -2114,6 +2220,7 @@ export const Auth = ({
               phone
             }
             onChange={(e) => {
+
               const onlyDigits =
                 e.target.value
                   .replace(
@@ -2217,20 +2324,27 @@ export const Auth = ({
         )}
 
 
-        {/* BUTTON */}
+        {/* =================================================
+            MAIN LOGIN / REGISTER BUTTON
+
+            IMPORTANT:
+            Customer location no longer required.
+        ================================================= */}
 
         <Button
           fullWidth
           variant="contained"
+
           disabled={
-            loading ||
-            !selectedLocation
+            loading
           }
+
           onClick={
             isRegisterMode
               ? handleRegister
               : handleLogin
           }
+
           endIcon={
             !loading
               ? (
@@ -2240,20 +2354,24 @@ export const Auth = ({
               )
               : null
           }
+
           sx={{
             py:
               1.3,
 
             backgroundColor:
-              selectedLocation
-                ? '#00A8FF'
-                : '#475569',
+              '#00A8FF',
 
             color:
               '#0D1527',
 
             fontWeight:
-              800
+              800,
+
+            '&:hover': {
+              backgroundColor:
+                '#38BDF8'
+            }
           }}
         >
 
@@ -2265,16 +2383,16 @@ export const Auth = ({
                   color="inherit"
                 />
               )
-              : !selectedLocation
-                ? 'Set Location to Continue'
-                : isRegisterMode
-                  ? 'Create Account'
-                  : `Log In as ${
-                      roleTab ===
-                        'CUSTOMER'
-                        ? 'Customer'
-                        : 'Technician'
-                    }`
+
+              : isRegisterMode
+                ? 'Create Account'
+
+                : `Log In as ${
+                    roleTab ===
+                      'CUSTOMER'
+                      ? 'Customer'
+                      : 'Technician'
+                  }`
           }
 
         </Button>

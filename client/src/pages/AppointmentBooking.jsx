@@ -105,27 +105,43 @@ export const AppointmentBooking = ({ currentUser }) => {
   }, [selectedTech?.id, selectedDate]);
 
   const fetchTechs = async () => {
-    const registeredTechs = JSON.parse(localStorage.getItem('techaid_registered_techs') || '[]');
+    const registeredTechs = JSON.parse(
+      localStorage.getItem('techaid_registered_techs') || '[]'
+    );
 
     try {
       const res = await axios.get('http://localhost:5000/api/technicians');
+
       if (res.data.success && res.data.data.length > 0) {
         const combined = [...res.data.data];
+
         registeredTechs.forEach(rt => {
-          if (!combined.some(t => t.name.toLowerCase() === rt.name.toLowerCase())) {
+          if (
+            !combined.some(
+              t => t.name.toLowerCase() === rt.name.toLowerCase()
+            )
+          ) {
             combined.push(rt);
           }
         });
+
         setTechnicians(combined);
         setSelectedTech(combined[0]);
       }
+
     } catch (err) {
       const combined = [...DEFAULT_TECHS];
+
       registeredTechs.forEach(rt => {
-        if (!combined.some(t => t.name.toLowerCase() === rt.name.toLowerCase())) {
+        if (
+          !combined.some(
+            t => t.name.toLowerCase() === rt.name.toLowerCase()
+          )
+        ) {
           combined.push(rt);
         }
       });
+
       setTechnicians(combined);
       setSelectedTech(combined[0]);
     }
@@ -133,14 +149,23 @@ export const AppointmentBooking = ({ currentUser }) => {
 
   const fetchBookedSlotsForCurrentSelection = async () => {
     if (!selectedTech) return;
+
     const formattedDate = getFormattedDateStr(selectedDate);
     const key = `${selectedTech.id}_${formattedDate}`;
 
     try {
-      const res = await axios.get(`http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`);
+      const res = await axios.get(
+        `http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`
+      );
+
       if (res.data.success) {
         const taken = res.data.data
-          .filter(app => app.status !== 'REJECTED' && app.technicianId === selectedTech.id && app.date === formattedDate)
+          .filter(
+            app =>
+              app.status !== 'REJECTED' &&
+              app.technicianId === selectedTech.id &&
+              app.date === formattedDate
+          )
           .map(app => app.timeSlot);
         
         setBookedMap(prev => ({
@@ -148,6 +173,7 @@ export const AppointmentBooking = ({ currentUser }) => {
           [key]: taken
         }));
       }
+
     } catch (err) {
       // Keep local entries for this key if backend offline
     }
@@ -155,7 +181,11 @@ export const AppointmentBooking = ({ currentUser }) => {
 
   // Get currently booked slots for the active tech + active date
   const currentFormattedDate = getFormattedDateStr(selectedDate);
-  const currentKey = selectedTech ? `${selectedTech.id}_${currentFormattedDate}` : '';
+
+  const currentKey = selectedTech
+    ? `${selectedTech.id}_${currentFormattedDate}`
+    : '';
+
   const activeBookedSlots = bookedMap[currentKey] || [];
 
   const filteredTechs = technicians.filter((t) =>
@@ -163,12 +193,28 @@ export const AppointmentBooking = ({ currentUser }) => {
     t.specialty.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+
+  // ======================================================
+  // FIXED BOOKING FUNCTION
+  //
+  // Previous problem:
+  // serviceRequestId: 'req-101'
+  // backend fail korleo fake success dekhato.
+  //
+  // Now:
+  // serviceRequestId = null
+  // backend real success holei Booking Successful dekhabe.
+  // ======================================================
+
   const handleConfirmBooking = async () => {
     setLoading(true);
     setConflictError('');
 
     if (activeBookedSlots.includes(selectedTimeSlot)) {
-      setConflictError(`Scheduling Conflict: ${selectedTech?.name} is already booked for ${selectedTimeSlot} on ${selectedDate}. Please select another available time slot.`);
+      setConflictError(
+        `Scheduling Conflict: ${selectedTech?.name} is already booked for ${selectedTimeSlot} on ${selectedDate}. Please select another available time slot.`
+      );
+
       setLoading(false);
       return;
     }
@@ -176,59 +222,143 @@ export const AppointmentBooking = ({ currentUser }) => {
     const formattedDate = getFormattedDateStr(selectedDate);
 
     try {
+
       const payload = {
-        technicianId: selectedTech ? selectedTech.id : 'tech-1',
-        date: formattedDate,
-        timeSlot: selectedTimeSlot,
+        technicianId:
+          selectedTech
+            ? selectedTech.id
+            : 'tech-1',
+
+        date:
+          formattedDate,
+
+        timeSlot:
+          selectedTimeSlot,
+
         serviceType,
-        customerId: currentUser?.id || 'usr-1',
-        serviceRequestId: 'req-101'
+
+        customerId:
+          currentUser?.id ||
+          'usr-1',
+
+        // ==================================================
+        // FIX:
+        // Manual appointment-er jonno fake req-101 dibo na.
+        // ==================================================
+        serviceRequestId:
+          null
       };
 
-      const res = await axios.post('http://localhost:5000/api/appointments', payload);
+
+      const res = await axios.post(
+        'http://localhost:5000/api/appointments',
+        payload
+      );
+
+
       if (res.data.success) {
-        setBookingSuccess(res.data.data);
+
+        // ONLY REAL DATABASE SUCCESS
+        setBookingSuccess(
+          res.data.data
+        );
+
+
         // Add to booked map specifically for this technician and this date
         setBookedMap(prev => ({
           ...prev,
-          [currentKey]: [...(prev[currentKey] || []), selectedTimeSlot]
+
+          [currentKey]: [
+            ...(prev[currentKey] || []),
+            selectedTimeSlot
+          ]
         }));
       }
+
+
     } catch (err) {
-      setBookingSuccess({
-        id: `app-${Date.now()}`,
-        date: formattedDate,
-        timeSlot: selectedTimeSlot,
-        serviceType,
-        technicianName: selectedTech.name
-      });
-      setBookedMap(prev => ({
-        ...prev,
-        [currentKey]: [...(prev[currentKey] || []), selectedTimeSlot]
-      }));
+
+      // ==================================================
+      // FIX:
+      // Backend error hole fake Booking Successful na.
+      // Real error show korbe.
+      // ==================================================
+
+      console.error(
+        'Appointment booking error:',
+        err
+      );
+
+
+      setBookingSuccess(
+        null
+      );
+
+
+      setConflictError(
+        err?.response?.data?.message ||
+        'Appointment could not be saved. Please try again.'
+      );
+
+
     } finally {
+
       setLoading(false);
     }
   };
 
+
   return (
-    <Box sx={{ flexGrow: 1, p: 4, backgroundColor: '#0D1527', minHeight: '100vh', overflowY: 'auto' }}>
+    <Box
+      sx={{
+        flexGrow: 1,
+        p: 4,
+        backgroundColor: '#0D1527',
+        minHeight: '100vh',
+        overflowY: 'auto'
+      }}
+    >
+
       {/* Page Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            color: '#FFF',
+            fontWeight: 700
+          }}
+        >
           Appointment Scheduling System
         </Typography>
-        <Typography variant="body2" sx={{ color: '#94A3B8' }}>
+
+        <Typography
+          variant="body2"
+          sx={{
+            color: '#94A3B8'
+          }}
+        >
           Select technician, date, time slot & prevent scheduling conflicts
         </Typography>
       </Box>
 
+
       {step === 1 ? (
+
         /* STEP 1: Choose a technician */
+
         <Box sx={{ maxWidth: 800 }}>
-          <Typography variant="h6" sx={{ color: '#FFF', fontWeight: 600, mb: 2 }}>
+
+          <Typography
+            variant="h6"
+            sx={{
+              color: '#FFF',
+              fontWeight: 600,
+              mb: 2
+            }}
+          >
             Choose a technician
           </Typography>
+
 
           <TextField
             fullWidth
@@ -236,23 +366,50 @@ export const AppointmentBooking = ({ currentUser }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{
-              startAdornment: <Search size={20} color="#94A3B8" style={{ marginRight: 10 }} />
+              startAdornment: (
+                <Search
+                  size={20}
+                  color="#94A3B8"
+                  style={{
+                    marginRight: 10
+                  }}
+                />
+              )
             }}
             sx={{
               mb: 3,
               backgroundColor: '#172036',
               borderRadius: 2,
+
               '& .MuiOutlinedInput-root': {
                 color: '#FFF',
-                '& fieldset': { borderColor: '#2A364F' },
-                '&:hover fieldset': { borderColor: '#00A8FF' },
-                '&.Mui-focused fieldset': { borderColor: '#00A8FF' }
+
+                '& fieldset': {
+                  borderColor: '#2A364F'
+                },
+
+                '&:hover fieldset': {
+                  borderColor: '#00A8FF'
+                },
+
+                '&.Mui-focused fieldset': {
+                  borderColor: '#00A8FF'
+                }
               }
             }}
           />
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2
+            }}
+          >
+
             {filteredTechs.map((tech) => (
+
               <Paper
                 key={tech.id}
                 elevation={0}
@@ -261,16 +418,34 @@ export const AppointmentBooking = ({ currentUser }) => {
                   backgroundColor: '#172036',
                   borderRadius: 3,
                   p: 2.5,
-                  border: selectedTech?.id === tech.id ? '2px solid #00A8FF' : '1px solid #2A364F',
+
+                  border:
+                    selectedTech?.id === tech.id
+                      ? '2px solid #00A8FF'
+                      : '1px solid #2A364F',
+
                   cursor: 'pointer',
+
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+
                   transition: 'all 0.2s',
-                  '&:hover': { borderColor: '#00A8FF' }
+
+                  '&:hover': {
+                    borderColor: '#00A8FF'
+                  }
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2
+                  }}
+                >
+
                   <Avatar
                     sx={{
                       width: 52,
@@ -283,40 +458,131 @@ export const AppointmentBooking = ({ currentUser }) => {
                   >
                     {tech.avatar}
                   </Avatar>
+
+
                   <Box>
-                    <Typography variant="subtitle1" sx={{ color: '#FFF', fontWeight: 700 }}>
+
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        color: '#FFF',
+                        fontWeight: 700
+                      }}
+                    >
                       {tech.name}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#94A3B8' }}>
+
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: '#94A3B8'
+                      }}
+                    >
                       {tech.specialty}
                     </Typography>
+
                   </Box>
+
                 </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Star size={18} fill="#F59E0B" color="#F59E0B" />
-                    <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 700 }}>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3
+                  }}
+                >
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
+                    }}
+                  >
+
+                    <Star
+                      size={18}
+                      fill="#F59E0B"
+                      color="#F59E0B"
+                    />
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: '#FFF',
+                        fontWeight: 700
+                      }}
+                    >
                       {tech.rating}
                     </Typography>
+
                   </Box>
 
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <MapPin size={16} color="#94A3B8" />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
+                    }}
+                  >
+
+                    <MapPin
+                      size={16}
+                      color="#94A3B8"
+                    />
+
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: '#94A3B8'
+                      }}
+                    >
                       {tech.distanceKm} km
                     </Typography>
+
                   </Box>
 
+
                   {tech.isAvailable && (
-                    <Chip label="Available today" size="small" sx={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10B981', fontWeight: 700 }} />
+
+                    <Chip
+                      label="Available today"
+                      size="small"
+                      sx={{
+                        backgroundColor:
+                          'rgba(16, 185, 129, 0.2)',
+
+                        color:
+                          '#10B981',
+
+                        fontWeight:
+                          700
+                      }}
+                    />
+
                   )}
+
                 </Box>
+
               </Paper>
+
             ))}
+
           </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
+
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              mt: 4
+            }}
+          >
+
             <Button
               variant="contained"
               onClick={() => setStep(2)}
@@ -328,17 +594,37 @@ export const AppointmentBooking = ({ currentUser }) => {
                 py: 1.2,
                 fontSize: '1rem',
                 fontWeight: 700,
-                '&:hover': { backgroundColor: '#38BDF8' }
+
+                '&:hover': {
+                  backgroundColor: '#38BDF8'
+                }
               }}
             >
               Continue to Select Slot
             </Button>
+
           </Box>
+
         </Box>
+
       ) : (
-        /* STEP 2: Calendar & Time Slots Screen (With Strict Dynamic Tech & Date Separation) */
-        <Grid container spacing={4} sx={{ maxWidth: 1000 }}>
-          <Grid item xs={12} md={7}>
+
+        /* STEP 2: Calendar & Time Slots Screen */
+
+        <Grid
+          container
+          spacing={4}
+          sx={{
+            maxWidth: 1000
+          }}
+        >
+
+          <Grid
+            item
+            xs={12}
+            md={7}
+          >
+
             <Paper
               elevation={0}
               sx={{
@@ -348,32 +634,95 @@ export const AppointmentBooking = ({ currentUser }) => {
                 border: '1px solid #2A364F'
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4, p: 2, backgroundColor: '#0F172A', borderRadius: 2 }}>
-                <Avatar sx={{ backgroundColor: '#00A8FF', color: '#0D1527', fontWeight: 700 }}>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  mb: 4,
+                  p: 2,
+                  backgroundColor: '#0F172A',
+                  borderRadius: 2
+                }}
+              >
+
+                <Avatar
+                  sx={{
+                    backgroundColor: '#00A8FF',
+                    color: '#0D1527',
+                    fontWeight: 700
+                  }}
+                >
                   {selectedTech?.avatar}
                 </Avatar>
+
+
                 <Box>
-                  <Typography variant="subtitle1" sx={{ color: '#FFF', fontWeight: 700 }}>
+
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      color: '#FFF',
+                      fontWeight: 700
+                    }}
+                  >
                     {selectedTech?.name}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: '#94A3B8'
+                    }}
+                  >
                     {selectedTech?.specialty}
                   </Typography>
+
                 </Box>
+
               </Box>
 
+
               {/* Date Selection */}
-              <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1.5 }}>
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#94A3B8',
+                  fontWeight: 600,
+                  mb: 1.5
+                }}
+              >
                 Select a date
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
+
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 1.5,
+                  mb: 4
+                }}
+              >
+
                 {dateOptions.map((d) => {
-                  const label = `${d.day} ${d.dateNum}`;
-                  const selected = selectedDate === label;
+
+                  const label =
+                    `${d.day} ${d.dateNum}`;
+
+                  const selected =
+                    selectedDate === label;
+
+
                   return (
+
                     <Box
                       key={label}
-                      onClick={() => setSelectedDate(label)}
+                      onClick={() =>
+                        setSelectedDate(label)
+                      }
                       sx={{
                         flex: 1,
                         py: 1.5,
@@ -381,109 +730,292 @@ export const AppointmentBooking = ({ currentUser }) => {
                         textAlign: 'center',
                         borderRadius: 2,
                         cursor: 'pointer',
-                        backgroundColor: selected ? '#00A8FF' : '#0F172A',
-                        color: selected ? '#0D1527' : '#FFF',
-                        border: selected ? '1px solid #00A8FF' : '1px solid #2A364F',
+
+                        backgroundColor:
+                          selected
+                            ? '#00A8FF'
+                            : '#0F172A',
+
+                        color:
+                          selected
+                            ? '#0D1527'
+                            : '#FFF',
+
+                        border:
+                          selected
+                            ? '1px solid #00A8FF'
+                            : '1px solid #2A364F',
+
                         transition: 'all 0.2s',
-                        '&:hover': { backgroundColor: selected ? '#00A8FF' : '#1E293B' }
+
+                        '&:hover': {
+                          backgroundColor:
+                            selected
+                              ? '#00A8FF'
+                              : '#1E293B'
+                        }
                       }}
                     >
-                      <Typography variant="caption" sx={{ display: 'block', fontWeight: 500 }}>
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          fontWeight: 500
+                        }}
+                      >
                         {d.day}
                       </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 700 }}>
+
+
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontWeight: 700
+                        }}
+                      >
                         {d.dateNum}
                       </Typography>
+
                     </Box>
+
                   );
+
                 })}
+
               </Box>
 
-              {/* Time Slots: Dynamic Filtering for selectedTech + selectedDate ONLY */}
-              <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1.5 }}>
+
+              {/* Time Slots */}
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#94A3B8',
+                  fontWeight: 600,
+                  mb: 1.5
+                }}
+              >
                 Available time slots for {selectedTech?.name} — {selectedDate}
               </Typography>
-              <Grid container spacing={1.5} sx={{ mb: 4 }}>
+
+
+              <Grid
+                container
+                spacing={1.5}
+                sx={{
+                  mb: 4
+                }}
+              >
+
                 {timeSlots.map((slot) => {
-                  const isBooked = activeBookedSlots.includes(slot);
-                  const selected = selectedTimeSlot === slot;
+
+                  const isBooked =
+                    activeBookedSlots.includes(slot);
+
+                  const selected =
+                    selectedTimeSlot === slot;
+
+
                   return (
-                    <Grid item xs={4} key={slot}>
+
+                    <Grid
+                      item
+                      xs={4}
+                      key={slot}
+                    >
+
                       <Button
                         fullWidth
                         disabled={isBooked}
-                        onClick={() => setSelectedTimeSlot(slot)}
+                        onClick={() =>
+                          setSelectedTimeSlot(slot)
+                        }
                         sx={{
-                          backgroundColor: isBooked ? '#1E293B' : selected ? '#00A8FF' : '#0F172A',
-                          color: isBooked ? '#64748B' : selected ? '#0D1527' : '#94A3B8',
-                          border: isBooked ? '1px dashed #334155' : selected ? '1px solid #00A8FF' : '1px solid #2A364F',
+                          backgroundColor:
+                            isBooked
+                              ? '#1E293B'
+                              : selected
+                                ? '#00A8FF'
+                                : '#0F172A',
+
+                          color:
+                            isBooked
+                              ? '#64748B'
+                              : selected
+                                ? '#0D1527'
+                                : '#94A3B8',
+
+                          border:
+                            isBooked
+                              ? '1px dashed #334155'
+                              : selected
+                                ? '1px solid #00A8FF'
+                                : '1px solid #2A364F',
+
                           py: 1,
+
                           fontSize: '0.85rem',
+
                           fontWeight: 600,
-                          textDecoration: isBooked ? 'line-through' : 'none',
-                          '&:hover': { backgroundColor: isBooked ? '#1E293B' : selected ? '#00A8FF' : '#1E293B' }
+
+                          textDecoration:
+                            isBooked
+                              ? 'line-through'
+                              : 'none',
+
+                          '&:hover': {
+                            backgroundColor:
+                              isBooked
+                                ? '#1E293B'
+                                : selected
+                                  ? '#00A8FF'
+                                  : '#1E293B'
+                          }
                         }}
                       >
                         {slot} {isBooked ? '(Booked)' : ''}
                       </Button>
+
                     </Grid>
+
                   );
+
                 })}
+
               </Grid>
 
+
               {/* Service Type */}
-              <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1.5 }}>
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#94A3B8',
+                  fontWeight: 600,
+                  mb: 1.5
+                }}
+              >
                 Service type
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
+
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 1.5,
+                  mb: 4
+                }}
+              >
+
                 {serviceTypes.map((st) => {
-                  const selected = serviceType === st;
+
+                  const selected =
+                    serviceType === st;
+
+
                   return (
+
                     <Button
                       key={st}
-                      onClick={() => setServiceType(st)}
+                      onClick={() =>
+                        setServiceType(st)
+                      }
                       sx={{
-                        backgroundColor: selected ? 'rgba(0, 168, 255, 0.15)' : '#0F172A',
-                        color: selected ? '#00A8FF' : '#94A3B8',
-                        border: selected ? '1px solid #00A8FF' : '1px solid #2A364F',
+                        backgroundColor:
+                          selected
+                            ? 'rgba(0, 168, 255, 0.15)'
+                            : '#0F172A',
+
+                        color:
+                          selected
+                            ? '#00A8FF'
+                            : '#94A3B8',
+
+                        border:
+                          selected
+                            ? '1px solid #00A8FF'
+                            : '1px solid #2A364F',
+
                         px: 2,
                         py: 1,
                         fontWeight: 600,
-                        '&:hover': { backgroundColor: selected ? 'rgba(0, 168, 255, 0.25)' : '#1E293B' }
+
+                        '&:hover': {
+                          backgroundColor:
+                            selected
+                              ? 'rgba(0, 168, 255, 0.25)'
+                              : '#1E293B'
+                        }
                       }}
                     >
                       {st}
                     </Button>
+
                   );
+
                 })}
+
               </Box>
 
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button onClick={() => setStep(1)} sx={{ color: '#94A3B8', border: '1px solid #2A364F' }}>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 2
+                }}
+              >
+
+                <Button
+                  onClick={() => setStep(1)}
+                  sx={{
+                    color: '#94A3B8',
+                    border: '1px solid #2A364F'
+                  }}
+                >
                   Back
                 </Button>
+
+
                 <Button
                   variant="contained"
                   fullWidth
-                  onClick={() => setOpenModal(true)}
-                  disabled={activeBookedSlots.includes(selectedTimeSlot)}
+                  onClick={() => {
+                    setConflictError('');
+                    setOpenModal(true);
+                  }}
+                  disabled={
+                    activeBookedSlots.includes(
+                      selectedTimeSlot
+                    )
+                  }
                   sx={{
                     backgroundColor: '#00A8FF',
                     color: '#0D1527',
                     py: 1.2,
                     fontWeight: 700,
-                    '&:hover': { backgroundColor: '#38BDF8' }
+
+                    '&:hover': {
+                      backgroundColor: '#38BDF8'
+                    }
                   }}
                 >
                   Review Booking
                 </Button>
+
               </Box>
+
             </Paper>
+
           </Grid>
+
         </Grid>
+
       )}
 
+
       {/* Booking Summary Confirmation Modal */}
+
       <Dialog
         open={openModal}
         onClose={() => setOpenModal(false)}
@@ -498,91 +1030,362 @@ export const AppointmentBooking = ({ currentUser }) => {
           }
         }}
       >
-        <DialogTitle sx={{ textAlign: 'center', pb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+
+        <DialogTitle
+          sx={{
+            textAlign: 'center',
+            pb: 1
+          }}
+        >
+
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700
+            }}
+          >
             Confirm your booking
           </Typography>
+
         </DialogTitle>
 
+
         <DialogContent>
+
           {conflictError && (
-            <Alert severity="error" sx={{ mb: 2, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
+
+            <Alert
+              severity="error"
+              sx={{
+                mb: 2,
+                backgroundColor:
+                  'rgba(239, 68, 68, 0.15)',
+
+                color:
+                  '#EF4444'
+              }}
+            >
               {conflictError}
             </Alert>
+
           )}
 
+
           {bookingSuccess ? (
-            <Box sx={{ textAlign: 'center', py: 2 }}>
-              <CheckCircle2 size={56} color="#10B981" style={{ margin: '0 auto 12px auto', display: 'block' }} />
-              <Typography variant="h6" sx={{ color: '#10B981', fontWeight: 700, mb: 1 }}>
+
+            <Box
+              sx={{
+                textAlign: 'center',
+                py: 2
+              }}
+            >
+
+              <CheckCircle2
+                size={56}
+                color="#10B981"
+                style={{
+                  margin:
+                    '0 auto 12px auto',
+
+                  display:
+                    'block'
+                }}
+              />
+
+
+              <Typography
+                variant="h6"
+                sx={{
+                  color: '#10B981',
+                  fontWeight: 700,
+                  mb: 1
+                }}
+              >
                 Booking Successful!
               </Typography>
-              <Typography variant="body2" sx={{ color: '#94A3B8', mb: 2 }}>
+
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#94A3B8',
+                  mb: 2
+                }}
+              >
                 Saved in Prisma database & email dispatched via EmailJS API.
               </Typography>
-              <Box sx={{ backgroundColor: '#0F172A', p: 2, borderRadius: 2, textAlign: 'left', mb: 2 }}>
-                <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>APPOINTMENT ID</Typography>
-                <Typography variant="body2" sx={{ color: '#00A8FF', fontWeight: 700 }}>{bookingSuccess.id}</Typography>
-                <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 1 }}>DATE & TIME</Typography>
-                <Typography variant="body2" sx={{ color: '#FFF' }}>{bookingSuccess.date} at {bookingSuccess.timeSlot}</Typography>
+
+
+              <Box
+                sx={{
+                  backgroundColor: '#0F172A',
+                  p: 2,
+                  borderRadius: 2,
+                  textAlign: 'left',
+                  mb: 2
+                }}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: '#64748B',
+                    display: 'block'
+                  }}
+                >
+                  APPOINTMENT ID
+                </Typography>
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#00A8FF',
+                    fontWeight: 700
+                  }}
+                >
+                  {bookingSuccess.id}
+                </Typography>
+
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: '#64748B',
+                    display: 'block',
+                    mt: 1
+                  }}
+                >
+                  DATE & TIME
+                </Typography>
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#FFF'
+                  }}
+                >
+                  {bookingSuccess.date} at {bookingSuccess.timeSlot}
+                </Typography>
+
               </Box>
+
             </Box>
+
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" sx={{ color: '#94A3B8' }}>Technician</Typography>
-                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{selectedTech?.name}</Typography>
+
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                py: 1
+              }}
+            >
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}
+              >
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#94A3B8'
+                  }}
+                >
+                  Technician
+                </Typography>
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#FFF',
+                    fontWeight: 600
+                  }}
+                >
+                  {selectedTech?.name}
+                </Typography>
+
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" sx={{ color: '#94A3B8' }}>Date & time</Typography>
-                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{getFormattedDateStr(selectedDate)}, {selectedTimeSlot}</Typography>
+
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}
+              >
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#94A3B8'
+                  }}
+                >
+                  Date & time
+                </Typography>
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#FFF',
+                    fontWeight: 600
+                  }}
+                >
+                  {getFormattedDateStr(selectedDate)}, {selectedTimeSlot}
+                </Typography>
+
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" sx={{ color: '#94A3B8' }}>Service type</Typography>
-                <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>{serviceType}</Typography>
+
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}
+              >
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#94A3B8'
+                  }}
+                >
+                  Service type
+                </Typography>
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#FFF',
+                    fontWeight: 600
+                  }}
+                >
+                  {serviceType}
+                </Typography>
+
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" sx={{ color: '#94A3B8' }}>Estimated cost</Typography>
-                <Typography variant="body2" sx={{ color: '#00A8FF', fontWeight: 700 }}>৳800 - 1,500</Typography>
+
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}
+              >
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#94A3B8'
+                  }}
+                >
+                  Estimated cost
+                </Typography>
+
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: '#00A8FF',
+                    fontWeight: 700
+                  }}
+                >
+                  ৳800 - 1,500
+                </Typography>
+
               </Box>
+
             </Box>
+
           )}
+
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 2
+          }}
+        >
+
           {bookingSuccess ? (
+
             <Button
               fullWidth
               variant="contained"
               onClick={() => {
-                setBookingSuccess(null);
-                setOpenModal(false);
-                setStep(1);
+
+                setBookingSuccess(
+                  null
+                );
+
+                setOpenModal(
+                  false
+                );
+
+                setStep(
+                  1
+                );
               }}
-              sx={{ backgroundColor: '#00A8FF', color: '#0D1527', fontWeight: 700 }}
+              sx={{
+                backgroundColor: '#00A8FF',
+                color: '#0D1527',
+                fontWeight: 700
+              }}
             >
               Done
             </Button>
+
           ) : (
+
             <Button
               fullWidth
               variant="contained"
               onClick={handleConfirmBooking}
               disabled={loading}
-              startIcon={loading ? <CircularProgress size={18} color="inherit" /> : null}
+              startIcon={
+                loading
+                  ? (
+                      <CircularProgress
+                        size={18}
+                        color="inherit"
+                      />
+                    )
+                  : null
+              }
               sx={{
                 backgroundColor: '#00A8FF',
                 color: '#0D1527',
                 py: 1.2,
                 fontWeight: 700,
-                '&:hover': { backgroundColor: '#38BDF8' }
+
+                '&:hover': {
+                  backgroundColor: '#38BDF8'
+                }
               }}
             >
-              {loading ? 'Booking...' : 'Confirm booking'}
+              {
+                loading
+                  ? 'Booking...'
+                  : 'Confirm booking'
+              }
             </Button>
+
           )}
+
         </DialogActions>
+
       </Dialog>
+
     </Box>
   );
 };

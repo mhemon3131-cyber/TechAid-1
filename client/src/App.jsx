@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, {
+  useEffect,
+  useState
+} from 'react';
 
 import {
   Box,
@@ -21,6 +24,14 @@ import { TechnicianAssignment } from './pages/TechnicianAssignment';
 
 // MEMBER 4 - manual technician search
 import { TechnicianSearch } from './pages/TechnicianSearch';
+
+// MODULE 3 FEATURE 4 - Rating & Review
+import RatingReview from './pages/RatingReview';
+
+// ==========================================================
+// MODULE 2 FEATURE 4 - SECURE PAYMENT & INVOICE SYSTEM
+// ==========================================================
+import Payment from './pages/Payment';
 
 
 export default function App() {
@@ -50,6 +61,42 @@ export default function App() {
     activeTab,
     setActiveTab
   ] = useState('new-request');
+
+
+  // ========================================================
+  // STRIPE REDIRECT CHECK
+  //
+  // Stripe success hole:
+  // ?payment=success&session_id=...
+  //
+  // Payment page automatically open hobe.
+  // ========================================================
+
+  useEffect(() => {
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+
+    const paymentStatus =
+      params.get(
+        'payment'
+      );
+
+
+    if (
+      paymentStatus === 'success' ||
+      paymentStatus === 'cancelled'
+    ) {
+
+      setActiveTab(
+        'payment'
+      );
+    }
+
+  }, []);
 
 
   // ========================================================
@@ -97,6 +144,14 @@ export default function App() {
 
     setActiveTab(
       'new-request'
+    );
+
+
+    // Stripe query params clean
+    window.history.replaceState(
+      {},
+      '',
+      window.location.pathname
     );
   };
 
@@ -218,7 +273,6 @@ export default function App() {
                 currentUser
               }
 
-              // Manual Search button
               onSearchTechnicians={() =>
                 setActiveTab(
                   'technician-search'
@@ -275,6 +329,38 @@ export default function App() {
             'progress-tracker' && (
 
             <ServiceProgressTracker
+              currentUser={
+                currentUser
+              }
+            />
+
+          )}
+
+
+          {/* ===============================================
+              MODULE 3 FEATURE 4 - RATING & REVIEW
+          =============================================== */}
+
+          {activeTab ===
+            'rating-review' && (
+
+            <RatingReview
+              currentUser={
+                currentUser
+              }
+            />
+
+          )}
+
+
+          {/* ===============================================
+              MODULE 2 FEATURE 4 - PAYMENT & INVOICE
+          =============================================== */}
+
+          {activeTab ===
+            'payment' && (
+
+            <Payment
               currentUser={
                 currentUser
               }

@@ -1,4 +1,5 @@
 import React from 'react';
+
 import {
   Box,
   Typography,
@@ -10,20 +11,29 @@ import {
   Button,
   Chip
 } from '@mui/material';
+
 import {
   PlusCircle,
   Calendar,
   ClipboardList,
   Shield,
-  UserCheck,
   Activity,
   Sliders,
   LogOut,
-  MapPinned
+  MapPinned,
+  Star,
+  Search,
+  CreditCard
 } from 'lucide-react';
 
-export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
-  const isCustomer = currentUser?.role === 'CUSTOMER';
+export const Sidebar = ({
+  activeTab,
+  setActiveTab,
+  currentUser,
+  onLogout
+}) => {
+  const isCustomer =
+    currentUser?.role === 'CUSTOMER';
 
   return (
     <Box
@@ -38,7 +48,19 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
         boxSizing: 'border-box'
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+
+      {/* =================================================
+          LOGO
+      ================================================= */}
+
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          mb: 3
+        }}
+      >
         <Box
           sx={{
             width: 38,
@@ -49,10 +71,14 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
             alignItems: 'center',
             justifyContent: 'center',
             color: '#0D1527',
-            boxShadow: '0 0 15px rgba(0, 168, 255, 0.4)'
+            boxShadow:
+              '0 0 15px rgba(0, 168, 255, 0.4)'
           }}
         >
-          <Shield size={24} strokeWidth={2.5} />
+          <Shield
+            size={24}
+            strokeWidth={2.5}
+          />
         </Box>
 
         <Box>
@@ -64,7 +90,14 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
               fontSize: '1.25rem'
             }}
           >
-            Tech<span style={{ color: '#00A8FF' }}>Aid</span>
+            Tech
+            <span
+              style={{
+                color: '#00A8FF'
+              }}
+            >
+              Aid
+            </span>
           </Typography>
 
           <Typography
@@ -80,6 +113,11 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
         </Box>
       </Box>
 
+
+      {/* =================================================
+          CURRENT USER
+      ================================================= */}
+
       <Box
         sx={{
           backgroundColor: '#172036',
@@ -88,7 +126,8 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
           display: 'flex',
           flexDirection: 'column',
           mb: 3,
-          border: '1px solid #2A364F'
+          border:
+            '1px solid #2A364F'
         }}
       >
         <Typography
@@ -115,26 +154,40 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
 
         <Chip
           label={
-            currentUser?.role === 'CUSTOMER'
+            currentUser?.role ===
+            'CUSTOMER'
               ? 'Customer Account'
-              : `${currentUser?.specialty || 'Technician'}`
+              : `${
+                  currentUser?.specialty ||
+                  'Technician'
+                }`
           }
           size="small"
           sx={{
             mt: 0.8,
+
             backgroundColor:
-              currentUser?.role === 'CUSTOMER'
+              currentUser?.role ===
+              'CUSTOMER'
                 ? 'rgba(0, 168, 255, 0.15)'
                 : 'rgba(16, 185, 129, 0.15)',
+
             color:
-              currentUser?.role === 'CUSTOMER'
+              currentUser?.role ===
+              'CUSTOMER'
                 ? '#00A8FF'
                 : '#10B981',
+
             fontSize: '0.68rem',
             fontWeight: 700
           }}
         />
       </Box>
+
+
+      {/* =================================================
+          DASHBOARD TITLE
+      ================================================= */}
 
       <Typography
         variant="caption"
@@ -145,351 +198,801 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
           mb: 1
         }}
       >
-        {isCustomer ? 'CUSTOMER DASHBOARD' : 'TECHNICIAN PORTAL'}
+        {isCustomer
+          ? 'CUSTOMER DASHBOARD'
+          : 'TECHNICIAN PORTAL'}
       </Typography>
 
+
+      {/* =================================================
+          MENU
+      ================================================= */}
+
       <List disablePadding>
+
         {isCustomer ? (
+
           <>
-            <ListItem disablePadding sx={{ mb: 1 }}>
+            {/* =============================================
+                NEW REQUEST
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
               <ListItemButton
-                selected={activeTab === 'new-request'}
-                onClick={() => setActiveTab('new-request')}
+                selected={
+                  activeTab ===
+                  'new-request'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'new-request'
+                  )
+                }
                 sx={{
                   borderRadius: 2,
+
                   color:
-                    activeTab === 'new-request'
+                    activeTab ===
+                    'new-request'
                       ? '#FFFFFF'
                       : '#94A3B8',
+
                   backgroundColor:
-                    activeTab === 'new-request'
+                    activeTab ===
+                    'new-request'
                       ? '#172036'
                       : 'transparent',
+
                   borderLeft:
-                    activeTab === 'new-request'
+                    activeTab ===
+                    'new-request'
                       ? '4px solid #00A8FF'
                       : '4px solid transparent',
+
                   '&:hover': {
-                    backgroundColor: '#172036'
+                    backgroundColor:
+                      '#172036'
                   }
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
+
                     color:
-                      activeTab === 'new-request'
+                      activeTab ===
+                      'new-request'
                         ? '#00A8FF'
                         : '#94A3B8'
                   }}
                 >
-                  <PlusCircle size={18} />
+                  <PlusCircle
+                    size={18}
+                  />
                 </ListItemIcon>
 
                 <ListItemText
                   primary="New Request"
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
+                    fontSize:
+                      '0.85rem',
                     fontWeight: 600
                   }}
                 />
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding sx={{ mb: 1 }}>
+
+            {/* =============================================
+                AUTO ASSIGNMENT
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
               <ListItemButton
-                selected={activeTab === 'technician-assignment'}
-                onClick={() => setActiveTab('technician-assignment')}
+                selected={
+                  activeTab ===
+                  'technician-assignment'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'technician-assignment'
+                  )
+                }
                 sx={{
                   borderRadius: 2,
+
                   color:
-                    activeTab === 'technician-assignment'
+                    activeTab ===
+                    'technician-assignment'
                       ? '#FFFFFF'
                       : '#94A3B8',
+
                   backgroundColor:
-                    activeTab === 'technician-assignment'
+                    activeTab ===
+                    'technician-assignment'
                       ? '#172036'
                       : 'transparent',
+
                   borderLeft:
-                    activeTab === 'technician-assignment'
+                    activeTab ===
+                    'technician-assignment'
                       ? '4px solid #00A8FF'
                       : '4px solid transparent',
+
                   '&:hover': {
-                    backgroundColor: '#172036'
+                    backgroundColor:
+                      '#172036'
                   }
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
+
                     color:
-                      activeTab === 'technician-assignment'
+                      activeTab ===
+                      'technician-assignment'
                         ? '#00A8FF'
                         : '#94A3B8'
                   }}
                 >
-                  <MapPinned size={18} />
+                  <MapPinned
+                    size={18}
+                  />
                 </ListItemIcon>
 
                 <ListItemText
                   primary="Auto Assignment"
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
+                    fontSize:
+                      '0.85rem',
                     fontWeight: 600
                   }}
                 />
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding sx={{ mb: 1 }}>
+
+            {/* =============================================
+                MODULE 3 FEATURE 4
+                ADVANCED SEARCH & FILTER
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
               <ListItemButton
-                selected={activeTab === 'appointments'}
-                onClick={() => setActiveTab('appointments')}
+                selected={
+                  activeTab ===
+                  'technician-search'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'technician-search'
+                  )
+                }
                 sx={{
                   borderRadius: 2,
+
                   color:
-                    activeTab === 'appointments'
+                    activeTab ===
+                    'technician-search'
                       ? '#FFFFFF'
                       : '#94A3B8',
+
                   backgroundColor:
-                    activeTab === 'appointments'
+                    activeTab ===
+                    'technician-search'
                       ? '#172036'
                       : 'transparent',
+
                   borderLeft:
-                    activeTab === 'appointments'
+                    activeTab ===
+                    'technician-search'
                       ? '4px solid #00A8FF'
                       : '4px solid transparent',
+
                   '&:hover': {
-                    backgroundColor: '#172036'
+                    backgroundColor:
+                      '#172036'
                   }
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
+
                     color:
-                      activeTab === 'appointments'
+                      activeTab ===
+                      'technician-search'
                         ? '#00A8FF'
                         : '#94A3B8'
                   }}
                 >
-                  <Calendar size={18} />
+                  <Search
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Advanced Search"
+                  primaryTypographyProps={{
+                    fontSize:
+                      '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* =============================================
+                APPOINTMENTS
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'appointments'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'appointments'
+                  )
+                }
+                sx={{
+                  borderRadius: 2,
+
+                  color:
+                    activeTab ===
+                    'appointments'
+                      ? '#FFFFFF'
+                      : '#94A3B8',
+
+                  backgroundColor:
+                    activeTab ===
+                    'appointments'
+                      ? '#172036'
+                      : 'transparent',
+
+                  borderLeft:
+                    activeTab ===
+                    'appointments'
+                      ? '4px solid #00A8FF'
+                      : '4px solid transparent',
+
+                  '&:hover': {
+                    backgroundColor:
+                      '#172036'
+                  }
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 34,
+
+                    color:
+                      activeTab ===
+                      'appointments'
+                        ? '#00A8FF'
+                        : '#94A3B8'
+                  }}
+                >
+                  <Calendar
+                    size={18}
+                  />
                 </ListItemIcon>
 
                 <ListItemText
                   primary="Book Appointment"
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
+                    fontSize:
+                      '0.85rem',
                     fontWeight: 600
                   }}
                 />
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding sx={{ mb: 1 }}>
+
+            {/* =============================================
+                PROGRESS TRACKING
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
               <ListItemButton
-                selected={activeTab === 'progress-tracker'}
-                onClick={() => setActiveTab('progress-tracker')}
+                selected={
+                  activeTab ===
+                  'progress-tracker'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'progress-tracker'
+                  )
+                }
                 sx={{
                   borderRadius: 2,
+
                   color:
-                    activeTab === 'progress-tracker'
+                    activeTab ===
+                    'progress-tracker'
                       ? '#FFFFFF'
                       : '#94A3B8',
+
                   backgroundColor:
-                    activeTab === 'progress-tracker'
+                    activeTab ===
+                    'progress-tracker'
                       ? '#172036'
                       : 'transparent',
+
                   borderLeft:
-                    activeTab === 'progress-tracker'
+                    activeTab ===
+                    'progress-tracker'
                       ? '4px solid #00A8FF'
                       : '4px solid transparent',
+
                   '&:hover': {
-                    backgroundColor: '#172036'
+                    backgroundColor:
+                      '#172036'
                   }
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
+
                     color:
-                      activeTab === 'progress-tracker'
+                      activeTab ===
+                      'progress-tracker'
                         ? '#00A8FF'
                         : '#94A3B8'
                   }}
                 >
-                  <Activity size={18} />
+                  <Activity
+                    size={18}
+                  />
                 </ListItemIcon>
 
                 <ListItemText
                   primary="Track Progress"
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
+                    fontSize:
+                      '0.85rem',
                     fontWeight: 600
                   }}
                 />
               </ListItemButton>
             </ListItem>
-          </>
-        ) : (
-          <>
-            <ListItem disablePadding sx={{ mb: 1 }}>
+
+
+            {/* =============================================
+                MODULE 2 FEATURE 4
+                PAYMENT & INVOICE
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
               <ListItemButton
-                selected={activeTab === 'tech-dashboard'}
-                onClick={() => setActiveTab('tech-dashboard')}
+                selected={
+                  activeTab ===
+                  'payment'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'payment'
+                  )
+                }
                 sx={{
                   borderRadius: 2,
+
                   color:
-                    activeTab === 'tech-dashboard'
+                    activeTab ===
+                    'payment'
                       ? '#FFFFFF'
                       : '#94A3B8',
+
                   backgroundColor:
-                    activeTab === 'tech-dashboard'
+                    activeTab ===
+                    'payment'
                       ? '#172036'
                       : 'transparent',
+
                   borderLeft:
-                    activeTab === 'tech-dashboard'
+                    activeTab ===
+                    'payment'
                       ? '4px solid #00A8FF'
                       : '4px solid transparent',
+
                   '&:hover': {
-                    backgroundColor: '#172036'
+                    backgroundColor:
+                      '#172036'
                   }
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
+
                     color:
-                      activeTab === 'tech-dashboard'
+                      activeTab ===
+                      'payment'
                         ? '#00A8FF'
                         : '#94A3B8'
                   }}
                 >
-                  <ClipboardList size={18} />
+                  <CreditCard
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Payment & Invoice"
+                  primaryTypographyProps={{
+                    fontSize:
+                      '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+
+
+            {/* =============================================
+                RATING & REVIEW
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'rating-review'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'rating-review'
+                  )
+                }
+                sx={{
+                  borderRadius: 2,
+
+                  color:
+                    activeTab ===
+                    'rating-review'
+                      ? '#FFFFFF'
+                      : '#94A3B8',
+
+                  backgroundColor:
+                    activeTab ===
+                    'rating-review'
+                      ? '#172036'
+                      : 'transparent',
+
+                  borderLeft:
+                    activeTab ===
+                    'rating-review'
+                      ? '4px solid #00A8FF'
+                      : '4px solid transparent',
+
+                  '&:hover': {
+                    backgroundColor:
+                      '#172036'
+                  }
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 34,
+
+                    color:
+                      activeTab ===
+                      'rating-review'
+                        ? '#00A8FF'
+                        : '#94A3B8'
+                  }}
+                >
+                  <Star
+                    size={18}
+                  />
+                </ListItemIcon>
+
+                <ListItemText
+                  primary="Rating & Review"
+                  primaryTypographyProps={{
+                    fontSize:
+                      '0.85rem',
+                    fontWeight: 600
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+
+          </>
+
+        ) : (
+
+          <>
+            {/* =============================================
+                TECHNICIAN JOB REQUESTS
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
+              <ListItemButton
+                selected={
+                  activeTab ===
+                  'tech-dashboard'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'tech-dashboard'
+                  )
+                }
+                sx={{
+                  borderRadius: 2,
+
+                  color:
+                    activeTab ===
+                    'tech-dashboard'
+                      ? '#FFFFFF'
+                      : '#94A3B8',
+
+                  backgroundColor:
+                    activeTab ===
+                    'tech-dashboard'
+                      ? '#172036'
+                      : 'transparent',
+
+                  borderLeft:
+                    activeTab ===
+                    'tech-dashboard'
+                      ? '4px solid #00A8FF'
+                      : '4px solid transparent',
+
+                  '&:hover': {
+                    backgroundColor:
+                      '#172036'
+                  }
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 34,
+
+                    color:
+                      activeTab ===
+                      'tech-dashboard'
+                        ? '#00A8FF'
+                        : '#94A3B8'
+                  }}
+                >
+                  <ClipboardList
+                    size={18}
+                  />
                 </ListItemIcon>
 
                 <ListItemText
                   primary="Job Requests"
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
+                    fontSize:
+                      '0.85rem',
                     fontWeight: 600
                   }}
                 />
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding sx={{ mb: 1 }}>
+
+            {/* =============================================
+                TECHNICIAN AVAILABILITY
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
               <ListItemButton
-                selected={activeTab === 'tech-availability'}
-                onClick={() => setActiveTab('tech-availability')}
+                selected={
+                  activeTab ===
+                  'tech-availability'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'tech-availability'
+                  )
+                }
                 sx={{
                   borderRadius: 2,
+
                   color:
-                    activeTab === 'tech-availability'
+                    activeTab ===
+                    'tech-availability'
                       ? '#FFFFFF'
                       : '#94A3B8',
+
                   backgroundColor:
-                    activeTab === 'tech-availability'
+                    activeTab ===
+                    'tech-availability'
                       ? '#172036'
                       : 'transparent',
+
                   borderLeft:
-                    activeTab === 'tech-availability'
+                    activeTab ===
+                    'tech-availability'
                       ? '4px solid #00A8FF'
                       : '4px solid transparent',
+
                   '&:hover': {
-                    backgroundColor: '#172036'
+                    backgroundColor:
+                      '#172036'
                   }
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
+
                     color:
-                      activeTab === 'tech-availability'
+                      activeTab ===
+                      'tech-availability'
                         ? '#00A8FF'
                         : '#94A3B8'
                   }}
                 >
-                  <Sliders size={18} />
+                  <Sliders
+                    size={18}
+                  />
                 </ListItemIcon>
 
                 <ListItemText
                   primary="Availability Config"
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
+                    fontSize:
+                      '0.85rem',
                     fontWeight: 600
                   }}
                 />
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding sx={{ mb: 1 }}>
+
+            {/* =============================================
+                TECHNICIAN STATUS TRACKER
+            ============================================= */}
+
+            <ListItem
+              disablePadding
+              sx={{ mb: 1 }}
+            >
               <ListItemButton
-                selected={activeTab === 'progress-tracker'}
-                onClick={() => setActiveTab('progress-tracker')}
+                selected={
+                  activeTab ===
+                  'progress-tracker'
+                }
+                onClick={() =>
+                  setActiveTab(
+                    'progress-tracker'
+                  )
+                }
                 sx={{
                   borderRadius: 2,
+
                   color:
-                    activeTab === 'progress-tracker'
+                    activeTab ===
+                    'progress-tracker'
                       ? '#FFFFFF'
                       : '#94A3B8',
+
                   backgroundColor:
-                    activeTab === 'progress-tracker'
+                    activeTab ===
+                    'progress-tracker'
                       ? '#172036'
                       : 'transparent',
+
                   borderLeft:
-                    activeTab === 'progress-tracker'
+                    activeTab ===
+                    'progress-tracker'
                       ? '4px solid #00A8FF'
                       : '4px solid transparent',
+
                   '&:hover': {
-                    backgroundColor: '#172036'
+                    backgroundColor:
+                      '#172036'
                   }
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
+
                     color:
-                      activeTab === 'progress-tracker'
+                      activeTab ===
+                      'progress-tracker'
                         ? '#00A8FF'
                         : '#94A3B8'
                   }}
                 >
-                  <Activity size={18} />
+                  <Activity
+                    size={18}
+                  />
                 </ListItemIcon>
 
                 <ListItemText
                   primary="Status Tracker"
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
+                    fontSize:
+                      '0.85rem',
                     fontWeight: 600
                   }}
                 />
               </ListItemButton>
             </ListItem>
+
           </>
         )}
+
       </List>
 
-      <Box sx={{ mt: 'auto', pt: 2 }}>
+
+      {/* =================================================
+          LOGOUT
+      ================================================= */}
+
+      <Box
+        sx={{
+          mt: 'auto',
+          pt: 2
+        }}
+      >
         <Button
           fullWidth
           onClick={onLogout}
-          startIcon={<LogOut size={18} />}
+          startIcon={
+            <LogOut size={18} />
+          }
           sx={{
             color: '#EF4444',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+
+            backgroundColor:
+              'rgba(239, 68, 68, 0.1)',
+
+            border:
+              '1px solid rgba(239, 68, 68, 0.3)',
+
             py: 1,
+
             fontWeight: 700,
+
             '&:hover': {
-              backgroundColor: 'rgba(239, 68, 68, 0.2)'
+              backgroundColor:
+                'rgba(239, 68, 68, 0.2)'
             }
           }}
         >
           Sign Out
         </Button>
       </Box>
+
     </Box>
   );
 };

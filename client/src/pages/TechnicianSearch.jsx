@@ -1,8 +1,4 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState
-} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   Alert,
@@ -11,10 +7,16 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   Grid,
   MenuItem,
   Paper,
   Rating,
+  Stack,
   TextField,
   Typography
 } from '@mui/material';
@@ -22,10 +24,9 @@ import {
 import {
   ArrowLeft,
   Clock,
-  Mail,
+  GitCompare,
   MapPin,
-  Phone,
-  Search,
+  RotateCcw,
   UserRound
 } from 'lucide-react';
 
@@ -33,122 +34,122 @@ import axios from 'axios';
 
 
 // ==========================================================
-// MEMBER 4 - TECHNICIAN SEARCH & FILTER
+// MODULE 3 - FEATURE 4
+// ADVANCED SEARCH & FILTER SYSTEM
 //
-// Customer automatic technician suggestion use na korte chaile
-// ei page-e technician list/details dekhte parbe.
+// Customer can filter technicians by:
+// 1. Device Category
+// 2. Technical Expertise
+// 3. Location
+// 4. Minimum Rating
 //
-// Search:
-// - Name
-// - Specialty
-//
-// Filter:
-// - Specialty
-// - Availability
-// - Rating
+// Customer can also compare 2-3 technicians.
 // ==========================================================
 
-export const TechnicianSearch = ({
-  onBack
-}) => {
+export const TechnicianSearch = ({ onBack }) => {
+
+  // ========================================================
+  // TECHNICIAN DATA
+  // ========================================================
+
+  const [technicians, setTechnicians] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState('');
+
+
+  // ========================================================
+  // FILTER STATES
+  // Empty value means no filter selected
+  // ========================================================
 
   const [
-    technicians,
-    setTechnicians
-  ] = useState([]);
-
-
-  const [
-    loading,
-    setLoading
-  ] = useState(true);
-
-
-  const [
-    error,
-    setError
+    deviceCategoryFilter,
+    setDeviceCategoryFilter
   ] = useState('');
 
-
   const [
-    searchText,
-    setSearchText
+    expertiseFilter,
+    setExpertiseFilter
   ] = useState('');
 
-
   const [
-    specialtyFilter,
-    setSpecialtyFilter
-  ] = useState('ALL');
-
-
-  const [
-    availabilityFilter,
-    setAvailabilityFilter
-  ] = useState('ALL');
-
+    locationFilter,
+    setLocationFilter
+  ] = useState('');
 
   const [
     ratingFilter,
     setRatingFilter
-  ] = useState('ALL');
+  ] = useState('');
 
 
   // ========================================================
-  // FETCH TECHNICIANS
+  // COMPARE STATES
+  // ========================================================
+
+  const [
+    selectedTechnicians,
+    setSelectedTechnicians
+  ] = useState([]);
+
+  const [
+    compareOpen,
+    setCompareOpen
+  ] = useState(false);
+
+
+  // ========================================================
+  // FETCH ALL TECHNICIANS
   // ========================================================
 
   useEffect(() => {
 
-    const loadTechnicians =
-      async () => {
+    const loadTechnicians = async () => {
 
-        setLoading(true);
+      setLoading(true);
+      setError('');
 
-        setError('');
+      try {
 
-
-        try {
-
-          const response =
-            await axios.get(
-              'http://localhost:5000/api/technicians'
-            );
-
-
-          const data =
-            response.data?.data ||
-            response.data ||
-            [];
-
-
-          setTechnicians(
-            Array.isArray(data)
-              ? data
-              : []
+        const response =
+          await axios.get(
+            'http://localhost:5000/api/technicians'
           );
 
+        const data =
+          response.data?.data ||
+          response.data ||
+          [];
 
-        } catch (err) {
+        setTechnicians(
+          Array.isArray(data)
+            ? data
+            : []
+        );
 
-          console.error(
-            'Technician search error:',
-            err
-          );
+      } catch (err) {
 
+        console.error(
+          'Technician search error:',
+          err
+        );
 
-          setError(
-            err?.response?.data?.message ||
-            'Unable to load technician list.'
-          );
+        setError(
+          err?.response?.data?.message ||
+          'Unable to load technician list.'
+        );
 
+      } finally {
 
-        } finally {
+        setLoading(false);
 
-          setLoading(false);
-        }
-      };
-
+      }
+    };
 
     loadTechnicians();
 
@@ -156,30 +157,282 @@ export const TechnicianSearch = ({
 
 
   // ========================================================
-  // SPECIALTY OPTIONS
+  // DEVICE CATEGORY OPTIONS
   // ========================================================
 
-  const specialties =
-    useMemo(() => {
+  const deviceCategories = [
+    'Laptop',
+    'Desktop',
+    'Phone',
+    'Printer',
+    'Internet'
+  ];
 
-      return [
-        ...new Set(
-          technicians
-            .map(
-              (tech) =>
-                tech.specialty
-            )
-            .filter(Boolean)
+
+  // ========================================================
+  // TECHNICAL EXPERTISE OPTIONS
+  // ========================================================
+
+  const expertiseOptions = [
+
+    {
+      value: 'COMPUTER',
+      label: 'Laptop & Desktop Repair'
+    },
+
+    {
+      value: 'SOFTWARE',
+      label: 'Software & Operating System'
+    },
+
+    {
+      value: 'NETWORK',
+      label: 'Internet, Network & Wi-Fi'
+    },
+
+    {
+      value: 'MOBILE',
+      label: 'Mobile & Smartphone'
+    },
+
+    {
+      value: 'PRINTER',
+      label: 'Printer & Peripheral Support'
+    },
+
+    {
+      value: 'HARDWARE',
+      label: 'Hardware Troubleshooting'
+    }
+
+  ];
+
+
+  // ========================================================
+  // NORMALIZE STRING / ARRAY
+  // ========================================================
+
+  const normalizeList = (value) => {
+
+    if (Array.isArray(value)) {
+
+      return value
+        .map(
+          (item) =>
+            String(item).trim()
         )
-      ];
+        .filter(Boolean);
+    }
 
-    }, [
-      technicians
-    ]);
+
+    if (!value) {
+
+      return [];
+    }
+
+
+    return String(value)
+      .split(',')
+      .map(
+        (item) =>
+          item.trim()
+      )
+      .filter(Boolean);
+  };
 
 
   // ========================================================
-  // FILTERED TECHNICIANS
+  // DEVICE CATEGORY MATCH
+  // ========================================================
+
+  const matchesDeviceCategory = (tech) => {
+
+    if (!deviceCategoryFilter) {
+
+      return true;
+    }
+
+
+    const selected =
+      deviceCategoryFilter
+        .toLowerCase();
+
+
+    const backendCategories =
+      normalizeList(
+        tech.deviceCategories
+      ).map(
+        (item) =>
+          item.toLowerCase()
+      );
+
+
+    if (
+      backendCategories.includes(
+        selected
+      )
+    ) {
+
+      return true;
+    }
+
+
+    const specialty =
+      String(
+        tech.specialty || ''
+      ).toLowerCase();
+
+
+    if (selected === 'laptop') {
+
+      return (
+        specialty.includes('laptop') ||
+        specialty.includes('computer') ||
+        specialty.includes('pc') ||
+        specialty.includes('hardware')
+      );
+    }
+
+
+    if (selected === 'desktop') {
+
+      return (
+        specialty.includes('desktop') ||
+        specialty.includes('computer') ||
+        specialty.includes('pc') ||
+        specialty.includes('hardware')
+      );
+    }
+
+
+    if (selected === 'phone') {
+
+      return (
+        specialty.includes('phone') ||
+        specialty.includes('mobile') ||
+        specialty.includes('smartphone')
+      );
+    }
+
+
+    if (selected === 'printer') {
+
+      return (
+        specialty.includes('printer') ||
+        specialty.includes('peripheral')
+      );
+    }
+
+
+    if (selected === 'internet') {
+
+      return (
+        specialty.includes('internet') ||
+        specialty.includes('network') ||
+        specialty.includes('wifi') ||
+        specialty.includes('wi-fi') ||
+        specialty.includes('router')
+      );
+    }
+
+
+    return true;
+  };
+
+
+  // ========================================================
+  // TECHNICAL EXPERTISE MATCH
+  // ========================================================
+
+  const matchesExpertiseCategory = (tech) => {
+
+    if (!expertiseFilter) {
+
+      return true;
+    }
+
+
+    const text =
+      [
+        tech.specialty,
+        tech.technicalExpertise,
+        ...normalizeList(
+          tech.deviceCategories
+        )
+      ]
+        .join(' ')
+        .toLowerCase();
+
+
+    switch (expertiseFilter) {
+
+      case 'COMPUTER':
+
+        return (
+          text.includes('laptop') ||
+          text.includes('desktop') ||
+          text.includes('computer') ||
+          text.includes('pc')
+        );
+
+
+      case 'SOFTWARE':
+
+        return (
+          text.includes('software') ||
+          text.includes('windows') ||
+          text.includes('operating system') ||
+          text.includes('os')
+        );
+
+
+      case 'NETWORK':
+
+        return (
+          text.includes('network') ||
+          text.includes('internet') ||
+          text.includes('wifi') ||
+          text.includes('wi-fi') ||
+          text.includes('router')
+        );
+
+
+      case 'MOBILE':
+
+        return (
+          text.includes('mobile') ||
+          text.includes('phone') ||
+          text.includes('smartphone')
+        );
+
+
+      case 'PRINTER':
+
+        return (
+          text.includes('printer') ||
+          text.includes('peripheral')
+        );
+
+
+      case 'HARDWARE':
+
+        return (
+          text.includes('hardware') ||
+          text.includes('repair') ||
+          text.includes('laptop') ||
+          text.includes('desktop')
+        );
+
+
+      default:
+
+        return true;
+    }
+  };
+
+
+  // ========================================================
+  // FILTER TECHNICIANS
   // ========================================================
 
   const filteredTechnicians =
@@ -188,138 +441,194 @@ export const TechnicianSearch = ({
       return technicians.filter(
         (tech) => {
 
-          const search =
-            searchText
+          // ================================================
+          // DEVICE CATEGORY
+          // ================================================
+
+          const matchesDevice =
+            matchesDeviceCategory(
+              tech
+            );
+
+
+          // ================================================
+          // TECHNICAL EXPERTISE
+          // ================================================
+
+          const matchesExpertise =
+            matchesExpertiseCategory(
+              tech
+            );
+
+
+          // ================================================
+          // LOCATION
+          // ================================================
+
+          const typedLocation =
+            locationFilter
               .trim()
               .toLowerCase();
 
 
-          const name =
-            (
-              tech.name ||
-              ''
-            ).toLowerCase();
-
-
-          const specialty =
-            (
-              tech.specialty ||
-              ''
-            ).toLowerCase();
-
-
-          const matchesSearch =
-            !search ||
-            name.includes(
-              search
-            ) ||
-            specialty.includes(
-              search
+          const serviceAreas =
+            normalizeList(
+              tech.serviceAreas
             );
 
 
-          const matchesSpecialty =
-            specialtyFilter === 'ALL' ||
-            tech.specialty ===
-              specialtyFilter;
-
-
-          const matchesAvailability =
-            availabilityFilter === 'ALL' ||
-
-            (
-              availabilityFilter === 'AVAILABLE' &&
-              tech.isAvailable === true
-            ) ||
-
-            (
-              availabilityFilter === 'UNAVAILABLE' &&
-              tech.isAvailable === false
+          const matchesLocation =
+            !typedLocation ||
+            serviceAreas.some(
+              (area) =>
+                area
+                  .toLowerCase()
+                  .includes(
+                    typedLocation
+                  )
             );
 
 
-          const rating =
+          // ================================================
+          // MINIMUM RATING
+          // ================================================
+
+          const techRating =
             Number(
               tech.rating
             ) || 0;
 
 
           const matchesRating =
-            ratingFilter === 'ALL' ||
-
-            rating >=
+            !ratingFilter ||
+            techRating >=
               Number(
                 ratingFilter
               );
 
 
           return (
-            matchesSearch &&
-            matchesSpecialty &&
-            matchesAvailability &&
+            matchesDevice &&
+            matchesExpertise &&
+            matchesLocation &&
             matchesRating
           );
+
         }
       );
 
     }, [
       technicians,
-      searchText,
-      specialtyFilter,
-      availabilityFilter,
+      deviceCategoryFilter,
+      expertiseFilter,
+      locationFilter,
       ratingFilter
     ]);
 
 
   // ========================================================
-  // UI
+  // RESET ALL FILTERS
+  // ========================================================
+
+  const handleResetFilters = () => {
+
+    setDeviceCategoryFilter('');
+
+    setExpertiseFilter('');
+
+    setLocationFilter('');
+
+    setRatingFilter('');
+
+    setError('');
+  };
+
+
+  // ========================================================
+  // SELECT TECHNICIAN FOR COMPARE
+  // Maximum 3 technicians
+  // ========================================================
+
+  const handleCompareSelection = (tech) => {
+
+    const alreadySelected =
+      selectedTechnicians.some(
+        (item) =>
+          item.id === tech.id
+      );
+
+
+    if (alreadySelected) {
+
+      setSelectedTechnicians(
+        (prev) =>
+          prev.filter(
+            (item) =>
+              item.id !== tech.id
+          )
+      );
+
+      return;
+    }
+
+
+    if (
+      selectedTechnicians.length >= 3
+    ) {
+
+      setError(
+        'You can compare maximum 3 technicians at a time.'
+      );
+
+      return;
+    }
+
+
+    setError('');
+
+
+    setSelectedTechnicians(
+      (prev) => [
+        ...prev,
+        tech
+      ]
+    );
+  };
+
+
+  // ========================================================
+  // MAIN UI
   // ========================================================
 
   return (
 
     <Box
       sx={{
-        minHeight:
-          '100vh',
-
-        backgroundColor:
-          '#0D1527',
-
-        color:
-          '#FFF',
+        minHeight: '100vh',
+        backgroundColor: '#0D1527',
+        color: '#FFF',
 
         p: {
-          xs:
-            2,
-
-          md:
-            4
+          xs: 2,
+          md: 4
         },
 
-        overflowY:
-          'auto'
+        overflowY: 'auto'
       }}
     >
 
       {/* ===================================================
-          BACK
+          BACK BUTTON
       =================================================== */}
 
       <Button
         startIcon={
-          <ArrowLeft
-            size={18}
-          />
+          <ArrowLeft size={18} />
         }
-        onClick={
-          onBack
-        }
+        onClick={onBack}
         sx={{
-          color:
-            '#94A3B8',
-
-          mb:
-            2
+          color: '#94A3B8',
+          mb: 2
         }}
       >
         Back to Auto Assignment
@@ -333,71 +642,55 @@ export const TechnicianSearch = ({
       <Typography
         variant="caption"
         sx={{
-          color:
-            '#00A8FF',
-
-          fontWeight:
-            800,
-
-          letterSpacing:
-            1
+          color: '#00A8FF',
+          fontWeight: 800,
+          letterSpacing: 1
         }}
       >
-        TECHNICIAN SEARCH & FILTER
+        ADVANCED SEARCH & FILTER SYSTEM
       </Typography>
 
 
       <Typography
         variant="h4"
         sx={{
-          fontWeight:
-            800,
-
-          mt:
-            0.5
+          fontWeight: 800,
+          mt: 0.5
         }}
       >
-        Search Technician Info
+        Find the Right Technician
       </Typography>
 
 
       <Typography
         sx={{
-          color:
-            '#94A3B8',
-
-          mt:
-            0.5,
-
-          mb:
-            3
+          color: '#94A3B8',
+          mt: 0.5,
+          mb: 3
         }}
       >
-        Browse available technicians and review their service information.
+        Filter technicians by device category,
+        technical expertise, location and service rating.
       </Typography>
 
 
       {/* ===================================================
-          FILTER PANEL
+          FILTER BOX
       =================================================== */}
 
       <Paper
         elevation={0}
         sx={{
-          backgroundColor:
-            '#172036',
+          backgroundColor: '#172036',
 
           border:
             '1px solid #2A364F',
 
-          borderRadius:
-            3,
+          borderRadius: 3,
 
-          p:
-            2.5,
+          p: 2.5,
 
-          mb:
-            3
+          mb: 3
         }}
       >
 
@@ -406,114 +699,92 @@ export const TechnicianSearch = ({
           spacing={2}
         >
 
-          {/* SEARCH */}
+          {/* =================================================
+              DEVICE CATEGORY
+          ================================================= */}
 
           <Grid
             item
             xs={12}
-            md={4}
-          >
-
-            <TextField
-              fullWidth
-              value={
-                searchText
-              }
-              onChange={
-                (e) =>
-                  setSearchText(
-                    e.target.value
-                  )
-              }
-              placeholder="Search name or specialty..."
-              InputProps={{
-                startAdornment: (
-                  <Search
-                    size={18}
-                    style={{
-                      marginRight:
-                        8
-                    }}
-                  />
-                )
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root':
-                  {
-                    color:
-                      '#FFF',
-
-                    backgroundColor:
-                      '#0F172A',
-
-                    '& fieldset':
-                      {
-                        borderColor:
-                          '#2A364F'
-                      }
-                  }
-              }}
-            />
-
-          </Grid>
-
-
-          {/* SPECIALTY */}
-
-          <Grid
-            item
-            xs={12}
-            md={3}
+            md={6}
           >
 
             <TextField
               select
               fullWidth
-              label="Specialty"
-              value={
-                specialtyFilter
-              }
-              onChange={
-                (e) =>
-                  setSpecialtyFilter(
-                    e.target.value
-                  )
-              }
-              sx={{
-                '& .MuiOutlinedInput-root':
-                  {
-                    color:
-                      '#FFF',
 
-                    backgroundColor:
-                      '#0F172A'
+              value={
+                deviceCategoryFilter
+              }
+
+              onChange={(e) =>
+                setDeviceCategoryFilter(
+                  e.target.value
+                )
+              }
+
+              SelectProps={{
+                displayEmpty: true,
+
+                renderValue: (selected) => {
+
+                  if (!selected) {
+
+                    return (
+                      <span
+                        style={{
+                          color: '#64748B'
+                        }}
+                      >
+                        Device Category
+                      </span>
+                    );
+                  }
+
+                  return selected;
+                }
+              }}
+
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: '#FFF',
+                  backgroundColor: '#0F172A',
+
+                  '& fieldset': {
+                    borderColor: '#2A364F'
                   },
 
-                '& .MuiInputLabel-root':
-                  {
-                    color:
-                      '#94A3B8'
+                  '&:hover fieldset': {
+                    borderColor: '#475569'
+                  },
+
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#00A8FF'
                   }
+                },
+
+                '& .MuiSvgIcon-root': {
+                  color: '#94A3B8'
+                }
               }}
             >
 
-              <MenuItem value="ALL">
-                All Specialties
-              </MenuItem>
+              <MenuItem
+                value=""
+                sx={{
+                  display: 'none'
+                }}
+              />
 
 
-              {specialties.map(
-                (specialty) => (
+              {deviceCategories.map(
+                (device) => (
 
                   <MenuItem
-                    key={
-                      specialty
-                    }
-                    value={
-                      specialty
-                    }
+                    key={device}
+                    value={device}
                   >
-                    {specialty}
+                    {device}
                   </MenuItem>
 
                 )
@@ -524,112 +795,266 @@ export const TechnicianSearch = ({
           </Grid>
 
 
-          {/* AVAILABILITY */}
+          {/* =================================================
+              TECHNICAL EXPERTISE
+          ================================================= */}
 
           <Grid
             item
             xs={12}
-            md={2.5}
+            md={6}
           >
 
             <TextField
               select
               fullWidth
-              label="Availability"
-              value={
-                availabilityFilter
-              }
-              onChange={
-                (e) =>
-                  setAvailabilityFilter(
-                    e.target.value
-                  )
-              }
-              sx={{
-                '& .MuiOutlinedInput-root':
-                  {
-                    color:
-                      '#FFF',
 
-                    backgroundColor:
-                      '#0F172A'
+              value={
+                expertiseFilter
+              }
+
+              onChange={(e) =>
+                setExpertiseFilter(
+                  e.target.value
+                )
+              }
+
+              SelectProps={{
+                displayEmpty: true,
+
+                renderValue: (selected) => {
+
+                  if (!selected) {
+
+                    return (
+                      <span
+                        style={{
+                          color: '#64748B'
+                        }}
+                      >
+                        Technical Expertise
+                      </span>
+                    );
+                  }
+
+
+                  const selectedItem =
+                    expertiseOptions.find(
+                      (item) =>
+                        item.value ===
+                        selected
+                    );
+
+
+                  return (
+                    selectedItem?.label ||
+                    selected
+                  );
+                }
+              }}
+
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: '#FFF',
+                  backgroundColor: '#0F172A',
+
+                  '& fieldset': {
+                    borderColor: '#2A364F'
                   },
 
-                '& .MuiInputLabel-root':
-                  {
-                    color:
-                      '#94A3B8'
+                  '&:hover fieldset': {
+                    borderColor: '#475569'
+                  },
+
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#00A8FF'
                   }
+                },
+
+                '& .MuiSvgIcon-root': {
+                  color: '#94A3B8'
+                }
               }}
             >
 
-              <MenuItem value="ALL">
-                All
-              </MenuItem>
+              <MenuItem
+                value=""
+                sx={{
+                  display: 'none'
+                }}
+              />
 
-              <MenuItem value="AVAILABLE">
-                Available
-              </MenuItem>
 
-              <MenuItem value="UNAVAILABLE">
-                Unavailable
-              </MenuItem>
+              {expertiseOptions.map(
+                (item) => (
+
+                  <MenuItem
+                    key={item.value}
+                    value={item.value}
+                  >
+                    {item.label}
+                  </MenuItem>
+
+                )
+              )}
 
             </TextField>
 
           </Grid>
 
 
-          {/* RATING */}
+          {/* =================================================
+              LOCATION
+          ================================================= */}
 
           <Grid
             item
             xs={12}
-            md={2.5}
+            md={6}
+          >
+
+            <TextField
+              fullWidth
+
+              value={
+                locationFilter
+              }
+
+              onChange={(e) =>
+                setLocationFilter(
+                  e.target.value
+                )
+              }
+
+              placeholder="Your Area / Location"
+
+              InputProps={{
+                startAdornment: (
+                  <MapPin
+                    size={17}
+                    style={{
+                      marginRight: 8
+                    }}
+                  />
+                )
+              }}
+
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: '#FFF',
+                  backgroundColor: '#0F172A',
+
+                  '& fieldset': {
+                    borderColor: '#2A364F'
+                  },
+
+                  '&:hover fieldset': {
+                    borderColor: '#475569'
+                  },
+
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#00A8FF'
+                  }
+                },
+
+                '& input::placeholder': {
+                  color: '#64748B',
+                  opacity: 1
+                }
+              }}
+            />
+
+          </Grid>
+
+
+          {/* =================================================
+              MINIMUM RATING
+          ================================================= */}
+
+          <Grid
+            item
+            xs={12}
+            md={6}
           >
 
             <TextField
               select
               fullWidth
-              label="Minimum Rating"
+
               value={
                 ratingFilter
               }
-              onChange={
-                (e) =>
-                  setRatingFilter(
-                    e.target.value
-                  )
-              }
-              sx={{
-                '& .MuiOutlinedInput-root':
-                  {
-                    color:
-                      '#FFF',
 
-                    backgroundColor:
-                      '#0F172A'
+              onChange={(e) =>
+                setRatingFilter(
+                  e.target.value
+                )
+              }
+
+              SelectProps={{
+                displayEmpty: true,
+
+                renderValue: (selected) => {
+
+                  if (!selected) {
+
+                    return (
+                      <span
+                        style={{
+                          color: '#64748B'
+                        }}
+                      >
+                        Minimum Rating
+                      </span>
+                    );
+                  }
+
+
+                  return `${selected}+`;
+                }
+              }}
+
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: '#FFF',
+                  backgroundColor: '#0F172A',
+
+                  '& fieldset': {
+                    borderColor: '#2A364F'
                   },
 
-                '& .MuiInputLabel-root':
-                  {
-                    color:
-                      '#94A3B8'
+                  '&:hover fieldset': {
+                    borderColor: '#475569'
+                  },
+
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#00A8FF'
                   }
+                },
+
+                '& .MuiSvgIcon-root': {
+                  color: '#94A3B8'
+                }
               }}
             >
 
-              <MenuItem value="ALL">
-                Any Rating
-              </MenuItem>
+              <MenuItem
+                value=""
+                sx={{
+                  display: 'none'
+                }}
+              />
+
 
               <MenuItem value="3">
                 3.0+
               </MenuItem>
 
+
               <MenuItem value="4">
                 4.0+
               </MenuItem>
+
 
               <MenuItem value="4.5">
                 4.5+
@@ -641,11 +1066,106 @@ export const TechnicianSearch = ({
 
         </Grid>
 
+
+        {/* =================================================
+            RESET + COMPARE BUTTON
+        ================================================= */}
+
+        <Box
+          sx={{
+            mt: 2,
+
+            display: 'flex',
+
+            justifyContent:
+              'space-between',
+
+            alignItems:
+              'center',
+
+            flexWrap:
+              'wrap',
+
+            gap: 2
+          }}
+        >
+
+          <Button
+            startIcon={
+              <RotateCcw
+                size={17}
+              />
+            }
+
+            onClick={
+              handleResetFilters
+            }
+
+            sx={{
+              color: '#94A3B8',
+
+              border:
+                '1px solid #2A364F',
+
+              '&:hover': {
+                borderColor:
+                  '#475569',
+
+                backgroundColor:
+                  '#0F172A'
+              }
+            }}
+          >
+            Reset Filters
+          </Button>
+
+
+          <Button
+            variant="contained"
+
+            startIcon={
+              <GitCompare
+                size={18}
+              />
+            }
+
+            disabled={
+              selectedTechnicians.length <
+              2
+            }
+
+            onClick={() =>
+              setCompareOpen(true)
+            }
+
+            sx={{
+              backgroundColor:
+                '#00A8FF',
+
+              color:
+                '#0D1527',
+
+              fontWeight:
+                800,
+
+              '&:hover': {
+                backgroundColor:
+                  '#38BDF8'
+              }
+            }}
+          >
+            Compare (
+            {selectedTechnicians.length}
+            )
+          </Button>
+
+        </Box>
+
       </Paper>
 
 
       {/* ===================================================
-          ERROR
+          ERROR MESSAGE
       =================================================== */}
 
       {error && (
@@ -653,8 +1173,7 @@ export const TechnicianSearch = ({
         <Alert
           severity="error"
           sx={{
-            mb:
-              3
+            mb: 3
           }}
         >
           {error}
@@ -671,52 +1190,47 @@ export const TechnicianSearch = ({
 
         <Box
           sx={{
-            display:
-              'flex',
+            display: 'flex',
 
             justifyContent:
               'center',
 
-            mt:
-              8
+            mt: 8
           }}
         >
-
           <CircularProgress />
-
         </Box>
 
       ) : (
 
         <>
-          {/* RESULT COUNT */}
+
+          {/* ===============================================
+              RESULT COUNT
+          =============================================== */}
 
           <Typography
             variant="body2"
             sx={{
-              color:
-                '#94A3B8',
-
-              mb:
-                2
+              color: '#94A3B8',
+              mb: 2
             }}
           >
-            {
-              filteredTechnicians.length
-            } technician(s) found
+            {filteredTechnicians.length}{' '}
+            technician(s) match your requirements
           </Typography>
 
 
-          {/* NO RESULT */}
+          {/* ===============================================
+              NO RESULT
+          =============================================== */}
 
-          {filteredTechnicians.length ===
-            0 ? (
+          {filteredTechnicians.length === 0 ? (
 
             <Paper
               elevation={0}
               sx={{
-                p:
-                  4,
+                p: 4,
 
                 textAlign:
                   'center',
@@ -741,14 +1255,11 @@ export const TechnicianSearch = ({
               <Typography
                 variant="h6"
                 sx={{
-                  color:
-                    '#FFF',
+                  color: '#FFF',
 
-                  mt:
-                    1.5,
+                  mt: 1.5,
 
-                  fontWeight:
-                    700
+                  fontWeight: 700
                 }}
               >
                 No technicians found
@@ -757,11 +1268,11 @@ export const TechnicianSearch = ({
 
               <Typography
                 sx={{
-                  color:
-                    '#94A3B8'
+                  color: '#94A3B8'
                 }}
               >
-                Try changing your search or filters.
+                Try another device category, expertise,
+                location or rating.
               </Typography>
 
             </Paper>
@@ -777,25 +1288,23 @@ export const TechnicianSearch = ({
                 (tech) => {
 
                   const availableDays =
-                    tech.availableDays
-                      ?.split(',')
-                      .map(
-                        (day) =>
-                          day.trim()
-                      )
-                      .filter(Boolean) ||
-                    [];
+                    normalizeList(
+                      tech.availableDays
+                    );
 
 
                   const serviceAreas =
-                    tech.serviceAreas
-                      ?.split(',')
-                      .map(
-                        (area) =>
-                          area.trim()
-                      )
-                      .filter(Boolean) ||
-                    [];
+                    normalizeList(
+                      tech.serviceAreas
+                    );
+
+
+                  const isSelected =
+                    selectedTechnicians.some(
+                      (item) =>
+                        item.id ===
+                        tech.id
+                    );
 
 
                   return (
@@ -805,45 +1314,36 @@ export const TechnicianSearch = ({
                       xs={12}
                       md={6}
                       lg={4}
-                      key={
-                        tech.id
-                      }
+                      key={tech.id}
                     >
 
                       <Paper
                         elevation={0}
+
                         sx={{
-                          height:
-                            '100%',
+                          height: '100%',
 
                           backgroundColor:
                             '#172036',
 
                           border:
-                            '1px solid #2A364F',
+                            isSelected
+                              ? '2px solid #00A8FF'
+                              : '1px solid #2A364F',
 
-                          borderRadius:
-                            3,
+                          borderRadius: 3,
 
-                          p:
-                            3
+                          p: 3
                         }}
                       >
 
-                        {/* ===================================
-                            TECH HEADER
-                        =================================== */}
+                        {/* TECHNICIAN NAME + SPECIALTY */}
 
                         <Box
                           sx={{
-                            display:
-                              'flex',
-
-                            gap:
-                              2,
-
-                            mb:
-                              2
+                            display: 'flex',
+                            gap: 2,
+                            mb: 2
                           }}
                         >
 
@@ -852,12 +1352,10 @@ export const TechnicianSearch = ({
                               tech.avatar ||
                               ''
                             }
-                            sx={{
-                              width:
-                                58,
 
-                              height:
-                                58,
+                            sx={{
+                              width: 58,
+                              height: 58,
 
                               backgroundColor:
                                 '#00A8FF',
@@ -869,6 +1367,7 @@ export const TechnicianSearch = ({
                                 800
                             }}
                           >
+
                             {
                               tech.name
                                 ?.slice(
@@ -878,26 +1377,26 @@ export const TechnicianSearch = ({
                                 .toUpperCase() ||
                               'TE'
                             }
+
                           </Avatar>
 
 
                           <Box
                             sx={{
-                              flexGrow:
-                                1
+                              flexGrow: 1
                             }}
                           >
 
                             <Typography
                               variant="h6"
                               sx={{
+                                color: '#FFF',
+
                                 fontWeight:
                                   800
                               }}
                             >
-                              {
-                                tech.name
-                              }
+                              {tech.name}
                             </Typography>
 
 
@@ -914,55 +1413,20 @@ export const TechnicianSearch = ({
                               }
                             </Typography>
 
-
-                            <Chip
-                              size="small"
-                              label={
-                                tech.isAvailable
-                                  ? 'Available'
-                                  : 'Unavailable'
-                              }
-                              sx={{
-                                mt:
-                                  0.7,
-
-                                backgroundColor:
-                                  tech.isAvailable
-                                    ? 'rgba(16,185,129,.15)'
-                                    : 'rgba(239,68,68,.15)',
-
-                                color:
-                                  tech.isAvailable
-                                    ? '#10B981'
-                                    : '#EF4444',
-
-                                fontWeight:
-                                  700
-                              }}
-                            />
-
                           </Box>
 
                         </Box>
 
 
-                        {/* ===================================
-                            RATING
-                        =================================== */}
+                        {/* RATING */}
 
-                        <Box
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+
                           sx={{
-                            display:
-                              'flex',
-
-                            alignItems:
-                              'center',
-
-                            gap:
-                              1,
-
-                            mb:
-                              2
+                            mb: 2
                           }}
                         >
 
@@ -972,19 +1436,18 @@ export const TechnicianSearch = ({
                                 tech.rating
                               ) || 0
                             }
-                            precision={
-                              0.1
-                            }
+
+                            precision={0.1}
+
                             readOnly
+
                             size="small"
                           />
 
 
                           <Typography
-                            variant="body2"
                             sx={{
-                              color:
-                                '#FFF',
+                              color: '#FFF',
 
                               fontWeight:
                                 700
@@ -994,29 +1457,22 @@ export const TechnicianSearch = ({
                               Number(
                                 tech.rating ||
                                 0
-                              ).toFixed(
-                                1
-                              )
+                              ).toFixed(1)
                             }
                           </Typography>
 
-                        </Box>
+                        </Stack>
 
 
-                        {/* ===================================
-                            WORKING HOURS
-                        =================================== */}
+                        {/* WORKING HOURS */}
 
-                        <Box
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+
                           sx={{
-                            display:
-                              'flex',
-
-                            gap:
-                              1,
-
-                            mb:
-                              1.5
+                            mb: 2
                           }}
                         >
 
@@ -1039,95 +1495,10 @@ export const TechnicianSearch = ({
                             }
                           </Typography>
 
-                        </Box>
+                        </Stack>
 
 
-                        {/* ===================================
-                            CONTACT
-                        =================================== */}
-
-                        {tech.user?.phone && (
-
-                          <Box
-                            sx={{
-                              display:
-                                'flex',
-
-                              gap:
-                                1,
-
-                              mb:
-                                1
-                            }}
-                          >
-
-                            <Phone
-                              size={16}
-                              color="#10B981"
-                            />
-
-
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color:
-                                  '#CBD5E1'
-                              }}
-                            >
-                              {
-                                tech.user.phone
-                              }
-                            </Typography>
-
-                          </Box>
-
-                        )}
-
-
-                        {tech.user?.email && (
-
-                          <Box
-                            sx={{
-                              display:
-                                'flex',
-
-                              gap:
-                                1,
-
-                              mb:
-                                2
-                            }}
-                          >
-
-                            <Mail
-                              size={16}
-                              color="#38BDF8"
-                            />
-
-
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color:
-                                  '#CBD5E1',
-
-                                wordBreak:
-                                  'break-all'
-                              }}
-                            >
-                              {
-                                tech.user.email
-                              }
-                            </Typography>
-
-                          </Box>
-
-                        )}
-
-
-                        {/* ===================================
-                            AVAILABLE DAYS
-                        =================================== */}
+                        {/* AVAILABLE DAYS */}
 
                         <Typography
                           variant="caption"
@@ -1145,37 +1516,31 @@ export const TechnicianSearch = ({
 
                         <Box
                           sx={{
-                            display:
-                              'flex',
+                            display: 'flex',
 
                             flexWrap:
                               'wrap',
 
-                            gap:
-                              0.7,
+                            gap: 0.7,
 
-                            mt:
-                              0.7,
+                            mt: 0.7,
 
-                            mb:
-                              2
+                            mb: 2
                           }}
                         >
 
-                          {availableDays.length >
-                          0 ? (
+                          {availableDays.length > 0 ? (
 
                             availableDays.map(
                               (day) => (
 
                                 <Chip
-                                  key={
-                                    day
-                                  }
+                                  key={day}
+
                                   size="small"
-                                  label={
-                                    day
-                                  }
+
+                                  label={day}
+
                                   sx={{
                                     color:
                                       '#FFF',
@@ -1205,9 +1570,7 @@ export const TechnicianSearch = ({
                         </Box>
 
 
-                        {/* ===================================
-                            SERVICE AREA
-                        =================================== */}
+                        {/* SERVICE AREAS */}
 
                         <Typography
                           variant="caption"
@@ -1225,39 +1588,37 @@ export const TechnicianSearch = ({
 
                         <Box
                           sx={{
-                            display:
-                              'flex',
+                            display: 'flex',
 
                             flexWrap:
                               'wrap',
 
-                            gap:
-                              0.7,
+                            gap: 0.7,
 
-                            mt:
-                              0.7
+                            mt: 0.7,
+
+                            mb: 2
                           }}
                         >
 
-                          {serviceAreas.length >
-                          0 ? (
+                          {serviceAreas.length > 0 ? (
 
                             serviceAreas.map(
                               (area) => (
 
                                 <Chip
-                                  key={
-                                    area
-                                  }
+                                  key={area}
+
                                   size="small"
+
                                   icon={
                                     <MapPin
                                       size={13}
                                     />
                                   }
-                                  label={
-                                    area
-                                  }
+
+                                  label={area}
+
                                   sx={{
                                     color:
                                       '#38BDF8',
@@ -1286,6 +1647,69 @@ export const TechnicianSearch = ({
 
                         </Box>
 
+
+                        {/* ADD TO COMPARE */}
+
+                        <Button
+                          fullWidth
+
+                          variant={
+                            isSelected
+                              ? 'contained'
+                              : 'outlined'
+                          }
+
+                          startIcon={
+                            <GitCompare
+                              size={17}
+                            />
+                          }
+
+                          onClick={() =>
+                            handleCompareSelection(
+                              tech
+                            )
+                          }
+
+                          sx={{
+                            mt: 1,
+
+                            color:
+                              isSelected
+                                ? '#0D1527'
+                                : '#00A8FF',
+
+                            backgroundColor:
+                              isSelected
+                                ? '#00A8FF'
+                                : 'transparent',
+
+                            borderColor:
+                              '#00A8FF',
+
+                            fontWeight:
+                              700,
+
+                            '&:hover': {
+                              borderColor:
+                                '#38BDF8',
+
+                              backgroundColor:
+                                isSelected
+                                  ? '#38BDF8'
+                                  : 'rgba(0,168,255,.08)'
+                            }
+                          }}
+                        >
+
+                          {
+                            isSelected
+                              ? 'Selected for Compare'
+                              : 'Add to Compare'
+                          }
+
+                        </Button>
+
                       </Paper>
 
                     </Grid>
@@ -1300,6 +1724,405 @@ export const TechnicianSearch = ({
 
         </>
       )}
+
+
+      {/* ===================================================
+          COMPARE POPUP
+      =================================================== */}
+
+      <Dialog
+        open={compareOpen}
+
+        onClose={() =>
+          setCompareOpen(false)
+        }
+
+        fullWidth
+
+        maxWidth="lg"
+
+        PaperProps={{
+          sx: {
+            backgroundColor:
+              '#172036',
+
+            color:
+              '#FFFFFF',
+
+            border:
+              '1px solid #2A364F'
+          }
+        }}
+      >
+
+        <DialogTitle
+          sx={{
+            fontWeight: 800
+          }}
+        >
+          Compare Technicians
+        </DialogTitle>
+
+
+        <DialogContent>
+
+          <Typography
+            variant="body2"
+
+            sx={{
+              color: '#94A3B8',
+              mb: 3
+            }}
+          >
+            Compare technical expertise, service rating,
+            location and working schedule.
+          </Typography>
+
+
+          <Grid
+            container
+            spacing={2}
+          >
+
+            {selectedTechnicians.map(
+              (tech) => {
+
+                const areas =
+                  normalizeList(
+                    tech.serviceAreas
+                  );
+
+
+                const days =
+                  normalizeList(
+                    tech.availableDays
+                  );
+
+
+                return (
+
+                  <Grid
+                    item
+                    xs={12}
+
+                    md={
+                      selectedTechnicians.length === 2
+                        ? 6
+                        : 4
+                    }
+
+                    key={tech.id}
+                  >
+
+                    <Paper
+                      elevation={0}
+
+                      sx={{
+                        p: 2.5,
+
+                        height: '100%',
+
+                        backgroundColor:
+                          '#0F172A',
+
+                        border:
+                          '1px solid #2A364F',
+
+                        borderRadius: 2
+                      }}
+                    >
+
+                      <Avatar
+                        src={
+                          tech.avatar ||
+                          ''
+                        }
+
+                        sx={{
+                          width: 60,
+                          height: 60,
+
+                          mb: 1.5,
+
+                          backgroundColor:
+                            '#00A8FF',
+
+                          color:
+                            '#0D1527',
+
+                          fontWeight:
+                            800
+                        }}
+                      >
+                        {
+                          tech.name
+                            ?.slice(
+                              0,
+                              2
+                            )
+                            .toUpperCase()
+                        }
+                      </Avatar>
+
+
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: '#FFF',
+
+                          fontWeight:
+                            800
+                        }}
+                      >
+                        {tech.name}
+                      </Typography>
+
+
+                      <Typography
+                        variant="body2"
+
+                        sx={{
+                          color:
+                            '#38BDF8',
+
+                          mb: 2
+                        }}
+                      >
+                        {
+                          tech.specialty ||
+                          'Technical Specialist'
+                        }
+                      </Typography>
+
+
+                      <Divider
+                        sx={{
+                          borderColor:
+                            '#2A364F',
+
+                          mb: 2
+                        }}
+                      />
+
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#64748B'
+                        }}
+                      >
+                        SERVICE RATING
+                      </Typography>
+
+
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+
+                        sx={{
+                          mb: 2
+                        }}
+                      >
+
+                        <Rating
+                          value={
+                            Number(
+                              tech.rating
+                            ) || 0
+                          }
+
+                          precision={0.1}
+
+                          readOnly
+
+                          size="small"
+                        />
+
+
+                        <Typography
+                          sx={{
+                            color: '#FFF',
+
+                            fontWeight:
+                              700
+                          }}
+                        >
+                          {
+                            Number(
+                              tech.rating ||
+                              0
+                            ).toFixed(1)
+                          }
+                        </Typography>
+
+                      </Stack>
+
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#64748B'
+                        }}
+                      >
+                        TECHNICAL EXPERTISE
+                      </Typography>
+
+
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color:
+                            '#CBD5E1',
+
+                          mb: 2
+                        }}
+                      >
+                        {
+                          tech.specialty ||
+                          'Not specified'
+                        }
+                      </Typography>
+
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#64748B'
+                        }}
+                      >
+                        SERVICE AREAS
+                      </Typography>
+
+
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color:
+                            '#CBD5E1',
+
+                          mb: 2
+                        }}
+                      >
+                        {
+                          areas.length > 0
+                            ? areas.join(', ')
+                            : 'Not specified'
+                        }
+                      </Typography>
+
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#64748B'
+                        }}
+                      >
+                        AVAILABLE DAYS
+                      </Typography>
+
+
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color:
+                            '#CBD5E1',
+
+                          mb: 2
+                        }}
+                      >
+                        {
+                          days.length > 0
+                            ? days.join(', ')
+                            : 'Not specified'
+                        }
+                      </Typography>
+
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color:
+                            '#64748B'
+                        }}
+                      >
+                        WORKING HOURS
+                      </Typography>
+
+
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color:
+                            '#CBD5E1'
+                        }}
+                      >
+                        {
+                          tech.workingHours ||
+                          'Not specified'
+                        }
+                      </Typography>
+
+                    </Paper>
+
+                  </Grid>
+
+                );
+              }
+            )}
+
+          </Grid>
+
+        </DialogContent>
+
+
+        <DialogActions>
+
+          <Button
+            onClick={() => {
+
+              setSelectedTechnicians([]);
+
+              setCompareOpen(false);
+
+            }}
+
+            sx={{
+              color: '#EF4444'
+            }}
+          >
+            Clear Compare
+          </Button>
+
+
+          <Button
+            variant="contained"
+
+            onClick={() =>
+              setCompareOpen(false)
+            }
+
+            sx={{
+              backgroundColor:
+                '#00A8FF',
+
+              color:
+                '#0D1527',
+
+              fontWeight:
+                700
+            }}
+          >
+            Close
+          </Button>
+
+        </DialogActions>
+
+      </Dialog>
 
     </Box>
   );

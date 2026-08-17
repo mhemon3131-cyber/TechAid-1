@@ -23,39 +23,48 @@ model User {
 }
 
 model Technician {
-  id                   String        @id @default(uuid())
-  userId               String        @unique
-  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String  @id @default(uuid())
+  userId               String  @unique
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                 String
   specialty            String // e.g. Laptop & Desktop Specialist
-  rating               Float         @default(4.9)
-  distanceKm           Float         @default(2.1)
-  isAvailable          Boolean       @default(true)
+  rating               Float   @default(4.9)
+  distanceKm           Float   @default(2.1)
+  isAvailable          Boolean @default(true)
   avatar               String?
-  availableDays        String        @default("Mon,Tue,Wed,Thu,Fri")
-  workingHours         String        @default("09:00 AM - 06:00 PM")
-  serviceAreas         String        @default("Gulshan, Banani, Dhanmondi, Uttara")
-  maxDailyAppointments Int           @default(5)
-  appointments         Appointment[]
+  availableDays        String  @default("Mon,Tue,Wed,Thu,Fri")
+  workingHours         String  @default("09:00 AM - 06:00 PM")
+  serviceAreas         String  @default("Gulshan, Banani, Dhanmondi, Uttara")
+  maxDailyAppointments Int     @default(5)
+
+  appointments Appointment[]
+
+  // Module 3 Feature 4 - Rating & Review System
+  reviews Review[]
 }
 
 model ServiceRequest {
-  id             String          @id @default(uuid())
-  trackingId     String          @unique // e.g. REQ-2026-8942
+  id             String @id @default(uuid())
+  trackingId     String @unique // e.g. REQ-2026-8942
   customerId     String
-  customer       User            @relation("CustomerRequests", fields: [customerId], references: [id])
+  customer       User   @relation("CustomerRequests", fields: [customerId], references: [id])
   deviceCategory String // Laptop, Desktop, Phone, Printer, Internet
   title          String
   description    String
   urgency        String // Low, Moderate, Critical
   serviceMethod  String // Live Chat, Video Call, Home Visit
-  status         String          @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
-  estimatedCost  String          @default("৳800 - 1,500")
-  attachments    Attachment[]
-  appointment    Appointment?
-  statusLogs     StatusHistory[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @default(now()) @updatedAt
+  status         String @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
+  estimatedCost  String @default("৳800 - 1,500")
+
+  attachments Attachment[]
+  appointment Appointment?
+  statusLogs  StatusHistory[]
+
+  // Module 3 Feature 4 - one review per service request
+  review Review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model StatusHistory {
@@ -81,16 +90,21 @@ model Appointment {
   id               String          @id @default(uuid())
   serviceRequestId String?         @unique
   serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
-  customerId       String
-  customer         User            @relation("CustomerAppointments", fields: [customerId], references: [id])
-  technicianId     String
-  technician       Technician      @relation(fields: [technicianId], references: [id])
-  date             String // e.g. Mon Jul 13, 2026
-  timeSlot         String // e.g. 10:00 am, 11:30 am
-  serviceType      String // Remote support, Home visit, Service center
-  status           String          @default("PENDING") // PENDING, APPROVED, REJECTED, RESCHEDULED
-  estimatedCost    String          @default("৳800 - 1,500")
-  createdAt        DateTime        @default(now())
+
+  customerId String
+  customer   User   @relation("CustomerAppointments", fields: [customerId], references: [id])
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id])
+
+  date        String // e.g. Mon Jul 13, 2026
+  timeSlot    String // e.g. 10:00 am, 11:30 am
+  serviceType String // Remote support, Home visit, Service center
+
+  status        String @default("PENDING") // PENDING, APPROVED, REJECTED, RESCHEDULED
+  estimatedCost String @default("৳800 - 1,500")
+
+  createdAt DateTime @default(now())
 }
 
 model TechnicianLocation {
@@ -113,13 +127,13 @@ model ServiceRequestLocation {
 }
 
 model TechnicianAssignment {
-  id               String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Kon service request-er jonno technician suggest hoyeche
   serviceRequestId String
 
   // Kon technician suggest hoyeche
-  technicianId     String
+  technicianId String
 
   // Automatic matching scores
   expertiseScore    Float
@@ -160,7 +174,6 @@ model TechnicianAssignment {
   @@index([technicianId])
 }
 
-
 model TechnicianPricing {
   id           String @id @default(uuid())
   technicianId String @unique
@@ -173,4 +186,97 @@ model TechnicianPricing {
   updatedAt DateTime @updatedAt
 
   @@index([technicianId])
+}
+
+// ======================================================
+// MODULE 3 - FEATURE 4
+// RATING & REVIEW SYSTEM
+// ======================================================
+
+model Review {
+  id String @id @default(uuid())
+
+  // Ekta completed service request-er jonno maximum ekta review
+  serviceRequestId String         @unique
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  // Je technician-ke customer review dicche
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  // Overall rating 1-5
+  rating Int
+
+  // Review criteria
+  serviceQuality  Int
+  professionalism Int
+  communication   Int
+  responseTime    Int
+
+  // Customer-er written review
+  comment String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([technicianId])
+}
+
+
+// ======================================================
+// MODULE 2 - FEATURE 4
+// SECURE PAYMENT & INVOICE SYSTEM
+// STRIPE TEST MODE
+// ======================================================
+
+model Payment {
+  id String @id @default(uuid())
+
+  // Customer je payment korbe
+  customerId String
+
+  // Assigned technician
+  technicianId String
+
+  // Kon service request-er payment
+  serviceRequestId String
+
+  // Stripe Checkout Session ID
+  stripeSessionId String? @unique
+
+  // Successful payment-er Stripe PaymentIntent ID
+  stripePaymentIntentId String? @unique
+
+  // Service information
+  serviceTitle  String
+  serviceMethod String
+
+  // Amount BDT-te store hobe
+  amount Float
+
+  // Stripe currency
+  currency String @default("bdt")
+
+  // PENDING
+  // PAID
+  // FAILED
+  // CANCELLED
+  status String @default("PENDING")
+
+  // Digital invoice number
+  // Example: INV-2026-4832
+  invoiceNumber String @unique
+
+  // Ei project-e Stripe Test use korchi
+  paymentMethod String @default("STRIPE_TEST")
+
+  // Payment successful hole time save hobe
+  paidAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([serviceRequestId])
 }

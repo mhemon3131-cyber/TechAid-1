@@ -193,6 +193,10 @@ export const TechnicianAssignment = ({
 
   // ========================================================
   // CUSTOMER LOCATION
+  //
+  // Location optional.
+  // LocalStorage-e thakle use korbo.
+  // Na thakle null thakbe.
   // ========================================================
 
   useEffect(() => {
@@ -297,6 +301,8 @@ export const TechnicianAssignment = ({
 
   // ========================================================
   // SAVE CUSTOMER LOCATION TO CURRENT REQUEST
+  //
+  // Only run when customer actually has a location.
   // ========================================================
 
   const syncCustomerLocation =
@@ -306,9 +312,7 @@ export const TechnicianAssignment = ({
         !serviceRequest ||
         !customerLocation
       ) {
-        throw new Error(
-          'Customer location is not available.'
-        );
+        return;
       }
 
 
@@ -330,13 +334,23 @@ export const TechnicianAssignment = ({
 
   // ========================================================
   // INITIAL AUTOMATIC ASSIGNMENT
+  //
+  // IMPORTANT FIX:
+  //
+  // Before:
+  // serviceRequest + customerLocation both required.
+  //
+  // Now:
+  // only serviceRequest required.
+  //
+  // Location thakle -> sync kore distance-based match.
+  // Location na thakle -> direct backend assignment.
   // ========================================================
 
   useEffect(() => {
 
     if (
-      !serviceRequest ||
-      !customerLocation
+      !serviceRequest
     ) {
       return;
     }
@@ -363,10 +377,23 @@ export const TechnicianAssignment = ({
 
         setMessage('');
 
+        setNoMoreMatches(false);
+
 
         try {
 
-          await syncCustomerLocation();
+          // ==================================================
+          // CUSTOMER LOCATION OPTIONAL
+          //
+          // Location thakle only request-er sathe save korbo.
+          // Location na thakle skip.
+          // ==================================================
+
+          if (
+            customerLocation
+          ) {
+            await syncCustomerLocation();
+          }
 
 
           // ----------------------------------------------
@@ -410,6 +437,9 @@ export const TechnicianAssignment = ({
 
           // ----------------------------------------------
           // Create automatic assignment
+          //
+          // Customer location thakuk ba na thakuk,
+          // backend API call hobe.
           // ----------------------------------------------
 
           const response =
@@ -425,7 +455,9 @@ export const TechnicianAssignment = ({
             );
 
             setMessage(
-              'Best available technician selected automatically.'
+              customerLocation
+                ? 'Best available technician selected automatically.'
+                : 'Best available technician selected automatically without location.'
             );
           }
 
@@ -522,6 +554,9 @@ export const TechnicianAssignment = ({
 
   // ========================================================
   // REJECT -> NEXT BEST
+  //
+  // Previous technician backend-e excluded hobe.
+  // Tarpor next best available technician asbe.
   // ========================================================
 
   const handleReject =
@@ -664,7 +699,7 @@ export const TechnicianAssignment = ({
           ).toFixed(5)}, ${Number(
             finalCustomerLocation.longitude
           ).toFixed(5)}`
-        : 'Location not available'
+        : 'Location not provided'
     );
 
 
@@ -863,10 +898,7 @@ export const TechnicianAssignment = ({
 
           <Box sx={{ p: 3 }}>
 
-            {/* ===============================================
-                2. TECHNICIAN NAME
-                3. SPECIALTY
-            =============================================== */}
+            {/* TECHNICIAN */}
 
             <Box
               sx={{
@@ -924,9 +956,7 @@ export const TechnicianAssignment = ({
               spacing={3}
             >
 
-              {/* =============================================
-                  4. RATING
-              ============================================= */}
+              {/* RATING */}
 
               <Grid
                 item
@@ -973,9 +1003,7 @@ export const TechnicianAssignment = ({
               </Grid>
 
 
-              {/* =============================================
-                  5. PHONE
-              ============================================= */}
+              {/* PHONE */}
 
               <Grid
                 item
@@ -1022,9 +1050,7 @@ export const TechnicianAssignment = ({
               </Grid>
 
 
-              {/* =============================================
-                  5. EMAIL
-              ============================================= */}
+              {/* EMAIL */}
 
               <Grid
                 item
@@ -1074,9 +1100,7 @@ export const TechnicianAssignment = ({
               </Grid>
 
 
-              {/* =============================================
-                  6. SERVICE FEE
-              ============================================= */}
+              {/* SERVICE FEE */}
 
               <Grid
                 item
@@ -1109,9 +1133,7 @@ export const TechnicianAssignment = ({
               </Grid>
 
 
-              {/* =============================================
-                  7. SERVICE DATE
-              ============================================= */}
+              {/* SERVICE DATE */}
 
               <Grid
                 item
@@ -1146,9 +1168,7 @@ export const TechnicianAssignment = ({
               </Grid>
 
 
-              {/* =============================================
-                  8. SERVICE TIME
-              ============================================= */}
+              {/* SERVICE TIME */}
 
               <Grid
                 item
@@ -1196,9 +1216,7 @@ export const TechnicianAssignment = ({
               </Grid>
 
 
-              {/* =============================================
-                  9. DISTANCE
-              ============================================= */}
+              {/* DISTANCE */}
 
               <Grid
                 item
@@ -1236,9 +1254,7 @@ export const TechnicianAssignment = ({
               </Grid>
 
 
-              {/* =============================================
-                  9. LOCATION
-              ============================================= */}
+              {/* LOCATION */}
 
               <Grid
                 item
@@ -1267,7 +1283,11 @@ export const TechnicianAssignment = ({
 
                   <MapPin
                     size={18}
-                    color="#10B981"
+                    color={
+                      finalCustomerLocation
+                        ? '#10B981'
+                        : '#64748B'
+                    }
                     style={{
                       marginTop: 2,
                       flexShrink: 0
@@ -1437,7 +1457,11 @@ export const TechnicianAssignment = ({
               mt: 1
             }}
           >
-            Checking technician availability and service suitability...
+            {
+              customerLocation
+                ? 'Checking expertise, availability, location, rating and workload...'
+                : 'Checking expertise, availability, rating and workload...'
+            }
           </Typography>
 
         </Paper>
@@ -1924,6 +1948,8 @@ export const TechnicianAssignment = ({
 
           {/* =================================================
               MAP BEFORE ACCEPT
+
+              Location না থাকলে map show হবে না.
           ================================================= */}
 
           {finalCustomerLocation &&

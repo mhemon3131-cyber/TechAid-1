@@ -1,43 +1,46 @@
 import { PrismaClient } from '@prisma/client';
 
-import {
-  geocodeDhakaLocation
-} from '../services/openStreetMapService.js';
-
 
 const prisma = new PrismaClient();
+
+
+// ==========================================================
+// CLEAN SERVICE AREAS
+// ==========================================================
+
+const cleanServiceAreas = (value) => {
+  return [
+    ...new Set(
+      String(value || '')
+        .split(',')
+        .map((area) =>
+          area.trim()
+        )
+        .filter(Boolean)
+    )
+  ];
+};
 
 
 // ==========================================================
 // MODULE 1 - FEATURE 4
 // AUTOMATIC TECHNICIAN ASSIGNMENT ENGINE
 //
-// FINAL FLOW:
+// LOCATION THAKLE:
+// Expertise + Availability + Proximity + Rating + Workload
 //
-// Customer Service Request
-//        ↓
-// Best technician automatically calculated
-//        ↓
-// Technician-er next free date + time automatically selected
-//        ↓
-// Customer:
+// LOCATION NA THAKLE:
+// Expertise + Availability + Rating + Workload
 //
-// [Accept Technician]
-// [Reject & Suggest Another]
-// [Search Technician Info]
+// No-location priority:
+// 1. Expertise match mandatory
+// 2. Technician available mandatory
+// 3. Highest rating first
+// 4. Better availability
+// 5. Lower workload
 //
-// Accept:
-// TechnicianAssignment → ACCEPTED
-// Assigned date/time → reserved
-// Technician Job Requests page → customer details show
-//
-// Reject:
-// Current technician excluded
-// Next best technician + tar free time show
-//
-// IMPORTANT:
-// Groupmate-er Appointment create/update kora hocche na.
-// Existing Appointment table shudhu conflict check-er jonno read kori.
+// Reject korle previous technician exclude hoye
+// next best technician suggest hobe.
 // ==========================================================
 
 
@@ -55,7 +58,7 @@ const WEIGHTS = {
 
 
 // ==========================================================
-// EXISTING APPOINTMENT ACTIVE STATUSES
+// ACTIVE APPOINTMENT STATUSES
 // ==========================================================
 
 const ACTIVE_APPOINTMENT_STATUSES = [
@@ -83,20 +86,26 @@ const TIME_SLOTS = [
 // FIND SERVICE REQUEST
 //
 // Supports:
-// request database ID
-// tracking ID
+// DB id
+// Tracking id
 // ==========================================================
 
 const findServiceRequest = async (value) => {
+
   if (!value) {
     return null;
   }
 
+
   return prisma.serviceRequest.findFirst({
+
     where: {
+
       OR: [
+
         {
-          id: value
+          id:
+            value
         },
 
         {
@@ -107,8 +116,12 @@ const findServiceRequest = async (value) => {
     },
 
     include: {
-      customer: true,
-      appointment: true
+
+      customer:
+        true,
+
+      appointment:
+        true
     }
   });
 };
@@ -116,27 +129,29 @@ const findServiceRequest = async (value) => {
 
 // ==========================================================
 // DATE FORMAT
-//
-// Example:
-// Fri Aug 14, 2026
 // ==========================================================
 
 const formatAppointmentDate = (date) => {
+
   const weekday =
     date.toLocaleDateString(
       'en-US',
       {
-        weekday: 'short'
+        weekday:
+          'short'
       }
     );
+
 
   const month =
     date.toLocaleDateString(
       'en-US',
       {
-        month: 'short'
+        month:
+          'short'
       }
     );
+
 
   const day =
     String(
@@ -146,8 +161,10 @@ const formatAppointmentDate = (date) => {
       '0'
     );
 
+
   const year =
     date.getFullYear();
+
 
   return `${weekday} ${month} ${day}, ${year}`;
 };
@@ -158,10 +175,12 @@ const formatAppointmentDate = (date) => {
 // ==========================================================
 
 const getDayName = (date) => {
+
   return date.toLocaleDateString(
     'en-US',
     {
-      weekday: 'short'
+      weekday:
+        'short'
     }
   );
 };
@@ -175,17 +194,18 @@ const isTechnicianAvailableOnDay = (
   technician,
   date
 ) => {
+
   const availableDays =
     technician.availableDays
       ?.split(',')
-      .map((day) =>
-        day.trim()
+      .map(
+        (day) =>
+          day.trim()
       )
-      .filter(Boolean) || [];
+      .filter(Boolean) ||
+    [];
 
 
-  // No specific available day set korle
-  // currently available dhora hobe
   if (
     availableDays.length === 0
   ) {
@@ -194,7 +214,9 @@ const isTechnicianAvailableOnDay = (
 
 
   const dayName =
-    getDayName(date);
+    getDayName(
+      date
+    );
 
 
   return availableDays.includes(
@@ -205,13 +227,6 @@ const isTechnicianAvailableOnDay = (
 
 // ==========================================================
 // NORMAL APPOINTMENT TIME CONFLICT
-//
-// Existing group appointment table read kore.
-//
-// Same technician
-// Same date
-// Same time
-// Active status
 // ==========================================================
 
 const hasTimeConflict = (
@@ -219,8 +234,10 @@ const hasTimeConflict = (
   requestedDate,
   requestedTimeSlot
 ) => {
+
   return appointments.some(
     (appointment) =>
+
       appointment.date ===
         requestedDate &&
 
@@ -235,15 +252,17 @@ const hasTimeConflict = (
 
 
 // ==========================================================
-// DAILY ACTIVE NORMAL APPOINTMENTS
+// DAILY ACTIVE APPOINTMENTS
 // ==========================================================
 
 const getDailyActiveAppointments = (
   appointments = [],
   date
 ) => {
+
   return appointments.filter(
     (appointment) =>
+
       appointment.date ===
         date &&
 
@@ -255,14 +274,15 @@ const getDailyActiveAppointments = (
 
 
 // ==========================================================
-// TIME SLOT -> MINUTES
-//
-// Today-er already passed time automatically skip.
+// TIME SLOT TO MINUTES
 // ==========================================================
 
 const timeSlotToMinutes = (slot) => {
+
   const clean =
-    String(slot)
+    String(
+      slot
+    )
       .trim()
       .toLowerCase();
 
@@ -298,6 +318,7 @@ const timeSlotToMinutes = (slot) => {
     meridian === 'pm' &&
     hour !== 12
   ) {
+
     hour += 12;
   }
 
@@ -306,6 +327,7 @@ const timeSlotToMinutes = (slot) => {
     meridian === 'am' &&
     hour === 12
   ) {
+
     hour = 0;
   }
 
@@ -319,21 +341,6 @@ const timeSlotToMinutes = (slot) => {
 
 // ==========================================================
 // AUTO ASSIGNMENT RESERVED SLOT CHECK
-//
-// This is CRITICAL.
-//
-// PENDING_CUSTOMER_APPROVAL ba ACCEPTED assignment-er
-// date/time already reserved.
-//
-// Example:
-//
-// Customer 1:
-// tech-1
-// Fri Aug 14
-// 11:30 am
-//
-// Customer 2:
-// tech-1 + same date/time pabe na.
 // ==========================================================
 
 const hasAssignmentSlotConflict = async (
@@ -342,9 +349,12 @@ const hasAssignmentSlotConflict = async (
   timeSlot,
   excludeServiceRequestId = null
 ) => {
+
   const reservedAssignment =
     await prisma.technicianAssignment.findFirst({
+
       where: {
+
         technicianId,
 
         assignedDate:
@@ -380,23 +390,13 @@ const hasAssignmentSlotConflict = async (
 
 // ==========================================================
 // FIND NEXT FREE SLOT
-//
-// Checks:
-//
-// 1. Technician globally available?
-// 2. Available day?
-// 3. Past time?
-// 4. Daily capacity?
-// 5. Existing normal appointment?
-// 6. Auto-assignment reserved slot?
-//
-// Customer kono date/time select korbe na.
 // ==========================================================
 
 const findNextFreeSlot = async (
   technician,
   serviceRequestId = null
 ) => {
+
   const now =
     new Date();
 
@@ -406,12 +406,12 @@ const findNextFreeSlot = async (
     now.getMinutes();
 
 
-  // Next 7 days
   for (
     let dayOffset = 0;
     dayOffset < 7;
     dayOffset++
   ) {
+
     const candidateDate =
       new Date();
 
@@ -430,13 +430,13 @@ const findNextFreeSlot = async (
     );
 
 
-    // Technician ei day available?
     if (
       !isTechnicianAvailableOnDay(
         technician,
         candidateDate
       )
     ) {
+
       continue;
     }
 
@@ -447,10 +447,6 @@ const findNextFreeSlot = async (
       );
 
 
-    // ----------------------------------------------
-    // Normal appointments
-    // ----------------------------------------------
-
     const dailyAppointments =
       getDailyActiveAppointments(
         technician.appointments || [],
@@ -458,13 +454,11 @@ const findNextFreeSlot = async (
       );
 
 
-    // ----------------------------------------------
-    // Automatic assignment reservations
-    // ----------------------------------------------
-
     const dailyReservedAssignments =
       await prisma.technicianAssignment.count({
+
         where: {
+
           technicianId:
             technician.id,
 
@@ -493,7 +487,8 @@ const findNextFreeSlot = async (
     const maxDailyAppointments =
       Number(
         technician.maxDailyAppointments
-      ) || 5;
+      ) ||
+      5;
 
 
     const totalDailyWorkload =
@@ -501,35 +496,31 @@ const findNextFreeSlot = async (
       dailyReservedAssignments;
 
 
-    // Daily capacity full
     if (
       totalDailyWorkload >=
       maxDailyAppointments
     ) {
+
       continue;
     }
 
-
-    // ----------------------------------------------
-    // Check each service slot
-    // ----------------------------------------------
 
     for (
       const timeSlot
       of TIME_SLOTS
     ) {
-      // Today-er passed time skip
+
       if (
         dayOffset === 0 &&
         timeSlotToMinutes(
           timeSlot
         ) <= currentMinutes
       ) {
+
         continue;
       }
 
 
-      // Existing appointment conflict
       const appointmentConflict =
         hasTimeConflict(
           technician.appointments || [],
@@ -541,11 +532,11 @@ const findNextFreeSlot = async (
       if (
         appointmentConflict
       ) {
+
         continue;
       }
 
 
-      // Automatic assignment conflict
       const assignmentConflict =
         await hasAssignmentSlotConflict(
           technician.id,
@@ -558,12 +549,13 @@ const findNextFreeSlot = async (
       if (
         assignmentConflict
       ) {
+
         continue;
       }
 
 
-      // Free slot found
       return {
+
         date:
           formattedDate,
 
@@ -577,6 +569,7 @@ const findNextFreeSlot = async (
         remainingCapacity:
           Math.max(
             0,
+
             maxDailyAppointments -
               totalDailyWorkload -
               1
@@ -595,6 +588,7 @@ const findNextFreeSlot = async (
 // ==========================================================
 
 const toRadians = (degree) => {
+
   return (
     degree *
     (Math.PI / 180)
@@ -608,6 +602,7 @@ const calculateDistanceKm = (
   lat2,
   lon2
 ) => {
+
   const earthRadiusKm =
     6371;
 
@@ -673,10 +668,12 @@ const calculateExpertiseScore = (
   deviceCategory,
   specialty
 ) => {
+
   if (
     !deviceCategory ||
     !specialty
   ) {
+
     return 0;
   }
 
@@ -698,11 +695,13 @@ const calculateExpertiseScore = (
       category
     )
   ) {
+
     return 100;
   }
 
 
   const expertiseMap = {
+
     laptop: [
       'laptop',
       'computer',
@@ -760,7 +759,8 @@ const calculateExpertiseScore = (
   const relatedSkills =
     expertiseMap[
       category
-    ] || [];
+    ] ||
+    [];
 
 
   const matched =
@@ -785,6 +785,7 @@ const calculateExpertiseScore = (
 const calculateProximityScore = (
   distanceKm
 ) => {
+
   if (
     distanceKm <= 2
   ) {
@@ -831,11 +832,17 @@ const calculateProximityScore = (
 const calculateRatingScore = (
   rating
 ) => {
+
   const safeRating =
     Math.max(
       0,
+
       Math.min(
-        Number(rating) || 0,
+        Number(
+          rating
+        ) ||
+          0,
+
         5
       )
     );
@@ -861,21 +868,25 @@ const calculateWorkloadScore = (
   activeJobs,
   maxDailyAppointments
 ) => {
+
   const maxJobs =
     Number(
       maxDailyAppointments
-    ) || 5;
+    ) ||
+    5;
 
 
   const jobs =
     Number(
       activeJobs
-    ) || 0;
+    ) ||
+    0;
 
 
   if (
     jobs >= maxJobs
   ) {
+
     return 0;
   }
 
@@ -897,17 +908,19 @@ const calculateWorkloadScore = (
 
 // ==========================================================
 // AVAILABILITY SCORE
-//
-// Earlier available technician = higher score.
 // ==========================================================
 
 const calculateAvailabilityScore = (
   dayOffset
 ) => {
+
   return Math.max(
     70,
+
     100 -
-      Number(dayOffset) *
+      Number(
+        dayOffset
+      ) *
         5
   );
 };
@@ -924,7 +937,9 @@ const calculateTotalScore = ({
   ratingScore,
   workloadScore
 }) => {
+
   const total =
+
     expertiseScore *
       WEIGHTS.expertise +
 
@@ -951,143 +966,149 @@ const calculateTotalScore = ({
 // TECHNICIAN SERVICE PRICE
 // ==========================================================
 
-  const getTechnicianCharge = async (
+const getTechnicianCharge = async (
   technicianId,
   serviceMethod
 ) => {
+
   const method =
-    String(serviceMethod || '')
+    String(
+      serviceMethod ||
+      ''
+    )
       .toLowerCase()
       .trim();
 
-  if (method.includes('video')) {
+
+  if (
+    method.includes(
+      'video'
+    )
+  ) {
+
     return {
-      amount: 100,
-      label: '৳100',
-      type: 'Video Call'
+      amount:
+        100,
+
+      label:
+        '৳100',
+
+      type:
+        'Video Call'
     };
   }
 
+
   if (
-    method.includes('home') ||
-    method.includes('visit')
+    method.includes(
+      'home'
+    ) ||
+    method.includes(
+      'visit'
+    )
   ) {
+
     return {
-      amount: 300,
-      label: '৳300',
-      type: 'Home Visit'
+      amount:
+        300,
+
+      label:
+        '৳300',
+
+      type:
+        'Home Visit'
     };
   }
 
+
   if (
-    method.includes('live') ||
-    method.includes('chat')
+    method.includes(
+      'live'
+    ) ||
+    method.includes(
+      'chat'
+    )
   ) {
+
     return {
-      amount: 50,
-      label: '৳50',
-      type: 'Live Chat'
+      amount:
+        50,
+
+      label:
+        '৳50',
+
+      type:
+        'Live Chat'
     };
   }
+
 
   return {
-    amount: 50,
-    label: '৳50',
-    type: 'Live Chat'
+
+    amount:
+      50,
+
+    label:
+      '৳50',
+
+    type:
+      'Live Chat'
   };
 };
-// TECHNICIAN LOCATION
-//
-// First saved technician location use korbe.
-//
-// Na thakle serviceArea theke OpenStreetMap geocode kore
-// location create korbe.
+
+
+// ==========================================================
+// GET TECHNICIAN SAVED LOCATION
 // ==========================================================
 
-const getOrCreateTechnicianLocation =
+const getTechnicianSavedLocation =
   async (
     technician
   ) => {
-    let location =
+
+    if (
+      !technician ||
+      !technician.id
+    ) {
+
+      return null;
+    }
+
+
+    const location =
       await prisma.technicianLocation.findUnique({
+
         where: {
+
           technicianId:
             technician.id
         }
       });
 
 
-    if (location) {
-      return location;
+    if (!location) {
+
+      return null;
     }
-
-
-    const serviceAreas =
-      technician.serviceAreas
-        ?.split(',')
-        .map((area) =>
-          area.trim()
-        )
-        .filter(Boolean) || [];
 
 
     if (
-      serviceAreas.length === 0
+      location.latitude === null ||
+      location.latitude === undefined ||
+      location.longitude === null ||
+      location.longitude === undefined
     ) {
-      return null;
-    }
-
-
-    try {
-      const geo =
-        await geocodeDhakaLocation(
-          serviceAreas[0]
-        );
-
-
-      if (!geo) {
-        return null;
-      }
-
-
-      location =
-        await prisma.technicianLocation.create({
-          data: {
-            technicianId:
-              technician.id,
-
-            latitude:
-              Number(
-                geo.latitude
-              ),
-
-            longitude:
-              Number(
-                geo.longitude
-              )
-          }
-        });
-
-
-      return location;
-
-    } catch (error) {
-      console.error(
-        `Technician location error for ${technician.name}:`,
-        error.message
-      );
-
 
       return null;
     }
+
+
+    return location;
   };
 
 
 // ==========================================================
 // SAVE TECHNICIAN LOCATION
-//
-// PUT
-// /api/assignments/technicians/:technicianId/location
 // ==========================================================
 
 export const saveTechnicianLocation =
@@ -1095,7 +1116,9 @@ export const saveTechnicianLocation =
     req,
     res
   ) => {
+
     try {
+
       const {
         technicianId
       } = req.params;
@@ -1111,8 +1134,11 @@ export const saveTechnicianLocation =
         latitude === undefined ||
         longitude === undefined
       ) {
+
         return res.status(400).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Latitude and longitude are required.'
@@ -1122,8 +1148,11 @@ export const saveTechnicianLocation =
 
       const technician =
         await prisma.technician.findFirst({
+
           where: {
+
             OR: [
+
               {
                 id:
                   technicianId
@@ -1139,8 +1168,11 @@ export const saveTechnicianLocation =
 
 
       if (!technician) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Technician not found.'
@@ -1150,12 +1182,15 @@ export const saveTechnicianLocation =
 
       const location =
         await prisma.technicianLocation.upsert({
+
           where: {
+
             technicianId:
               technician.id
           },
 
           update: {
+
             latitude:
               Number(
                 latitude
@@ -1168,6 +1203,7 @@ export const saveTechnicianLocation =
           },
 
           create: {
+
             technicianId:
               technician.id,
 
@@ -1185,7 +1221,9 @@ export const saveTechnicianLocation =
 
 
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         message:
           'Technician location saved successfully.',
@@ -1195,6 +1233,7 @@ export const saveTechnicianLocation =
       });
 
     } catch (error) {
+
       console.error(
         'Save technician location error:',
         error
@@ -1202,7 +1241,9 @@ export const saveTechnicianLocation =
 
 
       return res.status(500).json({
-        success: false,
+
+        success:
+          false,
 
         message:
           'Server error while saving technician location.',
@@ -1215,10 +1256,7 @@ export const saveTechnicianLocation =
 
 
 // ==========================================================
-// SAVE CUSTOMER SERVICE REQUEST LOCATION
-//
-// PUT
-// /api/assignments/requests/:serviceRequestId/location
+// SAVE CUSTOMER REQUEST LOCATION
 // ==========================================================
 
 export const saveServiceRequestLocation =
@@ -1226,7 +1264,9 @@ export const saveServiceRequestLocation =
     req,
     res
   ) => {
+
     try {
+
       const {
         serviceRequestId
       } = req.params;
@@ -1243,8 +1283,11 @@ export const saveServiceRequestLocation =
         latitude === undefined ||
         longitude === undefined
       ) {
+
         return res.status(400).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Latitude and longitude are required.'
@@ -1259,8 +1302,11 @@ export const saveServiceRequestLocation =
 
 
       if (!serviceRequest) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Service request not found.'
@@ -1270,12 +1316,15 @@ export const saveServiceRequestLocation =
 
       const location =
         await prisma.serviceRequestLocation.upsert({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id
           },
 
           update: {
+
             latitude:
               Number(
                 latitude
@@ -1292,6 +1341,7 @@ export const saveServiceRequestLocation =
           },
 
           create: {
+
             serviceRequestId:
               serviceRequest.id,
 
@@ -1313,7 +1363,9 @@ export const saveServiceRequestLocation =
 
 
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         message:
           'Service request location saved successfully.',
@@ -1323,6 +1375,7 @@ export const saveServiceRequestLocation =
       });
 
     } catch (error) {
+
       console.error(
         'Save request location error:',
         error
@@ -1330,7 +1383,9 @@ export const saveServiceRequestLocation =
 
 
       return res.status(500).json({
-        success: false,
+
+        success:
+          false,
 
         message:
           'Server error while saving request location.',
@@ -1345,8 +1400,7 @@ export const saveServiceRequestLocation =
 // ==========================================================
 // AUTOMATIC BEST TECHNICIAN
 //
-// POST
-// /api/assignments/requests/:serviceRequestId/assign
+// CUSTOMER LOCATION OPTIONAL
 // ==========================================================
 
 export const assignBestTechnician =
@@ -1354,15 +1408,13 @@ export const assignBestTechnician =
     req,
     res
   ) => {
+
     try {
+
       const {
         serviceRequestId
       } = req.params;
 
-
-      // ----------------------------------------------------
-      // Request
-      // ----------------------------------------------------
 
       const serviceRequest =
         await findServiceRequest(
@@ -1371,8 +1423,11 @@ export const assignBestTechnician =
 
 
       if (!serviceRequest) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Service request not found.'
@@ -1380,54 +1435,61 @@ export const assignBestTechnician =
       }
 
 
-      // ----------------------------------------------------
-      // Customer location
-      // ----------------------------------------------------
+      // ====================================================
+      // CUSTOMER LOCATION IS OPTIONAL
+      // ====================================================
 
       const customerLocation =
         await prisma.serviceRequestLocation.findUnique({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id
           }
         });
 
 
-      if (!customerLocation) {
-        return res.status(400).json({
-          success: false,
+      const hasCustomerLocation =
+        Boolean(
 
-          message:
-            'Customer location is required before automatic assignment.'
-        });
-      }
+          customerLocation &&
+
+          customerLocation.latitude !== null &&
+
+          customerLocation.latitude !== undefined &&
+
+          customerLocation.longitude !== null &&
+
+          customerLocation.longitude !== undefined
+        );
 
 
-      // ----------------------------------------------------
-      // Previous suggestions
-      //
-      // Reject korle previously suggested technician
-      // automatically exclude hoye jabe.
-      // ----------------------------------------------------
+      // ====================================================
+      // PREVIOUS ASSIGNMENTS
+      // ====================================================
 
       const previousAssignments =
         await prisma.technicianAssignment.findMany({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id
           },
 
           orderBy: {
+
             attempt:
               'asc'
           }
         });
 
 
-      // Already accepted?
       const acceptedAssignment =
         previousAssignments.find(
           (assignment) =>
+
             assignment.status ===
             'ACCEPTED'
         );
@@ -1436,8 +1498,11 @@ export const assignBestTechnician =
       if (
         acceptedAssignment
       ) {
+
         return res.status(409).json({
-          success: false,
+
+          success:
+            false,
 
           alreadyAccepted:
             true,
@@ -1448,10 +1513,10 @@ export const assignBestTechnician =
       }
 
 
-      // Existing pending assignment thakle duplicate create korbo na
       const pendingAssignment =
         previousAssignments.find(
           (assignment) =>
+
             assignment.status ===
             'PENDING_CUSTOMER_APPROVAL'
         );
@@ -1460,8 +1525,11 @@ export const assignBestTechnician =
       if (
         pendingAssignment
       ) {
+
         return res.status(409).json({
-          success: false,
+
+          success:
+            false,
 
           pendingAssignment:
             true,
@@ -1472,9 +1540,14 @@ export const assignBestTechnician =
       }
 
 
+      // ====================================================
+      // REJECTED / PREVIOUS TECHNICIAN EXCLUDE
+      // ====================================================
+
       const excludedTechnicianIds =
         previousAssignments.map(
           (assignment) =>
+
             assignment.technicianId
         );
 
@@ -1484,23 +1557,27 @@ export const assignBestTechnician =
         1;
 
 
-      // ----------------------------------------------------
-      // Available technicians
-      // ----------------------------------------------------
+      // ====================================================
+      // AVAILABLE TECHNICIANS
+      // ====================================================
 
       const technicians =
         await prisma.technician.findMany({
+
           where: {
+
             isAvailable:
               true,
 
             id: {
+
               notIn:
                 excludedTechnicianIds
             }
           },
 
           include: {
+
             user:
               true,
 
@@ -1513,8 +1590,11 @@ export const assignBestTechnician =
       if (
         technicians.length === 0
       ) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           noMoreAutomaticMatches:
             true,
@@ -1529,15 +1609,19 @@ export const assignBestTechnician =
         [];
 
 
-      // ----------------------------------------------------
-      // Evaluate each technician
-      // ----------------------------------------------------
+      // ====================================================
+      // BUILD CANDIDATES
+      // ====================================================
 
       for (
         const technician
         of technicians
       ) {
-        // Expertise
+
+        // --------------------------------------------------
+        // EXPERTISE
+        // --------------------------------------------------
+
         const expertiseScore =
           calculateExpertiseScore(
             serviceRequest.deviceCategory,
@@ -1545,15 +1629,18 @@ export const assignBestTechnician =
           );
 
 
-        // Hard exclusion
         if (
           expertiseScore === 0
         ) {
+
           continue;
         }
 
 
-        // Automatic free date/time
+        // --------------------------------------------------
+        // FREE SCHEDULE
+        // --------------------------------------------------
+
         const freeSlot =
           await findNextFreeSlot(
             technician,
@@ -1562,9 +1649,14 @@ export const assignBestTechnician =
 
 
         if (!freeSlot) {
+
           continue;
         }
 
+
+        // --------------------------------------------------
+        // AVAILABILITY
+        // --------------------------------------------------
 
         const availabilityScore =
           calculateAvailabilityScore(
@@ -1572,42 +1664,20 @@ export const assignBestTechnician =
           );
 
 
-        // Technician location
-        const technicianLocation =
-          await getOrCreateTechnicianLocation(
-            technician
-          );
+        // --------------------------------------------------
+        // RATING
+        // --------------------------------------------------
 
-
-        if (!technicianLocation) {
-          continue;
-        }
-
-
-        // Distance
-        const distanceKm =
-          calculateDistanceKm(
-            customerLocation.latitude,
-            customerLocation.longitude,
-            technicianLocation.latitude,
-            technicianLocation.longitude
-          );
-
-
-        const proximityScore =
-          calculateProximityScore(
-            distanceKm
-          );
-
-
-        // Rating
         const ratingScore =
           calculateRatingScore(
             technician.rating
           );
 
 
-        // Workload
+        // --------------------------------------------------
+        // WORKLOAD
+        // --------------------------------------------------
+
         const workloadScore =
           calculateWorkloadScore(
             freeSlot.dailyWorkload,
@@ -1618,11 +1688,11 @@ export const assignBestTechnician =
         if (
           workloadScore === 0
         ) {
+
           continue;
         }
 
 
-        // Pricing
         const charge =
           await getTechnicianCharge(
             technician.id,
@@ -1630,18 +1700,140 @@ export const assignBestTechnician =
           );
 
 
-        // Final score
-        const totalScore =
-          calculateTotalScore({
-            expertiseScore,
-            availabilityScore,
-            proximityScore,
-            ratingScore,
-            workloadScore
-          });
+        // --------------------------------------------------
+        // LOCATION
+        // --------------------------------------------------
+
+        let technicianLocation =
+          null;
+
+
+        let distanceKm =
+          null;
+
+
+        let proximityScore =
+          0;
+
+
+        // ==================================================
+        // CUSTOMER LOCATION THAKLE
+        // Existing full weighted match
+        // ==================================================
+
+        if (
+          hasCustomerLocation
+        ) {
+
+          technicianLocation =
+            await getTechnicianSavedLocation(
+              technician
+            );
+
+
+          // Distance calculate korte technician location
+          // thaka lagbe.
+          if (
+            !technicianLocation
+          ) {
+
+            continue;
+          }
+
+
+          distanceKm =
+            calculateDistanceKm(
+              customerLocation.latitude,
+              customerLocation.longitude,
+              technicianLocation.latitude,
+              technicianLocation.longitude
+            );
+
+
+          proximityScore =
+            calculateProximityScore(
+              distanceKm
+            );
+        }
+
+
+        // ==================================================
+        // CUSTOMER LOCATION NA THAKLE
+        //
+        // Technician location mandatory na.
+        // Details-er jonno optional load.
+        // ==================================================
+
+        if (
+          !hasCustomerLocation
+        ) {
+
+          technicianLocation =
+            await getTechnicianSavedLocation(
+              technician
+            );
+        }
+
+
+        // ==================================================
+        // SCORE
+        // ==================================================
+
+        let totalScore;
+
+
+        if (
+          hasCustomerLocation
+        ) {
+
+          totalScore =
+            calculateTotalScore({
+
+              expertiseScore,
+
+              availabilityScore,
+
+              proximityScore,
+
+              ratingScore,
+
+              workloadScore
+            });
+
+        } else {
+
+          // ------------------------------------------------
+          // NO LOCATION
+          //
+          // Expertise: 35%
+          // Availability: 25%
+          // Rating: 30%
+          // Workload: 10%
+          // ------------------------------------------------
+
+          totalScore =
+            Number(
+              (
+                expertiseScore *
+                  0.35 +
+
+                availabilityScore *
+                  0.25 +
+
+                ratingScore *
+                  0.30 +
+
+                workloadScore *
+                  0.10
+              ).toFixed(
+                2
+              )
+            );
+        }
 
 
         candidates.push({
+
           technician,
 
           technicianLocation,
@@ -1667,15 +1859,18 @@ export const assignBestTechnician =
       }
 
 
-      // ----------------------------------------------------
-      // No suitable technician
-      // ----------------------------------------------------
+      // ====================================================
+      // NO SUITABLE MATCH
+      // ====================================================
 
       if (
         candidates.length === 0
       ) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           noMoreAutomaticMatches:
             true,
@@ -1686,46 +1881,147 @@ export const assignBestTechnician =
       }
 
 
-      // ----------------------------------------------------
-      // BEST SCORE FIRST
-      //
-      // Tie hole earlier available tech priority.
-      // ----------------------------------------------------
+      // ====================================================
+      // SORT
+      // ====================================================
 
-      candidates.sort(
-        (a, b) => {
-          if (
-            b.totalScore !==
-            a.totalScore
-          ) {
+      if (
+        hasCustomerLocation
+      ) {
+
+        // Existing weighted matching
+
+        candidates.sort(
+          (
+            a,
+            b
+          ) => {
+
+            if (
+              b.totalScore !==
+              a.totalScore
+            ) {
+
+              return (
+                b.totalScore -
+                a.totalScore
+              );
+            }
+
+
+            if (
+              a.freeSlot.dayOffset !==
+              b.freeSlot.dayOffset
+            ) {
+
+              return (
+                a.freeSlot.dayOffset -
+                b.freeSlot.dayOffset
+              );
+            }
+
+
+            return (
+
+              Number(
+                b.technician.rating
+              ) -
+
+              Number(
+                a.technician.rating
+              )
+            );
+          }
+        );
+
+      } else {
+
+        // ==================================================
+        // NO LOCATION
+        //
+        // Highest rating FIRST.
+        // Same rating:
+        // availability -> workload -> total
+        // ==================================================
+
+        candidates.sort(
+          (
+            a,
+            b
+          ) => {
+
+            const ratingA =
+              Number(
+                a.technician.rating
+              ) ||
+              0;
+
+
+            const ratingB =
+              Number(
+                b.technician.rating
+              ) ||
+              0;
+
+
+            if (
+              ratingB !==
+              ratingA
+            ) {
+
+              return (
+                ratingB -
+                ratingA
+              );
+            }
+
+
+            if (
+              a.freeSlot.dayOffset !==
+              b.freeSlot.dayOffset
+            ) {
+
+              return (
+                a.freeSlot.dayOffset -
+                b.freeSlot.dayOffset
+              );
+            }
+
+
+            if (
+              a.freeSlot.dailyWorkload !==
+              b.freeSlot.dailyWorkload
+            ) {
+
+              return (
+                a.freeSlot.dailyWorkload -
+                b.freeSlot.dailyWorkload
+              );
+            }
+
+
             return (
               b.totalScore -
               a.totalScore
             );
           }
-
-
-          return (
-            a.freeSlot.dayOffset -
-            b.freeSlot.dayOffset
-          );
-        }
-      );
+        );
+      }
 
 
       const bestMatch =
         candidates[0];
 
 
-      // ----------------------------------------------------
-      // Save suggestion
-      //
-      // PENDING slot-o temporarily reserved.
-      // ----------------------------------------------------
+      // ====================================================
+      // CREATE ASSIGNMENT
+      // ====================================================
 
       const assignment =
         await prisma.technicianAssignment.create({
+
           data: {
+
             serviceRequestId:
               serviceRequest.id,
 
@@ -1768,18 +2064,33 @@ export const assignBestTechnician =
         });
 
 
-      // ----------------------------------------------------
-      // Response
-      // ----------------------------------------------------
+      // ====================================================
+      // RESPONSE
+      // ====================================================
 
       return res.status(201).json({
-        success: true,
+
+        success:
+          true,
 
         message:
-          'Best technician automatically selected.',
+          hasCustomerLocation
+
+            ? 'Best technician automatically selected using expertise, availability, distance, rating and workload.'
+
+            : 'Best technician automatically selected using expertise, availability, rating and workload.',
+
 
         data: {
+
+          matchingMode:
+            hasCustomerLocation
+              ? 'WITH_LOCATION'
+              : 'WITHOUT_LOCATION',
+
+
           serviceRequest: {
+
             id:
               serviceRequest.id,
 
@@ -1810,6 +2121,7 @@ export const assignBestTechnician =
 
 
           autoSchedule: {
+
             date:
               bestMatch.freeSlot.date,
 
@@ -1822,6 +2134,7 @@ export const assignBestTechnician =
 
 
           technician: {
+
             id:
               bestMatch.technician.id,
 
@@ -1854,21 +2167,20 @@ export const assignBestTechnician =
             availableDays:
               bestMatch.technician.availableDays
                 ?.split(',')
-                .map((day) =>
-                  day.trim()
+                .map(
+                  (day) =>
+                    day.trim()
                 )
-                .filter(Boolean) || [],
+                .filter(Boolean) ||
+              [],
 
             workingHours:
               bestMatch.technician.workingHours,
 
             serviceAreas:
-              bestMatch.technician.serviceAreas
-                ?.split(',')
-                .map((area) =>
-                  area.trim()
-                )
-                .filter(Boolean) || [],
+              cleanServiceAreas(
+                bestMatch.technician.serviceAreas
+              ),
 
             maxDailyAppointments:
               bestMatch.technician.maxDailyAppointments,
@@ -1882,29 +2194,39 @@ export const assignBestTechnician =
             charge:
               bestMatch.charge,
 
-            location: {
-              latitude:
-                bestMatch.technicianLocation.latitude,
+            location:
+              bestMatch.technicianLocation
+                ? {
 
-              longitude:
-                bestMatch.technicianLocation.longitude
-            }
+                    latitude:
+                      bestMatch.technicianLocation.latitude,
+
+                    longitude:
+                      bestMatch.technicianLocation.longitude
+                  }
+                : null
           },
 
 
-          customerLocation: {
-            latitude:
-              customerLocation.latitude,
+          customerLocation:
+            hasCustomerLocation
+              ? {
 
-            longitude:
-              customerLocation.longitude,
+                  latitude:
+                    customerLocation.latitude,
 
-            address:
-              customerLocation.address
-          },
+                  longitude:
+                    customerLocation.longitude,
+
+                  address:
+                    customerLocation.address
+                }
+
+              : null,
 
 
           scoreBreakdown: {
+
             expertiseScore:
               bestMatch.expertiseScore,
 
@@ -1912,7 +2234,9 @@ export const assignBestTechnician =
               bestMatch.availabilityScore,
 
             proximityScore:
-              bestMatch.proximityScore,
+              hasCustomerLocation
+                ? bestMatch.proximityScore
+                : null,
 
             ratingScore:
               bestMatch.ratingScore,
@@ -1924,12 +2248,17 @@ export const assignBestTechnician =
               bestMatch.totalScore,
 
             distanceKm:
-              bestMatch.distanceKm
+              bestMatch.distanceKm,
+
+            locationUsed:
+              hasCustomerLocation
           }
         }
       });
 
+
     } catch (error) {
+
       console.error(
         'Automatic assignment error:',
         error
@@ -1937,7 +2266,9 @@ export const assignBestTechnician =
 
 
       return res.status(500).json({
-        success: false,
+
+        success:
+          false,
 
         message:
           'Server error while automatically assigning technician.',
@@ -1951,14 +2282,6 @@ export const assignBestTechnician =
 
 // ==========================================================
 // REJECT CURRENT TECHNICIAN
-//
-// PUT
-// /api/assignments/requests/:serviceRequestId/reassign
-//
-// Customer Reject:
-// PENDING_CUSTOMER_APPROVAL → REASSIGNED
-//
-// Next assignBest call automatically previous technician exclude.
 // ==========================================================
 
 export const requestTechnicianReassignment =
@@ -1966,7 +2289,9 @@ export const requestTechnicianReassignment =
     req,
     res
   ) => {
+
     try {
+
       const {
         serviceRequestId
       } = req.params;
@@ -1979,8 +2304,11 @@ export const requestTechnicianReassignment =
 
 
       if (!serviceRequest) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Service request not found.'
@@ -1990,7 +2318,9 @@ export const requestTechnicianReassignment =
 
       const currentAssignment =
         await prisma.technicianAssignment.findFirst({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id,
 
@@ -1999,6 +2329,7 @@ export const requestTechnicianReassignment =
           },
 
           orderBy: {
+
             attempt:
               'desc'
           }
@@ -2006,8 +2337,11 @@ export const requestTechnicianReassignment =
 
 
       if (!currentAssignment) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'No pending technician assignment found.'
@@ -2017,12 +2351,15 @@ export const requestTechnicianReassignment =
 
       const updated =
         await prisma.technicianAssignment.update({
+
           where: {
+
             id:
               currentAssignment.id
           },
 
           data: {
+
             status:
               'REASSIGNED'
           }
@@ -2030,7 +2367,9 @@ export const requestTechnicianReassignment =
 
 
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         message:
           'Technician rejected. The next automatic suggestion will exclude this technician.',
@@ -2040,6 +2379,7 @@ export const requestTechnicianReassignment =
       });
 
     } catch (error) {
+
       console.error(
         'Reassignment error:',
         error
@@ -2047,7 +2387,9 @@ export const requestTechnicianReassignment =
 
 
       return res.status(500).json({
-        success: false,
+
+        success:
+          false,
 
         message:
           'Server error during technician reassignment.',
@@ -2061,33 +2403,6 @@ export const requestTechnicianReassignment =
 
 // ==========================================================
 // ACCEPT ASSIGNED TECHNICIAN
-//
-// PUT
-// /api/assignments/requests/:serviceRequestId/accept
-//
-// IMPORTANT:
-//
-// Appointment table create/update kori na.
-//
-// TechnicianAssignment:
-// PENDING_CUSTOMER_APPROVAL
-//          ↓
-// ACCEPTED
-//
-// assignedDate + assignedTimeSlot-e slot permanently reserved
-// until status change.
-//
-// Accepted response contains:
-//
-// 1. Service Confirmed
-// 2. Technician Name
-// 3. Specialty
-// 4. Rating
-// 5. Phone / Email
-// 6. Service Fee
-// 7. Service Date
-// 8. Service Time
-// 9. Distance / Location
 // ==========================================================
 
 export const acceptAssignedTechnician =
@@ -2095,15 +2410,13 @@ export const acceptAssignedTechnician =
     req,
     res
   ) => {
+
     try {
+
       const {
         serviceRequestId
       } = req.params;
 
-
-      // ----------------------------------------------------
-      // Request
-      // ----------------------------------------------------
 
       const serviceRequest =
         await findServiceRequest(
@@ -2112,8 +2425,11 @@ export const acceptAssignedTechnician =
 
 
       if (!serviceRequest) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Service request not found.'
@@ -2121,13 +2437,11 @@ export const acceptAssignedTechnician =
       }
 
 
-      // ----------------------------------------------------
-      // Pending assignment
-      // ----------------------------------------------------
-
       const assignment =
         await prisma.technicianAssignment.findFirst({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id,
 
@@ -2136,20 +2450,20 @@ export const acceptAssignedTechnician =
           },
 
           orderBy: {
+
             attempt:
               'desc'
           }
         });
 
 
-      // ----------------------------------------------------
-      // Already accepted support
-      // ----------------------------------------------------
-
       if (!assignment) {
+
         const alreadyAccepted =
           await prisma.technicianAssignment.findFirst({
+
             where: {
+
               serviceRequestId:
                 serviceRequest.id,
 
@@ -2158,6 +2472,7 @@ export const acceptAssignedTechnician =
             },
 
             orderBy: {
+
               attempt:
                 'desc'
             }
@@ -2167,13 +2482,17 @@ export const acceptAssignedTechnician =
         if (
           alreadyAccepted
         ) {
+
           return res.json({
-            success: true,
+
+            success:
+              true,
 
             message:
               'Service is already confirmed.',
 
             data: {
+
               assignment:
                 alreadyAccepted
             }
@@ -2182,7 +2501,9 @@ export const acceptAssignedTechnician =
 
 
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'No pending technician assignment found.'
@@ -2190,26 +2511,21 @@ export const acceptAssignedTechnician =
       }
 
 
-      // ----------------------------------------------------
-      // Schedule required
-      // ----------------------------------------------------
-
       if (
         !assignment.assignedDate ||
         !assignment.assignedTimeSlot
       ) {
+
         return res.status(400).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Automatic service date and time are missing.'
         });
       }
 
-
-      // ----------------------------------------------------
-      // Check auto-assignment conflicts
-      // ----------------------------------------------------
 
       const assignmentConflict =
         await hasAssignmentSlotConflict(
@@ -2223,8 +2539,11 @@ export const acceptAssignedTechnician =
       if (
         assignmentConflict
       ) {
+
         return res.status(409).json({
-          success: false,
+
+          success:
+            false,
 
           slotConflict:
             true,
@@ -2235,18 +2554,17 @@ export const acceptAssignedTechnician =
       }
 
 
-      // ----------------------------------------------------
-      // Technician
-      // ----------------------------------------------------
-
       const technician =
         await prisma.technician.findUnique({
+
           where: {
+
             id:
               assignment.technicianId
           },
 
           include: {
+
             user:
               true,
 
@@ -2257,20 +2575,17 @@ export const acceptAssignedTechnician =
 
 
       if (!technician) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Assigned technician not found.'
         });
       }
 
-
-      // ----------------------------------------------------
-      // Existing group appointment conflict
-      //
-      // READ ONLY.
-      // ----------------------------------------------------
 
       const normalAppointmentConflict =
         hasTimeConflict(
@@ -2283,8 +2598,11 @@ export const acceptAssignedTechnician =
       if (
         normalAppointmentConflict
       ) {
+
         return res.status(409).json({
-          success: false,
+
+          success:
+            false,
 
           slotConflict:
             true,
@@ -2295,27 +2613,22 @@ export const acceptAssignedTechnician =
       }
 
 
-      // ----------------------------------------------------
-      // ACCEPT
-      // ----------------------------------------------------
-
       const updatedAssignment =
         await prisma.technicianAssignment.update({
+
           where: {
+
             id:
               assignment.id
           },
 
           data: {
+
             status:
               'ACCEPTED'
           }
         });
 
-
-      // ----------------------------------------------------
-      // Price
-      // ----------------------------------------------------
 
       const charge =
         await getTechnicianCharge(
@@ -2324,13 +2637,11 @@ export const acceptAssignedTechnician =
         );
 
 
-      // ----------------------------------------------------
-      // Locations
-      // ----------------------------------------------------
-
       const technicianLocation =
         await prisma.technicianLocation.findUnique({
+
           where: {
+
             technicianId:
               technician.id
           }
@@ -2339,24 +2650,25 @@ export const acceptAssignedTechnician =
 
       const customerLocation =
         await prisma.serviceRequestLocation.findUnique({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id
           }
         });
 
 
-      // ----------------------------------------------------
-      // SUCCESS RESPONSE
-      // ----------------------------------------------------
-
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         message:
           'Service confirmed successfully.',
 
         data: {
+
           serviceConfirmed:
             true,
 
@@ -2366,6 +2678,7 @@ export const acceptAssignedTechnician =
 
 
           technician: {
+
             id:
               technician.id,
 
@@ -2394,17 +2707,20 @@ export const acceptAssignedTechnician =
             location:
               technicianLocation
                 ? {
+
                     latitude:
                       technicianLocation.latitude,
 
                     longitude:
                       technicianLocation.longitude
                   }
+
                 : null
           },
 
 
           schedule: {
+
             date:
               updatedAssignment.assignedDate,
 
@@ -2417,6 +2733,7 @@ export const acceptAssignedTechnician =
 
 
           distance: {
+
             km:
               updatedAssignment.distanceKm
           },
@@ -2425,6 +2742,7 @@ export const acceptAssignedTechnician =
           customerLocation:
             customerLocation
               ? {
+
                   latitude:
                     customerLocation.latitude,
 
@@ -2434,11 +2752,14 @@ export const acceptAssignedTechnician =
                   address:
                     customerLocation.address
                 }
+
               : null
         }
       });
 
+
     } catch (error) {
+
       console.error(
         'Accept technician error:',
         error
@@ -2446,7 +2767,9 @@ export const acceptAssignedTechnician =
 
 
       return res.status(500).json({
-        success: false,
+
+        success:
+          false,
 
         message:
           'Server error while accepting technician.',
@@ -2460,11 +2783,6 @@ export const acceptAssignedTechnician =
 
 // ==========================================================
 // GET LATEST ASSIGNMENT
-//
-// GET
-// /api/assignments/requests/:serviceRequestId/latest
-//
-// Page refresh korleo pending/accepted technician details return.
 // ==========================================================
 
 export const getLatestAssignment =
@@ -2472,7 +2790,9 @@ export const getLatestAssignment =
     req,
     res
   ) => {
+
     try {
+
       const {
         serviceRequestId
       } = req.params;
@@ -2485,8 +2805,11 @@ export const getLatestAssignment =
 
 
       if (!serviceRequest) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Service request not found.'
@@ -2494,18 +2817,17 @@ export const getLatestAssignment =
       }
 
 
-      // ----------------------------------------------------
-      // Latest assignment
-      // ----------------------------------------------------
-
       const assignment =
         await prisma.technicianAssignment.findFirst({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id
           },
 
           orderBy: {
+
             attempt:
               'desc'
           }
@@ -2513,8 +2835,11 @@ export const getLatestAssignment =
 
 
       if (!assignment) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'No technician assignment found.'
@@ -2522,18 +2847,17 @@ export const getLatestAssignment =
       }
 
 
-      // ----------------------------------------------------
-      // Technician
-      // ----------------------------------------------------
-
       const technician =
         await prisma.technician.findUnique({
+
           where: {
+
             id:
               assignment.technicianId
           },
 
           include: {
+
             user:
               true,
 
@@ -2543,13 +2867,11 @@ export const getLatestAssignment =
         });
 
 
-      // ----------------------------------------------------
-      // Locations
-      // ----------------------------------------------------
-
       const technicianLocation =
         await prisma.technicianLocation.findUnique({
+
           where: {
+
             technicianId:
               assignment.technicianId
           }
@@ -2558,16 +2880,14 @@ export const getLatestAssignment =
 
       const customerLocation =
         await prisma.serviceRequestLocation.findUnique({
+
           where: {
+
             serviceRequestId:
               serviceRequest.id
           }
         });
 
-
-      // ----------------------------------------------------
-      // Price
-      // ----------------------------------------------------
 
       const charge =
         await getTechnicianCharge(
@@ -2576,16 +2896,14 @@ export const getLatestAssignment =
         );
 
 
-      // ----------------------------------------------------
-      // Daily workload
-      // ----------------------------------------------------
-
       const dailyAppointments =
         technician &&
         assignment.assignedDate
 
           ? getDailyActiveAppointments(
-              technician.appointments || [],
+              technician.appointments ||
+                [],
+
               assignment.assignedDate
             )
 
@@ -2594,8 +2912,11 @@ export const getLatestAssignment =
 
       const reservedCount =
         assignment.assignedDate
+
           ? await prisma.technicianAssignment.count({
+
               where: {
+
                 technicianId:
                   assignment.technicianId,
 
@@ -2603,6 +2924,7 @@ export const getLatestAssignment =
                   assignment.assignedDate,
 
                 status: {
+
                   in: [
                     'PENDING_CUSTOMER_APPROVAL',
                     'ACCEPTED'
@@ -2610,6 +2932,7 @@ export const getLatestAssignment =
                 }
               }
             })
+
           : 0;
 
 
@@ -2618,20 +2941,20 @@ export const getLatestAssignment =
         reservedCount;
 
 
-      // ----------------------------------------------------
-      // Response
-      // ----------------------------------------------------
-
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         data: {
+
           serviceConfirmed:
             assignment.status ===
             'ACCEPTED',
 
 
           serviceRequest: {
+
             id:
               serviceRequest.id,
 
@@ -2662,6 +2985,7 @@ export const getLatestAssignment =
 
 
           autoSchedule: {
+
             date:
               assignment.assignedDate,
 
@@ -2679,6 +3003,7 @@ export const getLatestAssignment =
           technician:
             technician
               ? {
+
                   id:
                     technician.id,
 
@@ -2711,21 +3036,20 @@ export const getLatestAssignment =
                   availableDays:
                     technician.availableDays
                       ?.split(',')
-                      .map((day) =>
-                        day.trim()
+                      .map(
+                        (day) =>
+                          day.trim()
                       )
-                      .filter(Boolean) || [],
+                      .filter(Boolean) ||
+                    [],
 
                   workingHours:
                     technician.workingHours,
 
                   serviceAreas:
-                    technician.serviceAreas
-                      ?.split(',')
-                      .map((area) =>
-                        area.trim()
-                      )
-                      .filter(Boolean) || [],
+                    cleanServiceAreas(
+                      technician.serviceAreas
+                    ),
 
                   maxDailyAppointments:
                     technician.maxDailyAppointments,
@@ -2736,12 +3060,14 @@ export const getLatestAssignment =
                   remainingCapacity:
                     Math.max(
                       0,
+
                       (
                         Number(
                           technician.maxDailyAppointments
-                        ) || 5
+                        ) ||
+                        5
                       ) -
-                      totalWorkload
+                        totalWorkload
                     ),
 
                   charge,
@@ -2749,12 +3075,14 @@ export const getLatestAssignment =
                   location:
                     technicianLocation
                       ? {
+
                           latitude:
                             technicianLocation.latitude,
 
                           longitude:
                             technicianLocation.longitude
                         }
+
                       : null
                 }
 
@@ -2764,18 +3092,21 @@ export const getLatestAssignment =
           technicianLocation:
             technicianLocation
               ? {
+
                   latitude:
                     technicianLocation.latitude,
 
                   longitude:
                     technicianLocation.longitude
                 }
+
               : null,
 
 
           customerLocation:
             customerLocation
               ? {
+
                   latitude:
                     customerLocation.latitude,
 
@@ -2785,16 +3116,19 @@ export const getLatestAssignment =
                   address:
                     customerLocation.address
                 }
+
               : null,
 
 
           distance: {
+
             km:
               assignment.distanceKm
           },
 
 
           scoreBreakdown: {
+
             expertiseScore:
               assignment.expertiseScore,
 
@@ -2802,7 +3136,9 @@ export const getLatestAssignment =
               assignment.availabilityScore,
 
             proximityScore:
-              assignment.proximityScore,
+              customerLocation
+                ? assignment.proximityScore
+                : null,
 
             ratingScore:
               assignment.ratingScore,
@@ -2814,12 +3150,19 @@ export const getLatestAssignment =
               assignment.totalScore,
 
             distanceKm:
-              assignment.distanceKm
+              assignment.distanceKm,
+
+            locationUsed:
+              Boolean(
+                customerLocation
+              )
           }
         }
       });
 
+
     } catch (error) {
+
       console.error(
         'Get latest assignment error:',
         error
@@ -2827,7 +3170,9 @@ export const getLatestAssignment =
 
 
       return res.status(500).json({
-        success: false,
+
+        success:
+          false,
 
         message:
           'Server error while fetching technician assignment.',
@@ -2841,18 +3186,6 @@ export const getLatestAssignment =
 
 // ==========================================================
 // TECHNICIAN ACCEPTED JOB REQUESTS
-//
-// GET
-// /api/assignments/technicians/:technicianId/jobs
-//
-// Customer ACCEPT korar por technician-er Job Requests page-e
-// customer full information show.
-//
-// Supports:
-// technician.id
-// technician.userId
-//
-// Appointment table mandatory na.
 // ==========================================================
 
 export const getTechnicianAcceptedJobs =
@@ -2860,20 +3193,21 @@ export const getTechnicianAcceptedJobs =
     req,
     res
   ) => {
+
     try {
+
       const {
         technicianId
       } = req.params;
 
 
-      // ----------------------------------------------------
-      // Technician
-      // ----------------------------------------------------
-
       const technician =
         await prisma.technician.findFirst({
+
           where: {
+
             OR: [
+
               {
                 id:
                   technicianId
@@ -2887,6 +3221,7 @@ export const getTechnicianAcceptedJobs =
           },
 
           include: {
+
             user:
               true
           }
@@ -2894,8 +3229,11 @@ export const getTechnicianAcceptedJobs =
 
 
       if (!technician) {
+
         return res.status(404).json({
-          success: false,
+
+          success:
+            false,
 
           message:
             'Technician not found.'
@@ -2903,13 +3241,11 @@ export const getTechnicianAcceptedJobs =
       }
 
 
-      // ----------------------------------------------------
-      // Only ACCEPTED automatic assignments
-      // ----------------------------------------------------
-
       const assignments =
         await prisma.technicianAssignment.findMany({
+
           where: {
+
             technicianId:
               technician.id,
 
@@ -2918,6 +3254,7 @@ export const getTechnicianAcceptedJobs =
           },
 
           orderBy: {
+
             createdAt:
               'desc'
           }
@@ -2928,22 +3265,22 @@ export const getTechnicianAcceptedJobs =
         [];
 
 
-      // ----------------------------------------------------
-      // Build technician job cards
-      // ----------------------------------------------------
-
       for (
         const assignment
         of assignments
       ) {
+
         const request =
           await prisma.serviceRequest.findUnique({
+
             where: {
+
               id:
                 assignment.serviceRequestId
             },
 
             include: {
+
               customer:
                 true,
 
@@ -2954,13 +3291,16 @@ export const getTechnicianAcceptedJobs =
 
 
         if (!request) {
+
           continue;
         }
 
 
         const customerLocation =
           await prisma.serviceRequestLocation.findUnique({
+
             where: {
+
               serviceRequestId:
                 request.id
             }
@@ -2968,6 +3308,7 @@ export const getTechnicianAcceptedJobs =
 
 
         jobs.push({
+
           assignmentId:
             assignment.id,
 
@@ -2977,6 +3318,7 @@ export const getTechnicianAcceptedJobs =
 
 
           serviceRequest: {
+
             id:
               request.id,
 
@@ -3004,6 +3346,7 @@ export const getTechnicianAcceptedJobs =
 
 
           customer: {
+
             id:
               request.customer?.id ||
               request.customerId,
@@ -3027,6 +3370,7 @@ export const getTechnicianAcceptedJobs =
 
 
           schedule: {
+
             date:
               assignment.assignedDate,
 
@@ -3039,6 +3383,7 @@ export const getTechnicianAcceptedJobs =
 
 
           distance: {
+
             km:
               assignment.distanceKm
           },
@@ -3047,6 +3392,7 @@ export const getTechnicianAcceptedJobs =
           location:
             customerLocation
               ? {
+
                   latitude:
                     customerLocation.latitude,
 
@@ -3056,14 +3402,14 @@ export const getTechnicianAcceptedJobs =
                   address:
                     customerLocation.address
                 }
+
               : null,
 
 
-          // Existing group appointment thakle include,
-          // na thakleo accepted automatic job show korbe.
           appointment:
             request.appointment
               ? {
+
                   id:
                     request.appointment.id,
 
@@ -3076,19 +3422,23 @@ export const getTechnicianAcceptedJobs =
                   timeSlot:
                     request.appointment.timeSlot
                 }
+
               : null
         });
       }
 
 
       return res.json({
-        success: true,
+
+        success:
+          true,
 
         count:
           jobs.length,
 
 
         technician: {
+
           id:
             technician.id,
 
@@ -3115,7 +3465,9 @@ export const getTechnicianAcceptedJobs =
           jobs
       });
 
+
     } catch (error) {
+
       console.error(
         'Get technician accepted jobs error:',
         error
@@ -3123,7 +3475,9 @@ export const getTechnicianAcceptedJobs =
 
 
       return res.status(500).json({
-        success: false,
+
+        success:
+          false,
 
         message:
           'Server error while loading technician job requests.',

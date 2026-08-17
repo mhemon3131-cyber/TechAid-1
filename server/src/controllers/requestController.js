@@ -414,7 +414,19 @@ export const getServiceProgress = async (req, res) => {
 //
 // @route   PUT /api/requests/:id/status
 //
-// EXISTING GROUPMATE CODE
+// FIX:
+//
+// Supports:
+// - actual ServiceRequest.id
+// - tracking ID like REQ-2026-3917
+//
+// IMPORTANT:
+//
+// ServiceRequest update
+// and
+// StatusHistory create
+//
+// alada query-te hocche.
 // ==========================================================
 
 export const updateServiceStatus = async (req, res) => {
@@ -428,6 +440,7 @@ export const updateServiceStatus = async (req, res) => {
       note
     } = req.body;
 
+
     const validStatuses = [
       'PENDING',
       'ASSIGNED',
@@ -436,6 +449,11 @@ export const updateServiceStatus = async (req, res) => {
       'ON_THE_WAY',
       'COMPLETED'
     ];
+
+
+    // ======================================================
+    // VALID STATUS CHECK
+    // ======================================================
 
     if (
       !validStatuses.includes(
@@ -449,34 +467,114 @@ export const updateServiceStatus = async (req, res) => {
       });
     }
 
-    // Update Request and append to StatusHistory table
-    const updated =
-      await prisma.serviceRequest.update({
+
+    // ======================================================
+    // FIND REQUEST
+    //
+    // Supports:
+    // database ID
+    // tracking ID
+    // ======================================================
+
+    const request =
+      await prisma.serviceRequest.findFirst({
         where: {
-          id
-        },
+          OR: [
+            {
+              id:
+                id
+            },
 
-        data: {
-          status,
-
-          statusLogs: {
-            create: {
-              status,
-
-              note:
-                note ||
-                `Status updated to ${status}.`
+            {
+              trackingId:
+                String(id).toUpperCase()
             }
-          }
-        },
-
-        include: {
-          statusLogs:
-            true
+          ]
         }
       });
 
-    res.json({
+
+    // ======================================================
+    // REQUEST NOT FOUND
+    // ======================================================
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message:
+          'Service request not found.'
+      });
+    }
+
+
+    // ======================================================
+    // STEP 1:
+    // UPDATE SERVICE REQUEST STATUS
+    // ======================================================
+
+    await prisma.serviceRequest.update({
+      where: {
+        id:
+          request.id
+      },
+
+      data: {
+        status:
+          status
+      }
+    });
+
+
+    // ======================================================
+    // STEP 2:
+    // CREATE STATUS HISTORY SEPARATELY
+    //
+    // This avoids nested Prisma relation error.
+    // ======================================================
+
+    await prisma.statusHistory.create({
+      data: {
+        serviceRequestId:
+          request.id,
+
+        status:
+          status,
+
+        note:
+          note ||
+          `Status updated to ${status}.`
+      }
+    });
+
+
+    // ======================================================
+    // STEP 3:
+    // RELOAD UPDATED REQUEST + HISTORY
+    // ======================================================
+
+    const updated =
+      await prisma.serviceRequest.findUnique({
+        where: {
+          id:
+            request.id
+        },
+
+        include: {
+          statusLogs: {
+            orderBy: {
+              createdAt:
+                'asc'
+            }
+          }
+        }
+      });
+
+
+    // ======================================================
+    // SUCCESS
+    // ======================================================
+
+    return res.json({
       success: true,
 
       message:
@@ -492,16 +590,21 @@ export const updateServiceStatus = async (req, res) => {
       error
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
+
       message:
-        'Database error updating status.'
+        'Database error updating status.',
+
+      details:
+        error.message
     });
   }
 };
 
 
 
+// ==========================================================
 // GET LATEST SERVICE REQUEST FOR A CUSTOMER
 //
 // Automatic Technician Assignment page-e all requests
@@ -619,7 +722,8 @@ export const getLatestCustomerServiceRequest =
   };
 
 
-//
+
+// ==========================================================
 // GET FULL REQUEST DETAILS FOR TECHNICIAN JOB VIEW
 //
 // Technician-er Job Requests page-e accepted customer-er:
@@ -915,4 +1019,3 @@ export const getRequestForTechnicianView =
       });
     }
   };
-
