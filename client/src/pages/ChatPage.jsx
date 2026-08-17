@@ -30,6 +30,16 @@ import JitsiCallModal from '../components/JitsiCallModal';
 import { getSocket } from '../socket/socket';
 import axios from 'axios';
 
+export function cleanName(nameVal, fallback = 'User') {
+  if (!nameVal || typeof nameVal !== 'string') return fallback;
+  const trimmed = nameVal.trim();
+  // Check if string is a raw UUID (e.g. 1996233a-2edb-461c-a6da-e61a92e67684)
+  if (trimmed.length > 20 && trimmed.includes('-') && /^[0-9a-fA-F-]+$/.test(trimmed)) {
+    return fallback;
+  }
+  return trimmed;
+}
+
 const TECHNICIAN_PROFILES = {
   'usr-4': {
     name: 'TechAlex',
@@ -51,7 +61,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
   const [error, setError] = useState('');
   const [callModal, setCallModal] = useState({ open: false, roomName: '', callType: 'VIDEO' });
 
-  const activeUser = currentUser || { id: 'usr-1', name: 'Claire', role: 'CUSTOMER' };
+  const activeUser = currentUser || { id: 'usr-1', name: 'Customer', role: 'CUSTOMER' };
   const isTechnician = activeUser.role === 'TECHNICIAN';
 
   const fetchConversations = (preferredConvId = null) => {
@@ -70,20 +80,34 @@ export default function ChatPage({ currentUser, initialConvId }) {
         // Guaranteed fallback creation if requested conversation is not yet returned
         if (activeId && !list.some((c) => c.id === activeId)) {
           const parts = activeId.split('_');
-          const targetName = isTechnician
-            ? (parts[1] && !parts[1].startsWith('usr') ? parts[1] : 'Customer')
-            : (parts[2] && !parts[2].startsWith('usr') ? parts[2] : 'Technician');
+          const rawTarget = isTechnician ? (parts[1] || 'Customer') : (parts[2] || 'Technician');
+          const targetName = cleanName(rawTarget, isTechnician ? 'Customer' : 'Technician');
 
           const fallbackConv = {
             id: activeId,
             customerId: isTechnician ? (parts[1] || 'usr-1') : activeUser.id,
             technicianId: isTechnician ? activeUser.id : (parts[2] || 'usr-4'),
-            customer: { id: parts[1] || 'usr-1', name: isTechnician ? targetName : activeUser.name, email: 'customer@techaid.com' },
-            technician: { id: parts[2] || 'usr-4', name: isTechnician ? activeUser.name : targetName, email: 'tech@techaid.com' },
+            customer: { id: parts[1] || 'usr-1', name: isTechnician ? targetName : cleanName(activeUser.name, 'Customer'), email: 'customer@techaid.com' },
+            technician: { id: parts[2] || 'usr-4', name: isTechnician ? cleanName(activeUser.name, 'Technician') : targetName, email: 'tech@techaid.com' },
             serviceRequest: { title: 'Technical Troubleshooting & Repair', deviceCategory: 'Laptop' },
             messages: []
           };
           list = [fallbackConv, ...list];
+        }
+
+        // Customer guaranteed default technician chat if list is empty
+        if (!isTechnician && list.length === 0) {
+          const defaultTechName = 'Fahim';
+          const defaultConv = {
+            id: `conv_${activeUser.id}_tech-1`,
+            customerId: activeUser.id,
+            technicianId: 'tech-1',
+            customer: { id: activeUser.id, name: cleanName(activeUser.name, 'Customer'), email: 'customer@techaid.com' },
+            technician: { id: 'tech-1', name: defaultTechName, email: 'fahim@techaid.com', specialty: 'Smartphone Repair & OS Recovery' },
+            serviceRequest: { title: 'Technical Support Request', deviceCategory: 'Smartphone' },
+            messages: []
+          };
+          list = [defaultConv];
         }
 
         setConversations(list);
@@ -119,7 +143,6 @@ export default function ChatPage({ currentUser, initialConvId }) {
 
   const handleSelectConv = (c) => {
     setSelectedConv(c);
-    // Move selected conversation to position #1 at top of active list
     setConversations((prev) => {
       const filtered = prev.filter((item) => item.id !== c.id);
       return [c, ...filtered];
@@ -136,7 +159,8 @@ export default function ChatPage({ currentUser, initialConvId }) {
   };
 
   const filteredConversations = conversations.filter((c) => {
-    const partnerName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
+    const rawPartnerName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
+    const partnerName = cleanName(rawPartnerName, isTechnician ? 'Customer' : 'Technician');
     const reqTitle = c.serviceRequest?.title || '';
     const q = search.toLowerCase();
     return partnerName.toLowerCase().includes(q) || reqTitle.toLowerCase().includes(q);
@@ -155,44 +179,16 @@ export default function ChatPage({ currentUser, initialConvId }) {
       });
   };
 
-  // Helper to simulate partner message live for demonstration
-  const handleSimulatePartnerReply = () => {
-    if (!selectedConv) return;
-    
-    const senderId = isTechnician ? (selectedConv.customerId || 'usr-1') : (selectedConv.technicianId || 'usr-2');
-    const partnerName = isTechnician ? (selectedConv.customer?.name || 'Customer') : (selectedConv.technician?.name || 'Technician');
-
-    const customerReplies = [
-      `Thanks for checking! The power LED lights up, but screen stays black.`,
-      `Yes, holding the power button for 10 seconds resolved the display delay!`,
-      `Could you let me know when you will be available for home visit?`,
-    ];
-    const techReplies = [
-      `I am reviewing your diagnostics now. Please keep your device connected.`,
-      `Got your message! I will send you the resolution steps right away.`,
-      `Thank you for providing the details! I am initiating remote support.`,
-    ];
-
-    const replies = isTechnician ? customerReplies : techReplies;
-    const replyText = replies[Math.floor(Math.random() * replies.length)];
-
-    const socket = getSocket();
-    socket.emit('send_message', {
-      conversationId: selectedConv.id,
-      content: replyText,
-      senderId,
-      senderName: partnerName,
-    });
-  };
-
-  const partnerName = selectedConv
+  const rawPartnerName = selectedConv
     ? isTechnician
       ? selectedConv.customer?.name || 'Customer'
       : selectedConv.technician?.name || 'Technician'
     : 'Conversation Partner';
 
+  const partnerName = cleanName(rawPartnerName, isTechnician ? 'Customer' : 'Technician');
+
   const selectedTechProfile = (selectedConv && TECHNICIAN_PROFILES[selectedConv.technicianId]) || TECHNICIAN_PROFILES['usr-4'] || {
-    name: selectedConv?.technician?.name || 'TechAlex',
+    name: cleanName(selectedConv?.technician?.name, 'Technician'),
     specialty: selectedConv?.technician?.specialty || 'IT Support Specialist',
     rating: 4.9,
     reviews: 105,
@@ -242,7 +238,8 @@ export default function ChatPage({ currentUser, initialConvId }) {
 
             <List sx={{ flex: 1, overflowY: 'auto' }} disablePadding>
               {filteredConversations.map((c) => {
-                const name = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
+                const rawName = isTechnician ? (c.customer?.name || 'Customer') : (c.technician?.name || 'Technician');
+                const name = cleanName(rawName, isTechnician ? 'Customer' : 'Technician');
                 const isSelected = selectedConv?.id === c.id;
                 const lastMsg = c.messages?.[c.messages.length - 1]?.content || 'Start conversation...';
                 const avatarText = name.slice(0, 2).toUpperCase();
@@ -286,7 +283,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
           </Paper>
         </Grid>
 
-        {/* Center Column: Live Chat Box (Figma Page 2) */}
+        {/* Center Column: Live Chat Box */}
         <Grid item xs={12} md={5.5}>
           {selectedConv ? (
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, height: 600, display: 'flex', flexDirection: 'column' }}>
@@ -296,7 +293,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
                     {partnerName}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Request #{selectedConv.serviceRequest?.id || selectedConv.serviceRequestId} · {selectedConv.serviceRequest?.deviceCategory || 'Device'}
+                    Request #{selectedConv.serviceRequest?.id || selectedConv.serviceRequestId || '101'} · {selectedConv.serviceRequest?.deviceCategory || 'Device'}
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
@@ -325,7 +322,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
           )}
         </Grid>
 
-        {/* Right Column: Dynamic Profile Details Panel (Figma Page 2 Alignment) */}
+        {/* Right Column: Profile Details Panel */}
         <Grid item xs={12} md={3}>
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, height: 600, overflowY: 'auto', overflowX: 'hidden' }}>
             <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
@@ -337,11 +334,11 @@ export default function ChatPage({ currentUser, initialConvId }) {
               <Stack spacing={2.5}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Avatar sx={{ width: 48, height: 48, bgcolor: 'secondary.main', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
-                    {(selectedConv?.customer?.name || 'Customer').slice(0, 2).toUpperCase()}
+                    {cleanName(selectedConv?.customer?.name, 'Customer').slice(0, 2).toUpperCase()}
                   </Avatar>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography variant="subtitle2" fontWeight={700} noWrap>
-                      {selectedConv?.customer?.name || 'Customer'}
+                      {cleanName(selectedConv?.customer?.name, 'Customer')}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ wordBreak: 'break-all' }}>
                       {selectedConv?.customer?.email || 'customer@techaid.com'}
@@ -358,15 +355,15 @@ export default function ChatPage({ currentUser, initialConvId }) {
                   </Typography>
                   <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: '#0D1527' }}>
                     <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ wordBreak: 'break-word' }}>
-                      {selectedConv?.serviceRequest?.title || 'Device Technical Issue'}
+                      {selectedConv?.serviceRequest?.title || 'Technical Troubleshooting & Repair'}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', wordBreak: 'break-word' }}>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
                       {selectedConv?.serviceRequest?.description || 'Customer reported device issue requiring assistance.'}
                     </Typography>
                   </Paper>
-                  <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
-                    <Chip label={`Urgency: ${selectedConv?.serviceRequest?.urgency || 'Critical'}`} size="small" color="error" sx={{ maxWidth: '100%' }} />
-                    <Chip label={`Category: ${selectedConv?.serviceRequest?.deviceCategory || 'Laptop'}`} size="small" variant="outlined" sx={{ maxWidth: '100%' }} />
+                  <Stack direction="row" spacing={1}>
+                    <Chip label={`Urgency: ${selectedConv?.serviceRequest?.urgency || 'Critical'}`} size="small" color="error" />
+                    <Chip label={`Category: ${selectedConv?.serviceRequest?.deviceCategory || 'Laptop'}`} size="small" variant="outlined" />
                   </Stack>
                 </Stack>
               </Stack>
@@ -374,20 +371,20 @@ export default function ChatPage({ currentUser, initialConvId }) {
               // Technician Details view for Customer
               <Stack spacing={2.5}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Avatar sx={{ width: 48, height: 48, bgcolor: 'primary.main', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
-                    {selectedTechProfile.avatar}
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
+                    {cleanName(selectedConv?.technician?.name, 'Technician').slice(0, 2).toUpperCase()}
                   </Avatar>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography variant="subtitle2" fontWeight={700} noWrap>
-                      {selectedTechProfile.name}
+                    <Typography variant="subtitle1" fontWeight={700} noWrap>
+                      {cleanName(selectedConv?.technician?.name, 'Technician')}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ wordBreak: 'break-word' }}>
-                      {selectedTechProfile.specialty}
+                    <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                      {selectedConv?.technician?.specialty || 'IT Support Specialist'}
                     </Typography>
-                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
-                      <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
+                      <StarIcon color="warning" sx={{ fontSize: 16 }} />
                       <Typography variant="caption" fontWeight={700}>
-                        {selectedTechProfile.rating} ({selectedTechProfile.reviews} reviews)
+                        4.9 (105 reviews)
                       </Typography>
                     </Stack>
                   </Box>
@@ -395,17 +392,17 @@ export default function ChatPage({ currentUser, initialConvId }) {
 
                 <Divider />
 
-                <Stack spacing={1.5}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <CheckCircleIcon color="success" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>{selectedTechProfile.completedJobs}</strong> Completed Jobs
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <CheckCircleIcon color="success" sx={{ fontSize: 18 }} />
+                    <Typography variant="body2">
+                      <strong>82</strong> Completed Jobs
                     </Typography>
                   </Stack>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <AccessTimeIcon color="action" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>{selectedTechProfile.responseTime}</strong> Response Time
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <AccessTimeIcon color="action" sx={{ fontSize: 18 }} />
+                    <Typography variant="body2">
+                      <strong>1 min</strong> Response Time
                     </Typography>
                   </Stack>
                 </Stack>
@@ -413,14 +410,14 @@ export default function ChatPage({ currentUser, initialConvId }) {
                 <Divider />
 
                 <Box>
-                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 1 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} display="block" sx={{ mb: 1 }}>
                     SKILLS & EXPERTISE
                   </Typography>
-                  <Stack direction="row" flexWrap="wrap" gap={0.8}>
-                    {selectedTechProfile.skills.map((s, i) => (
-                      <Chip key={i} label={s} size="small" variant="outlined" sx={{ maxWidth: '100%' }} />
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
+                    {['Hardware Repair', 'Router Config', 'Software Recovery', 'Network Security'].map((skill) => (
+                      <Chip key={skill} label={skill} size="small" variant="outlined" />
                     ))}
-                  </Stack>
+                  </Box>
                 </Box>
               </Stack>
             )}
@@ -428,12 +425,14 @@ export default function ChatPage({ currentUser, initialConvId }) {
         </Grid>
       </Grid>
 
-      {/* Jitsi Call Modal */}
+      {/* Jitsi Video/Voice Call Modal */}
       <JitsiCallModal
         open={callModal.open}
-        onClose={() => setCallModal({ ...callModal, open: false })}
         roomName={callModal.roomName}
         callType={callModal.callType}
+        currentUser={activeUser}
+        partnerName={partnerName}
+        onClose={() => setCallModal({ ...callModal, open: false })}
       />
     </Box>
   );
