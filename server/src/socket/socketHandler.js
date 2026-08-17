@@ -40,9 +40,9 @@ export function initSocket(io) {
     if (socket.user?.id) {
       socket.join(`user_${socket.user.id}`);
       if (socket.user.role === 'TECHNICIAN') {
-        socket.join('role_TECHNICIAN');
+        socket.join(`role_TECHNICIAN_${socket.user.id}`);
       } else {
-        socket.join('role_CUSTOMER');
+        socket.join(`role_CUSTOMER_${socket.user.id}`);
       }
     }
 
@@ -52,14 +52,12 @@ export function initSocket(io) {
         const normId = normalizeConvId(conversationId);
         const room1 = `conversation_${conversationId}`;
         const room2 = `conversation_${normId}`;
-        const room3 = `conversation_conv_siri_fahim`;
 
         socket.join(room1);
         socket.join(room2);
-        socket.join(room3);
-        socket.currentRoom = room3;
+        socket.currentRoom = room2;
 
-        io.to(room1).to(room2).to(room3).emit('user_online', { userId: socket.user?.id });
+        io.to(room1).to(room2).emit('user_online', { userId: socket.user?.id });
       } catch (err) {
         console.error('join_conversation error:', err);
       }
@@ -108,11 +106,9 @@ export function initSocket(io) {
 
         const room1 = `conversation_${conversationId}`;
         const room2 = `conversation_${normId}`;
-        const room3 = `conversation_conv_siri_fahim`;
 
-        // Broadcast message to conversation rooms
-        io.to(room1).to(room2).to(room3).emit('receive_message', message);
-        io.emit('receive_message', message); // Universal fallback emit for instant sync
+        // Broadcast message ONLY to participants of this specific conversation
+        io.to(room1).to(room2).emit('receive_message', message);
 
         // Create Real-Time Bell Notification for Recipient
         const notifTitle = `New Message from ${effectiveSenderName}`;
@@ -126,21 +122,16 @@ export function initSocket(io) {
           createdAt: new Date().toISOString(),
         };
 
-        // Emit notification live to recipient role and rooms
-        if (senderRole === 'CUSTOMER') {
-          io.to('role_TECHNICIAN').emit('new_notification', notifObj);
-        } else {
-          io.to('role_CUSTOMER').emit('new_notification', notifObj);
-        }
-        io.emit('new_notification', notifObj);
-
         if (recipientId) {
+          io.to(`user_${recipientId}`).emit('new_notification', notifObj);
           await createNotificationHelper({
             userId: recipientId,
             type: 'NEW_CHAT_MESSAGE',
             title: notifTitle,
             message: notifMsg,
           }).catch(() => null);
+        } else {
+          io.to(room1).to(room2).emit('new_notification', notifObj);
         }
 
       } catch (err) {

@@ -19,19 +19,6 @@ export function normalizeConvId(convId) {
   let norm = convId;
 
   if (norm.startsWith('req_')) norm = norm.replace('req_', 'conv_');
-
-  // Standardize aliases for siri and fahim
-  if (norm.includes('1996233a') || norm.includes('siri') || norm.includes('claire')) {
-    norm = norm.replace(/^conv_[^_]+_/, 'conv_siri_');
-  }
-  if (norm.includes('925ea') || norm.includes('fahim') || norm.includes('tech-1') || norm.includes('usr-4')) {
-    norm = norm.replace(/_[^_]+$/, '_fahim');
-  }
-
-  if (norm === 'conv_default' || !norm.includes('_')) {
-    norm = 'conv_siri_fahim';
-  }
-
   return norm;
 }
 
@@ -222,7 +209,35 @@ export async function listUserConversations(req, res) {
       });
     }
 
-    const dynamicList = Object.values(dynamicConversations);
+    // STRICT USER PRIVACY FILTER: No technician or customer can see another user's conversations!
+    const dynamicList = Object.values(dynamicConversations).filter((c) => {
+      const uIdStr = String(userId || '').toLowerCase();
+      const uNameStr = String(userName || '').toLowerCase();
+
+      if (userRole === 'TECHNICIAN') {
+        const techIdStr = String(c.technicianId || c.technician?.id || '').toLowerCase();
+        const techNameStr = String(c.technician?.name || '').toLowerCase();
+
+        // Match only if conversation belongs to THIS technician
+        return (
+          techIdStr === uIdStr ||
+          (techNameStr && uNameStr && techNameStr === uNameStr) ||
+          (techNameStr && uNameStr && uNameStr.includes(techNameStr)) ||
+          (techNameStr && uNameStr && techNameStr.includes(uNameStr))
+        );
+      } else {
+        const custIdStr = String(c.customerId || c.customer?.id || '').toLowerCase();
+        const custNameStr = String(c.customer?.name || '').toLowerCase();
+
+        // Match only if conversation belongs to THIS customer
+        return (
+          custIdStr === uIdStr ||
+          (custNameStr && uNameStr && custNameStr === uNameStr) ||
+          (custNameStr && uNameStr && uNameStr.includes(custNameStr)) ||
+          (custNameStr && uNameStr && custNameStr.includes(uNameStr))
+        );
+      }
+    });
 
     const combined = [...conversations, ...dynamicList];
     const uniqueMap = {};
