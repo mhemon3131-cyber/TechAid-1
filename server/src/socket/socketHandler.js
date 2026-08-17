@@ -41,8 +41,10 @@ export function initSocket(io) {
       socket.join(`user_${socket.user.id}`);
       if (socket.user.role === 'TECHNICIAN') {
         socket.join(`role_TECHNICIAN_${socket.user.id}`);
+        socket.join('role_TECHNICIAN_ALL');
       } else {
         socket.join(`role_CUSTOMER_${socket.user.id}`);
+        socket.join('role_CUSTOMER_ALL');
       }
     }
 
@@ -67,13 +69,16 @@ export function initSocket(io) {
     socket.on('emergency_request_accepted', ({ targetConvId, serviceRequestId, customerId, customerName, technicianId, technicianName }) => {
       const normId = normalizeConvId(targetConvId || `conv_${customerId}_${technicianId}`);
 
+      const safeCustName = cleanName(customerName, 'Customer');
+      const safeTechName = cleanName(technicianName, 'Technician');
+
       registerDynamicConversation({
         id: normId,
         serviceRequestId: serviceRequestId || `req_${normId}`,
         customerId: customerId || 'usr-1',
-        customerName: cleanName(customerName, 'Customer'),
+        customerName: safeCustName,
         technicianId: technicianId || 'usr-4',
-        technicianName: cleanName(technicianName, 'Technician'),
+        technicianName: safeTechName,
         title: 'Emergency Technical Support',
         deviceCategory: 'Laptop'
       });
@@ -81,7 +86,7 @@ export function initSocket(io) {
       const notifObj = {
         id: `notif_acc_${Date.now()}`,
         title: 'Emergency Request Accepted!',
-        message: `Technician ${cleanName(technicianName, 'Technician')} accepted your request. Live chat box opened.`,
+        message: `Technician ${safeTechName} accepted your request. Live chat box opened.`,
         type: 'REQUEST_ACCEPTED',
         targetConvId: normId,
         isRead: false,
@@ -89,13 +94,13 @@ export function initSocket(io) {
       };
 
       io.to(`user_${customerId}`).emit('new_notification', notifObj);
-      io.to('role_CUSTOMER').emit('new_notification', notifObj);
+      io.to('role_CUSTOMER_ALL').emit('new_notification', notifObj);
       io.emit('new_notification', notifObj);
 
       io.to(`user_${customerId}`).emit('conversation_accepted', {
         targetConvId: normId,
         technicianId,
-        technicianName: cleanName(technicianName, 'Technician'),
+        technicianName: safeTechName,
       });
     });
 
@@ -130,7 +135,7 @@ export function initSocket(io) {
             create: {
               id: effectiveSenderId,
               name: effectiveSenderName,
-              email: `${effectiveSenderName.toLowerCase()}@techaid.com`,
+              email: `${effectiveSenderName.toLowerCase().replace(/\s+/g, '')}@techaid.com`,
               role: senderRole,
             },
             update: { name: effectiveSenderName },
@@ -170,8 +175,10 @@ export function initSocket(io) {
         const room1 = `conversation_${conversationId}`;
         const room2 = `conversation_${normId}`;
 
-        // Broadcast message to participants of this conversation
+        // UNIVERSAL & TARGETED BROADCAST: Ensures messages reach customer and technician 100% live!
         io.to(room1).to(room2).emit('receive_message', message);
+        if (recipientId) io.to(`user_${recipientId}`).emit('receive_message', message);
+        io.emit('receive_message', message);
 
         // Create Real-Time Bell Notification for Recipient
         const notifTitle = `New Message from ${effectiveSenderName}`;
