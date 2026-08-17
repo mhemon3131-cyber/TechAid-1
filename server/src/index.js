@@ -9,7 +9,9 @@ import technicianRoutes from './routes/technicianRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import conversationRoutes from './routes/conversationRoutes.js';
 import { initSocket } from './socket/socketHandler.js';
-
+import aiRoutes from './routes/aiRoutes.js';
+import historyRoutes from './routes/historyRoutes.js';
+import costEstimationRoutes from './routes/costEstimationRoutes.js';
 const app = express();
 const server = http.createServer(app);
 const PORT = 1257; // Last 4 digits of Student ID: 24141257
@@ -34,7 +36,9 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/technicians', technicianRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/conversations', conversationRoutes);
-
+app.use('/api/ai', aiRoutes);
+app.use('/api/history', historyRoutes);
+app.use('/api/cost-estimate', costEstimationRoutes);
 // Health Check Route
 app.get('/', (req, res) => {
   res.json({
