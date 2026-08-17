@@ -20,7 +20,11 @@ import {
   Sliders,
   LogOut,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles,
+  Bot,
+  History,
+  Calculator
 } from 'lucide-react';
 
 export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
@@ -185,6 +189,86 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                   <Activity size={18} />
                 </ListItemIcon>
                 <ListItemText primary="Track Progress" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+
+            {/* AI Issue Classification (Member 1) */}
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={activeTab === 'ai-classify'}
+                onClick={() => setActiveTab('ai-classify')}
+                sx={{
+                  borderRadius: 2,
+                  color: activeTab === 'ai-classify' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'ai-classify' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'ai-classify' ? '4px solid #00A8FF' : '4px solid transparent',
+                  '&:hover': { backgroundColor: '#172036' }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'ai-classify' ? '#00A8FF' : '#94A3B8' }}>
+                  <Sparkles size={18} />
+                </ListItemIcon>
+                <ListItemText primary="AI Issue Classifier" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+
+            {/* AI Troubleshooting Assistant (Member 1) */}
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={activeTab === 'ai-troubleshoot'}
+                onClick={() => setActiveTab('ai-troubleshoot')}
+                sx={{
+                  borderRadius: 2,
+                  color: activeTab === 'ai-troubleshoot' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'ai-troubleshoot' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'ai-troubleshoot' ? '4px solid #00A8FF' : '4px solid transparent',
+                  '&:hover': { backgroundColor: '#172036' }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'ai-troubleshoot' ? '#00A8FF' : '#94A3B8' }}>
+                  <Bot size={18} />
+                </ListItemIcon>
+                <ListItemText primary="AI Troubleshoot" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+
+            {/* Issue Resolution History (Member 1) */}
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={activeTab === 'resolution-history'}
+                onClick={() => setActiveTab('resolution-history')}
+                sx={{
+                  borderRadius: 2,
+                  color: activeTab === 'resolution-history' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'resolution-history' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'resolution-history' ? '4px solid #00A8FF' : '4px solid transparent',
+                  '&:hover': { backgroundColor: '#172036' }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'resolution-history' ? '#00A8FF' : '#94A3B8' }}>
+                  <History size={18} />
+                </ListItemIcon>
+                <ListItemText primary="Resolution History" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+
+            {/* Service Cost Estimator (Member 1) */}
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={activeTab === 'cost-estimate'}
+                onClick={() => setActiveTab('cost-estimate')}
+                sx={{
+                  borderRadius: 2,
+                  color: activeTab === 'cost-estimate' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: activeTab === 'cost-estimate' ? '#172036' : 'transparent',
+                  borderLeft: activeTab === 'cost-estimate' ? '4px solid #00A8FF' : '4px solid transparent',
+                  '&:hover': { backgroundColor: '#172036' }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'cost-estimate' ? '#00A8FF' : '#94A3B8' }}>
+                  <Calculator size={18} />
+                </ListItemIcon>
+                <ListItemText primary="Cost Estimator" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
               </ListItemButton>
             </ListItem>
           </>
