@@ -1,35 +1,280 @@
-import React, { useState } from 'react';
+import React, {
+  useEffect,
+  useState
+} from 'react';
+
 import {
-  Box,
-  Typography,
-  Paper,
-  Button,
-  TextField,
-  Grid,
   Alert,
+  Box,
+  Button,
   CircularProgress,
-  Divider,
+  FormControl,
+  Grid,
   MenuItem,
+  Paper,
   Select,
-  FormControl
+  TextField,
+  Typography
 } from '@mui/material';
-import { Shield, User, Wrench, ArrowRight, UserPlus, LogIn } from 'lucide-react';
+
+import {
+  ArrowRight,
+  LogIn,
+  MapPin,
+  Navigation,
+  Search,
+  Shield,
+  User,
+  UserPlus,
+  Wrench
+} from 'lucide-react';
+
 import axios from 'axios';
 
-export const Auth = ({ onLoginSuccess }) => {
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [roleTab, setRoleTab] = useState('CUSTOMER');
+import {
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  useMap,
+  useMapEvents
+} from 'react-leaflet';
 
-  // Form Fields
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [specialty, setSpecialty] = useState('Laptop & Desktop Specialist');
-  
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+import L from 'leaflet';
+
+import 'leaflet/dist/leaflet.css';
+
+import {
+  reverseGeocodeLocation,
+  searchLocations
+} from '../services/api';
+
+
+// ==========================================================
+// LEAFLET MARKER FIX
+// ==========================================================
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+
+  iconUrl:
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+
+  shadowUrl:
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
+});
+
+
+// ==========================================================
+// BANGLADESH PHONE VALIDATION
+// ==========================================================
+
+const isValidBangladeshPhone = (
+  value
+) => {
+
+  return /^(013|014|015|016|017|018|019)\d{8}$/.test(
+    String(value || '').trim()
+  );
+};
+
+
+// ==========================================================
+// MAP CONTROLLER
+// ==========================================================
+
+const MapController = ({
+  position
+}) => {
+
+  const map =
+    useMap();
+
+
+  useEffect(() => {
+
+    if (
+      position?.latitude !== undefined &&
+      position?.longitude !== undefined
+    ) {
+
+      map.flyTo(
+        [
+          Number(
+            position.latitude
+          ),
+
+          Number(
+            position.longitude
+          )
+        ],
+
+        16,
+
+        {
+          animate:
+            true,
+
+          duration:
+            1.2
+        }
+      );
+    }
+
+  }, [
+    position,
+    map
+  ]);
+
+
+  return null;
+};
+
+
+// ==========================================================
+// MAP CLICK HANDLER
+// ==========================================================
+
+const MapClickHandler = ({
+  onMapSelect
+}) => {
+
+  useMapEvents({
+
+    click(event) {
+
+      onMapSelect(
+        event.latlng.lat,
+        event.latlng.lng
+      );
+    }
+  });
+
+
+  return null;
+};
+
+
+// ==========================================================
+// AUTH PAGE
+// ==========================================================
+
+export const Auth = ({
+  onLoginSuccess
+}) => {
+
+  const [
+    isRegisterMode,
+    setIsRegisterMode
+  ] = useState(false);
+
+
+  const [
+    roleTab,
+    setRoleTab
+  ] = useState(
+    'CUSTOMER'
+  );
+
+
+  const [
+    name,
+    setName
+  ] = useState('');
+
+
+  const [
+    email,
+    setEmail
+  ] = useState('');
+
+
+  const [
+    password,
+    setPassword
+  ] = useState('');
+
+
+  const [
+    phone,
+    setPhone
+  ] = useState('');
+
+
+  const [
+    specialty,
+    setSpecialty
+  ] = useState(
+    'Laptop & Desktop Specialist'
+  );
+
+
+  const [
+    loading,
+    setLoading
+  ] = useState(false);
+
+
+  const [
+    error,
+    setError
+  ] = useState('');
+
+
+  const [
+    selectedLocation,
+    setSelectedLocation
+  ] = useState(null);
+
+
+  const [
+    pendingLocation,
+    setPendingLocation
+  ] = useState(null);
+
+
+  const [
+    editingLocation,
+    setEditingLocation
+  ] = useState(true);
+
+
+  const [
+    locationQuery,
+    setLocationQuery
+  ] = useState('');
+
+
+  const [
+    locationSuggestions,
+    setLocationSuggestions
+  ] = useState([]);
+
+
+  const [
+    locationSearchLoading,
+    setLocationSearchLoading
+  ] = useState(false);
+
+
+  const [
+    currentLocationLoading,
+    setCurrentLocationLoading
+  ] = useState(false);
+
+
+  const [
+    mapLocationLoading,
+    setMapLocationLoading
+  ] = useState(false);
+
+
+  // ========================================================
+  // TECHNICIAN SPECIALTIES
+  // ========================================================
 
   const specialtiesList = [
     'Laptop & Desktop Specialist',
@@ -38,386 +283,2106 @@ export const Auth = ({ onLoginSuccess }) => {
     'Networking & Internet Consultant'
   ];
 
-  // Helper to derive a clean user name if blank
-  const getDerivedName = (inputName, inputEmail) => {
-    if (inputName && inputName.trim()) return inputName.trim();
-    if (inputEmail && inputEmail.includes('@')) {
-      const prefix = inputEmail.split('@')[0];
-      return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+
+  // ========================================================
+  // CLEAN LOCATION NAME
+  // ========================================================
+
+  const getCleanLocationName = (
+    location
+  ) => {
+
+    if (
+      !location
+    ) {
+
+      return '';
     }
-    return 'Customer';
+
+
+    const address =
+      location.address ||
+      {};
+
+
+    const parts = [
+      address.road,
+      address.neighbourhood,
+      address.suburb,
+      address.city_district,
+      address.city,
+      address.town,
+      address.village
+    ].filter(Boolean);
+
+
+    const unique =
+      [...new Set(parts)];
+
+
+    if (
+      unique.length >
+      0
+    ) {
+
+      return unique
+        .slice(
+          0,
+          3
+        )
+        .join(', ');
+    }
+
+
+    if (
+      location.displayName
+    ) {
+
+      return location.displayName
+        .split(',')
+        .slice(
+          0,
+          3
+        )
+        .join(',');
+    }
+
+
+    return 'Selected Location';
   };
 
-  // Submit Login
-  const handleLogin = async (overrideEmail = null, overrideRole = null) => {
-    const targetEmail = overrideEmail || email;
-    const targetRole = overrideRole || roleTab;
 
-    if (!targetEmail.trim() || !password.trim()) {
-      setError('Please enter your email and password.');
-      return;
-    }
+  // ========================================================
+  // ROLE CHANGE
+  // ========================================================
 
-    setLoading(true);
-    setError('');
+  const handleRoleChange =
+    (role) => {
 
-    try {
-      const res = await axios.post('http://localhost:1257/api/auth/login', {
-        email: targetEmail.trim(),
-        password: password.trim(),
-        role: targetRole
-      });
+      setRoleTab(
+        role
+      );
 
-      if (res.data.success) {
-        onLoginSuccess(res.data.user);
-      }
-    } catch (err) {
-      const serverErrMsg = err.response?.data?.message || 'Authentication failed. Please check your email and password.';
-      setError(serverErrMsg);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // Submit Registration
-  const handleRegister = async () => {
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError('Please fill in your name, email, and password.');
-      return;
-    }
+      setName('');
 
-    setLoading(true);
-    setError('');
-    setSuccessMsg('');
+      setEmail('');
 
-    const cleanName = name.trim();
-    const cleanEmail = email.toLowerCase().trim();
+      setPassword('');
 
-    const newTechProfile = {
-      id: `tech-${Date.now()}`,
-      userId: `usr-${Date.now()}`,
-      name: cleanName,
-      specialty: roleTab === 'TECHNICIAN' ? specialty : 'General Repair',
-      rating: 4.8,
-      distanceKm: 2.5,
-      isAvailable: true,
-      avatar: cleanName.slice(0, 2).toUpperCase()
+      setPhone('');
+
+
+      setSelectedLocation(
+        null
+      );
+
+      setPendingLocation(
+        null
+      );
+
+      setLocationQuery('');
+
+      setLocationSuggestions([]);
+
+      setEditingLocation(
+        true
+      );
+
+      setError('');
     };
 
-    try {
-      const payload = {
-        name: cleanName,
-        email: cleanEmail,
-        phone: phone.trim() || '+880 1712-345678',
-        password: password.trim(),
-        role: roleTab,
-        specialty: roleTab === 'TECHNICIAN' ? specialty : null
+
+  // ========================================================
+  // LOCATION SEARCH
+  // ONLY CUSTOMER USES THIS SECTION
+  // ========================================================
+
+  useEffect(() => {
+
+    if (
+      roleTab !==
+      'CUSTOMER'
+    ) {
+
+      setLocationSuggestions([]);
+
+      return;
+    }
+
+
+    const query =
+      locationQuery.trim();
+
+
+    if (
+      !editingLocation ||
+      query.length < 2
+    ) {
+
+      setLocationSuggestions([]);
+
+      return;
+    }
+
+
+    const timer =
+      setTimeout(
+        async () => {
+
+          setLocationSearchLoading(
+            true
+          );
+
+
+          try {
+
+            const response =
+              await searchLocations(
+                query
+              );
+
+
+            const results =
+              response?.data ||
+              [];
+
+
+            setLocationSuggestions(
+              results
+            );
+
+
+            if (
+              results.length >
+              0
+            ) {
+
+              const best =
+                results[0];
+
+
+              setPendingLocation({
+
+                latitude:
+                  Number(
+                    best.latitude
+                  ),
+
+                longitude:
+                  Number(
+                    best.longitude
+                  ),
+
+                displayName:
+                  best.displayName,
+
+                address:
+                  best.address ||
+                  {},
+
+                source:
+                  'SEARCH_PREVIEW'
+              });
+            }
+
+          } catch (err) {
+
+            console.log(
+              'Location search failed:',
+              err.message
+            );
+
+
+            setLocationSuggestions([]);
+
+          } finally {
+
+            setLocationSearchLoading(
+              false
+            );
+          }
+
+        },
+
+        700
+      );
+
+
+    return () =>
+      clearTimeout(
+        timer
+      );
+
+  }, [
+    locationQuery,
+    editingLocation,
+    roleTab
+  ]);
+
+
+  // ========================================================
+  // SELECT LOCATION
+  // ========================================================
+
+  const handleSuggestionSelect =
+    (location) => {
+
+      const locationData = {
+
+        latitude:
+          Number(
+            location.latitude
+          ),
+
+        longitude:
+          Number(
+            location.longitude
+          ),
+
+        displayName:
+          location.displayName,
+
+        address:
+          location.address ||
+          {},
+
+        source:
+          'SEARCH'
       };
 
-      const res = await axios.post('http://localhost:1257/api/auth/register', payload);
 
-      if (res.data.success) {
-        setSuccessMsg(`Account created successfully for ${res.data.user.name}! Saved in database.`);
-        setTimeout(() => {
-          onLoginSuccess(res.data.user);
-        }, 1000);
+      setPendingLocation(
+        locationData
+      );
+
+
+      setLocationQuery(
+        location.displayName
+      );
+
+
+      setLocationSuggestions([]);
+    };
+
+
+  // ========================================================
+  // MAP LOCATION
+  // ========================================================
+
+  const handleMapSelect =
+    async (
+      latitude,
+      longitude
+    ) => {
+
+      setMapLocationLoading(
+        true
+      );
+
+      setError('');
+
+
+      let locationData = {
+
+        latitude,
+
+        longitude,
+
+        displayName:
+          `${latitude.toFixed(
+            6
+          )}, ${longitude.toFixed(
+            6
+          )}`,
+
+        address:
+          {},
+
+        source:
+          'MAP'
+      };
+
+
+      try {
+
+        const response =
+          await reverseGeocodeLocation(
+            latitude,
+            longitude
+          );
+
+
+        if (
+          response?.data
+        ) {
+
+          locationData = {
+
+            ...locationData,
+
+            ...response.data,
+
+            source:
+              'MAP'
+          };
+        }
+
+      } catch (err) {
+
+        console.log(
+          'Reverse geocode failed:',
+          err.message
+        );
       }
-    } catch (err) {
-      const serverErrMsg = err.response?.data?.message || 'Registration failed. Please try again.';
-      setError(serverErrMsg);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+
+      setPendingLocation(
+        locationData
+      );
+
+
+      setLocationQuery(
+        locationData.displayName
+      );
+
+
+      setLocationSuggestions([]);
+
+
+      setMapLocationLoading(
+        false
+      );
+    };
+
+
+  // ========================================================
+  // CURRENT LOCATION
+  // ========================================================
+
+  const useCurrentLocation =
+    async () => {
+
+      setError('');
+
+
+      if (
+        !navigator.geolocation
+      ) {
+
+        setError(
+          'Current location is not supported by this browser.'
+        );
+
+        return;
+      }
+
+
+      setCurrentLocationLoading(
+        true
+      );
+
+
+      try {
+
+        const position =
+          await new Promise(
+            (
+              resolve,
+              reject
+            ) => {
+
+              navigator.geolocation
+                .getCurrentPosition(
+                  resolve,
+                  reject,
+                  {
+                    enableHighAccuracy:
+                      true,
+
+                    timeout:
+                      15000,
+
+                    maximumAge:
+                      0
+                  }
+                );
+            }
+          );
+
+
+        await handleMapSelect(
+          position.coords.latitude,
+          position.coords.longitude
+        );
+
+      } catch (locationError) {
+
+        if (
+          locationError.code ===
+          1
+        ) {
+
+          setError(
+            'Location permission is blocked. Allow location access or search manually.'
+          );
+
+        } else {
+
+          setError(
+            'Unable to detect current location. Please search manually.'
+          );
+        }
+
+      } finally {
+
+        setCurrentLocationLoading(
+          false
+        );
+      }
+    };
+
+
+  // ========================================================
+  // CONFIRM LOCATION
+  // ========================================================
+
+  const confirmLocation =
+    () => {
+
+      if (
+        !pendingLocation
+      ) {
+
+        setError(
+          'Please search or select a location first.'
+        );
+
+        return;
+      }
+
+
+      setSelectedLocation({
+
+        ...pendingLocation,
+
+        capturedAt:
+          new Date().toISOString()
+      });
+
+
+      setEditingLocation(
+        false
+      );
+
+
+      setLocationSuggestions([]);
+
+
+      setError('');
+    };
+
+
+  // ========================================================
+  // CHANGE LOCATION
+  // ========================================================
+
+  const changeLocation =
+    () => {
+
+      setPendingLocation(
+        selectedLocation
+      );
+
+
+      setLocationQuery(
+        selectedLocation?.displayName ||
+        ''
+      );
+
+
+      setEditingLocation(
+        true
+      );
+
+
+      setLocationSuggestions([]);
+
+
+      setError('');
+    };
+
+
+  // ========================================================
+  // CANCEL LOCATION CHANGE
+  // ========================================================
+
+  const cancelLocationChange =
+    () => {
+
+      setPendingLocation(
+        selectedLocation
+      );
+
+
+      setEditingLocation(
+        false
+      );
+
+
+      setLocationSuggestions([]);
+
+
+      setError('');
+    };
+
+
+  // ========================================================
+  // COMPLETE LOGIN
+  //
+  // CUSTOMER:
+  // Location OPTIONAL.
+  //
+  // TECHNICIAN:
+  // Login/register-er somoy location lagbe na.
+  // ========================================================
+
+  const completeLogin =
+    async (
+      user
+    ) => {
+
+      if (
+        user.role ===
+        'CUSTOMER'
+      ) {
+
+        if (
+          selectedLocation
+        ) {
+
+          localStorage.setItem(
+            'techaid_customer_location',
+
+            JSON.stringify(
+              selectedLocation
+            )
+          );
+
+
+          onLoginSuccess({
+
+            ...user,
+
+            currentLocation:
+              selectedLocation
+          });
+
+
+          return;
+        }
+
+
+        localStorage.removeItem(
+          'techaid_customer_location'
+        );
+
+
+        onLoginSuccess({
+
+          ...user,
+
+          currentLocation:
+            null
+        });
+
+
+        return;
+      }
+
+
+      if (
+        user.role ===
+        'TECHNICIAN'
+      ) {
+
+        onLoginSuccess(
+          user
+        );
+
+        return;
+      }
+
+
+      onLoginSuccess(
+        user
+      );
+    };
+
+
+  // ========================================================
+  // LOGIN
+  // ========================================================
+
+  const handleLogin =
+    async () => {
+
+      setError('');
+
+
+      const cleanEmail =
+        email
+          .toLowerCase()
+          .trim();
+
+
+      const cleanPassword =
+        password.trim();
+
+
+      if (
+        !cleanEmail ||
+        !cleanPassword
+      ) {
+
+        setError(
+          'Please enter email and password.'
+        );
+
+        return;
+      }
+
+
+      setLoading(
+        true
+      );
+
+
+      try {
+
+        const response =
+          await axios.post(
+            'http://localhost:5000/api/auth/login',
+
+            {
+              email:
+                cleanEmail,
+
+              password:
+                cleanPassword,
+
+              role:
+                roleTab
+            }
+          );
+
+
+        if (
+          response.data.success
+        ) {
+
+          await completeLogin(
+            response.data.user
+          );
+        }
+
+      } catch (err) {
+
+        console.log(
+          'Login failed:',
+          err?.response?.data ||
+          err.message
+        );
+
+
+        setError(
+          err?.response?.data?.message ||
+          'Unable to login.'
+        );
+
+      } finally {
+
+        setLoading(
+          false
+        );
+      }
+    };
+
+
+  // ========================================================
+  // REGISTER
+  // ========================================================
+
+  const handleRegister =
+    async () => {
+
+      setError('');
+
+
+      const cleanName =
+        name.trim();
+
+
+      const cleanEmail =
+        email
+          .toLowerCase()
+          .trim();
+
+
+      const cleanPassword =
+        password.trim();
+
+
+      const cleanPhone =
+        phone.trim();
+
+
+      if (
+        !cleanName ||
+        !cleanEmail ||
+        !cleanPassword ||
+        !cleanPhone
+      ) {
+
+        setError(
+          'Please provide name, email, password and phone number.'
+        );
+
+        return;
+      }
+
+
+      if (
+        !isValidBangladeshPhone(
+          cleanPhone
+        )
+      ) {
+
+        setError(
+          'Enter a valid 11-digit Bangladesh mobile number.'
+        );
+
+        return;
+      }
+
+
+      setLoading(
+        true
+      );
+
+
+      try {
+
+        const response =
+          await axios.post(
+            'http://localhost:5000/api/auth/register',
+
+            {
+              name:
+                cleanName,
+
+              email:
+                cleanEmail,
+
+              password:
+                cleanPassword,
+
+              role:
+                roleTab,
+
+              phone:
+                cleanPhone,
+
+              specialty:
+                roleTab ===
+                'TECHNICIAN'
+                  ? specialty
+                  : undefined
+            }
+          );
+
+
+        if (
+          response.data.success
+        ) {
+
+          await completeLogin(
+            response.data.user
+          );
+        }
+
+      } catch (err) {
+
+        console.log(
+          'Registration failed:',
+          err?.response?.data ||
+          err.message
+        );
+
+
+        setError(
+          err?.response?.data?.message ||
+          'Unable to create account.'
+        );
+
+      } finally {
+
+        setLoading(
+          false
+        );
+      }
+    };
+
+
+  // ========================================================
+  // MAP CENTER
+  // ========================================================
+
+  const mapCenter =
+    pendingLocation
+      ? [
+          Number(
+            pendingLocation.latitude
+          ),
+
+          Number(
+            pendingLocation.longitude
+          )
+        ]
+      : [
+          23.8103,
+          90.4125
+        ];
+
+
+  // ========================================================
+  // UI
+  // ========================================================
 
   return (
+
     <Box
       sx={{
-        minHeight: '100vh',
-        backgroundColor: '#0D1527',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 3
+        minHeight:
+          '100vh',
+
+        backgroundColor:
+          '#0D1527',
+
+        display:
+          'flex',
+
+        alignItems:
+          'center',
+
+        justifyContent:
+          'center',
+
+        p:
+          3
       }}
     >
+
       <Paper
         elevation={0}
         sx={{
-          backgroundColor: '#172036',
-          borderRadius: 4,
-          p: 4,
-          border: '1px solid #2A364F',
-          width: '100%',
-          maxWidth: 480,
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
+          width:
+            '100%',
+
+          maxWidth:
+            560,
+
+          backgroundColor:
+            '#172036',
+
+          border:
+            '1px solid #2A364F',
+
+          borderRadius:
+            4,
+
+          p: {
+            xs:
+              2.5,
+
+            sm:
+              4
+          }
         }}
       >
-        {/* Brand Header */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+
+        {/* =================================================
+            BRAND
+        ================================================= */}
+
+        <Box
+          sx={{
+            textAlign:
+              'center',
+
+            mb:
+              3
+          }}
+        >
+
           <Box
             sx={{
-              width: 52,
-              height: 52,
-              borderRadius: '14px',
-              backgroundColor: '#00A8FF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#0D1527',
-              boxShadow: '0 0 20px rgba(0, 168, 255, 0.4)',
-              mb: 1.5
+              width:
+                54,
+
+              height:
+                54,
+
+              margin:
+                '0 auto',
+
+              mb:
+                1.5,
+
+              borderRadius:
+                '15px',
+
+              backgroundColor:
+                '#00A8FF',
+
+              display:
+                'flex',
+
+              alignItems:
+                'center',
+
+              justifyContent:
+                'center'
             }}
           >
-            <Shield size={32} strokeWidth={2.5} />
+
+            <Shield
+              size={31}
+              color="#0D1527"
+            />
+
           </Box>
-          <Typography variant="h5" sx={{ color: '#FFFFFF', fontWeight: 700 }}>
-            Tech<span style={{ color: '#00A8FF' }}>Aid</span>
+
+
+          <Typography
+            variant="h5"
+            sx={{
+              color:
+                '#FFFFFF',
+
+              fontWeight:
+                800
+            }}
+          >
+            Tech
+            <span
+              style={{
+                color:
+                  '#00A8FF'
+              }}
+            >
+              Aid
+            </span>
           </Typography>
-          <Typography variant="body2" sx={{ color: '#94A3B8', mt: 0.5 }}>
-            {isRegisterMode ? 'Create a New Account' : 'Interactive Tech Support & Troubleshooting System'}
+
+
+          <Typography
+            sx={{
+              color:
+                '#94A3B8',
+
+              mt:
+                0.5
+            }}
+          >
+            Smart technical support platform
           </Typography>
+
         </Box>
 
-        {/* Auth Mode Toggle (Sign In vs Create Account) */}
-        <Box sx={{ backgroundColor: '#0F172A', p: 0.5, borderRadius: 2.5, display: 'flex', mb: 3, border: '1px solid #2A364F' }}>
+
+        {/* =================================================
+            SIGN IN / REGISTER
+        ================================================= */}
+
+        <Box
+          sx={{
+            display:
+              'flex',
+
+            backgroundColor:
+              '#0F172A',
+
+            borderRadius:
+              2,
+
+            p:
+              0.5,
+
+            mb:
+              2
+          }}
+        >
+
           <Button
             fullWidth
-            onClick={() => setIsRegisterMode(false)}
-            startIcon={<LogIn size={16} />}
+            startIcon={
+              <LogIn
+                size={16}
+              />
+            }
+            onClick={() => {
+
+              setIsRegisterMode(
+                false
+              );
+
+              setError('');
+            }}
             sx={{
-              py: 1,
-              backgroundColor: !isRegisterMode ? '#00A8FF' : 'transparent',
-              color: !isRegisterMode ? '#0D1527' : '#94A3B8',
-              fontWeight: 700,
-              fontSize: '0.85rem'
+              backgroundColor:
+                !isRegisterMode
+                  ? '#00A8FF'
+                  : 'transparent',
+
+              color:
+                !isRegisterMode
+                  ? '#0D1527'
+                  : '#94A3B8',
+
+              fontWeight:
+                700
             }}
           >
             Sign In
           </Button>
+
+
           <Button
             fullWidth
-            onClick={() => setIsRegisterMode(true)}
-            startIcon={<UserPlus size={16} />}
+            startIcon={
+              <UserPlus
+                size={16}
+              />
+            }
+            onClick={() => {
+
+              setIsRegisterMode(
+                true
+              );
+
+              setError('');
+            }}
             sx={{
-              py: 1,
-              backgroundColor: isRegisterMode ? '#00A8FF' : 'transparent',
-              color: isRegisterMode ? '#0D1527' : '#94A3B8',
-              fontWeight: 700,
-              fontSize: '0.85rem'
+              backgroundColor:
+                isRegisterMode
+                  ? '#00A8FF'
+                  : 'transparent',
+
+              color:
+                isRegisterMode
+                  ? '#0D1527'
+                  : '#94A3B8',
+
+              fontWeight:
+                700
             }}
           >
             Create Account
           </Button>
+
         </Box>
 
-        {/* Role Selector Tabs (Customer vs Technician) */}
-        <Grid container spacing={1.5} sx={{ mb: 3 }}>
-          <Grid item xs={6}>
+
+        {/* =================================================
+            ROLE
+        ================================================= */}
+
+        <Grid
+          container
+          spacing={1}
+          sx={{
+            mb:
+              2
+          }}
+        >
+
+          <Grid
+            item
+            xs={6}
+          >
+
             <Button
               fullWidth
-              onClick={() => {
-                setRoleTab('CUSTOMER');
-                setError('');
-              }}
-              startIcon={<User size={18} />}
+              startIcon={
+                <User
+                  size={18}
+                />
+              }
+              onClick={() =>
+                handleRoleChange(
+                  'CUSTOMER'
+                )
+              }
               sx={{
-                py: 1,
-                backgroundColor: roleTab === 'CUSTOMER' ? 'rgba(0, 168, 255, 0.15)' : '#0F172A',
-                color: roleTab === 'CUSTOMER' ? '#00A8FF' : '#94A3B8',
-                border: roleTab === 'CUSTOMER' ? '1px solid #00A8FF' : '1px solid #2A364F',
-                fontWeight: 700,
-                fontSize: '0.8rem'
+                border:
+                  roleTab ===
+                    'CUSTOMER'
+                    ? '1px solid #00A8FF'
+                    : '1px solid #334155',
+
+                color:
+                  roleTab ===
+                    'CUSTOMER'
+                    ? '#00A8FF'
+                    : '#94A3B8'
               }}
             >
               Customer
             </Button>
+
           </Grid>
-          <Grid item xs={6}>
+
+
+          <Grid
+            item
+            xs={6}
+          >
+
             <Button
               fullWidth
-              onClick={() => {
-                setRoleTab('TECHNICIAN');
-                setError('');
-              }}
-              startIcon={<Wrench size={18} />}
+              startIcon={
+                <Wrench
+                  size={18}
+                />
+              }
+              onClick={() =>
+                handleRoleChange(
+                  'TECHNICIAN'
+                )
+              }
               sx={{
-                py: 1,
-                backgroundColor: roleTab === 'TECHNICIAN' ? 'rgba(0, 168, 255, 0.15)' : '#0F172A',
-                color: roleTab === 'TECHNICIAN' ? '#00A8FF' : '#94A3B8',
-                border: roleTab === 'TECHNICIAN' ? '1px solid #00A8FF' : '1px solid #2A364F',
-                fontWeight: 700,
-                fontSize: '0.8rem'
+                border:
+                  roleTab ===
+                    'TECHNICIAN'
+                    ? '1px solid #00A8FF'
+                    : '1px solid #334155',
+
+                color:
+                  roleTab ===
+                    'TECHNICIAN'
+                    ? '#00A8FF'
+                    : '#94A3B8'
               }}
             >
               Technician
             </Button>
+
           </Grid>
+
         </Grid>
 
+
+        {/* =================================================
+            CUSTOMER LOCATION
+            OPTIONAL
+        ================================================= */}
+
+        {roleTab ===
+          'CUSTOMER' && (
+
+          <>
+
+            <Typography
+              variant="caption"
+              sx={{
+                display:
+                  'block',
+
+                mb:
+                  1,
+
+                color:
+                  '#94A3B8'
+              }}
+            >
+              Location is optional. You can skip it and continue.
+            </Typography>
+
+
+            {selectedLocation &&
+            !editingLocation ? (
+
+              <Box
+                sx={{
+                  backgroundColor:
+                    '#0F172A',
+
+                  border:
+                    '1px solid #334155',
+
+                  borderRadius:
+                    2,
+
+                  p:
+                    2,
+
+                  mb:
+                    2
+                }}
+              >
+
+                <Box
+                  sx={{
+                    display:
+                      'flex',
+
+                    alignItems:
+                      'center',
+
+                    justifyContent:
+                      'space-between',
+
+                    gap:
+                      2
+                  }}
+                >
+
+                  <Box
+                    sx={{
+                      display:
+                        'flex',
+
+                      alignItems:
+                        'center',
+
+                      gap:
+                        1
+                    }}
+                  >
+
+                    <MapPin
+                      size={18}
+                      color="#10B981"
+                    />
+
+
+                    <Typography
+                      sx={{
+                        color:
+                          '#FFFFFF',
+
+                        fontWeight:
+                          700
+                      }}
+                    >
+                      {
+                        getCleanLocationName(
+                          selectedLocation
+                        )
+                      }
+                    </Typography>
+
+                  </Box>
+
+
+                  <Button
+                    size="small"
+                    onClick={
+                      changeLocation
+                    }
+                    sx={{
+                      color:
+                        '#00A8FF'
+                    }}
+                  >
+                    Change
+                  </Button>
+
+                </Box>
+
+              </Box>
+
+            ) : (
+
+              <Box
+                sx={{
+                  backgroundColor:
+                    '#0F172A',
+
+                  border:
+                    '1px solid #334155',
+
+                  borderRadius:
+                    2,
+
+                  p:
+                    2,
+
+                  mb:
+                    2
+                }}
+              >
+
+                <Typography
+                  sx={{
+                    color:
+                      '#FFFFFF',
+
+                    fontWeight:
+                      800,
+
+                    mb:
+                      0.3
+                  }}
+                >
+                  Set Location
+                </Typography>
+
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display:
+                      'block',
+
+                    color:
+                      '#64748B',
+
+                    mb:
+                      1.2
+                  }}
+                >
+                  Optional
+                </Typography>
+
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={
+                    locationQuery
+                  }
+                  onChange={(e) =>
+                    setLocationQuery(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Search any Bangladesh location..."
+                  InputProps={{
+                    startAdornment:
+                      (
+                        <Search
+                          size={17}
+                          style={{
+                            marginRight:
+                              8
+                          }}
+                        />
+                      )
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root':
+                      {
+                        color:
+                          '#FFFFFF',
+
+                        backgroundColor:
+                          '#172036'
+                      }
+                  }}
+                />
+
+
+                {locationSearchLoading && (
+
+                  <Box
+                    sx={{
+                      display:
+                        'flex',
+
+                      alignItems:
+                        'center',
+
+                      gap:
+                        1,
+
+                      mt:
+                        1
+                    }}
+                  >
+
+                    <CircularProgress
+                      size={16}
+                    />
+
+
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color:
+                          '#94A3B8'
+                      }}
+                    >
+                      Searching location...
+                    </Typography>
+
+                  </Box>
+                )}
+
+
+                {locationSuggestions.length >
+                  0 && (
+
+                  <Box
+                    sx={{
+                      mt:
+                        1,
+
+                      maxHeight:
+                        180,
+
+                      overflowY:
+                        'auto',
+
+                      border:
+                        '1px solid #334155',
+
+                      borderRadius:
+                        1
+                    }}
+                  >
+
+                    {locationSuggestions.map(
+                      (
+                        location,
+                        index
+                      ) => (
+
+                        <Button
+                          key={
+                            `${location.latitude}-${location.longitude}-${index}`
+                          }
+                          fullWidth
+                          onClick={() =>
+                            handleSuggestionSelect(
+                              location
+                            )
+                          }
+                          sx={{
+                            justifyContent:
+                              'flex-start',
+
+                            textAlign:
+                              'left',
+
+                            textTransform:
+                              'none',
+
+                            color:
+                              '#E2E8F0',
+
+                            borderRadius:
+                              0,
+
+                            py:
+                              1,
+
+                            borderBottom:
+                              index <
+                              locationSuggestions.length -
+                                1
+                                ? '1px solid #263247'
+                                : 'none'
+                          }}
+                        >
+
+                          <MapPin
+                            size={14}
+                            style={{
+                              marginRight:
+                                8,
+
+                              flexShrink:
+                                0
+                            }}
+                          />
+
+
+                          {
+                            location.displayName
+                          }
+
+                        </Button>
+                      )
+                    )}
+
+                  </Box>
+                )}
+
+
+                <Box
+                  sx={{
+                    mt:
+                      1.5,
+
+                    height:
+                      280,
+
+                    borderRadius:
+                      2,
+
+                    overflow:
+                      'hidden',
+
+                    border:
+                      '1px solid #334155'
+                  }}
+                >
+
+                  <MapContainer
+                    center={
+                      mapCenter
+                    }
+                    zoom={
+                      pendingLocation
+                        ? 16
+                        : 11
+                    }
+                    style={{
+                      width:
+                        '100%',
+
+                      height:
+                        '100%'
+                    }}
+                  >
+
+                    <TileLayer
+                      attribution="&copy; OpenStreetMap contributors"
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+
+
+                    <MapController
+                      position={
+                        pendingLocation
+                      }
+                    />
+
+
+                    <MapClickHandler
+                      onMapSelect={
+                        handleMapSelect
+                      }
+                    />
+
+
+                    {pendingLocation && (
+
+                      <Marker
+                        position={[
+                          Number(
+                            pendingLocation.latitude
+                          ),
+
+                          Number(
+                            pendingLocation.longitude
+                          )
+                        ]}
+                      >
+
+                        <Popup>
+                          {
+                            getCleanLocationName(
+                              pendingLocation
+                            )
+                          }
+                        </Popup>
+
+                      </Marker>
+                    )}
+
+                  </MapContainer>
+
+                </Box>
+
+
+                {pendingLocation && (
+
+                  <Typography
+                    sx={{
+                      color:
+                        '#E2E8F0',
+
+                      mt:
+                        1,
+
+                      fontSize:
+                        14
+                    }}
+                  >
+                    📍 {
+                      getCleanLocationName(
+                        pendingLocation
+                      )
+                    }
+                  </Typography>
+                )}
+
+
+                {mapLocationLoading && (
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display:
+                        'block',
+
+                      mt:
+                        1,
+
+                      color:
+                        '#94A3B8'
+                    }}
+                  >
+                    Checking selected location...
+                  </Typography>
+                )}
+
+
+                <Button
+                  fullWidth
+                  onClick={
+                    useCurrentLocation
+                  }
+                  disabled={
+                    currentLocationLoading
+                  }
+                  startIcon={
+                    currentLocationLoading
+                      ? (
+                        <CircularProgress
+                          size={16}
+                          color="inherit"
+                        />
+                      )
+                      : (
+                        <Navigation
+                          size={17}
+                        />
+                      )
+                  }
+                  sx={{
+                    mt:
+                      1.5,
+
+                    border:
+                      '1px solid #334155',
+
+                    color:
+                      '#00A8FF'
+                  }}
+                >
+                  {
+                    currentLocationLoading
+                      ? 'Finding Location...'
+                      : 'Use My Current Location'
+                  }
+                </Button>
+
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  disabled={
+                    !pendingLocation ||
+                    mapLocationLoading
+                  }
+                  onClick={
+                    confirmLocation
+                  }
+                  sx={{
+                    mt:
+                      1,
+
+                    backgroundColor:
+                      '#00A8FF',
+
+                    color:
+                      '#0D1527',
+
+                    fontWeight:
+                      800
+                  }}
+                >
+                  Use This Location
+                </Button>
+
+
+                {selectedLocation && (
+
+                  <Button
+                    fullWidth
+                    onClick={
+                      cancelLocationChange
+                    }
+                    sx={{
+                      mt:
+                        0.5,
+
+                      color:
+                        '#94A3B8'
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                )}
+
+              </Box>
+            )}
+
+          </>
+
+        )}
+
+
+        {/* =================================================
+            ERROR
+        ================================================= */}
+
         {error && (
-          <Alert severity="error" sx={{ mb: 2, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
+
+          <Alert
+            severity="error"
+            sx={{
+              mb:
+                2
+            }}
+          >
             {error}
           </Alert>
         )}
 
-        {successMsg && (
-          <Alert severity="success" sx={{ mb: 2, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid #10B981' }}>
-            {successMsg}
-          </Alert>
+
+        {/* =================================================
+            NAME
+        ================================================= */}
+
+        {isRegisterMode && (
+
+          <TextField
+            fullWidth
+            size="small"
+            label="Full Name"
+            value={
+              name
+            }
+            onChange={(e) =>
+              setName(
+                e.target.value
+              )
+            }
+            sx={{
+              mb:
+                2,
+
+              '& .MuiOutlinedInput-root':
+                {
+                  color:
+                    '#FFFFFF',
+
+                  backgroundColor:
+                    '#0F172A'
+                },
+
+              '& .MuiInputLabel-root':
+                {
+                  color:
+                    '#94A3B8'
+                }
+            }}
+          />
         )}
 
-        {/* FORM FIELDS */}
-        <Box sx={{ mb: 3 }}>
-          {isRegisterMode && (
-            <>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                Full Name
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Alex"
-                sx={{
-                  mb: 2,
-                  '& .MuiOutlinedInput-root': {
-                    color: '#FFF',
-                    backgroundColor: '#0F172A',
-                    '& fieldset': { borderColor: '#2A364F' }
-                  }
-                }}
-              />
-            </>
-          )}
 
-          <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-            Email Address
-          </Typography>
+        {/* =================================================
+            EMAIL
+        ================================================= */}
+
+        <TextField
+          fullWidth
+          size="small"
+          type="email"
+          label={
+            roleTab ===
+              'TECHNICIAN'
+              ? 'Technician Email'
+              : 'Email'
+          }
+          value={
+            email
+          }
+          onChange={(e) =>
+            setEmail(
+              e.target.value
+            )
+          }
+          placeholder="Email address"
+          sx={{
+            mb:
+              2,
+
+            '& .MuiOutlinedInput-root':
+              {
+                color:
+                  '#FFFFFF',
+
+                backgroundColor:
+                  '#0F172A'
+              },
+
+            '& .MuiInputLabel-root':
+              {
+                color:
+                  '#94A3B8'
+              }
+          }}
+        />
+
+
+        {/* =================================================
+            PASSWORD
+        ================================================= */}
+
+        <TextField
+          fullWidth
+          size="small"
+          type="password"
+          label="Password"
+          value={
+            password
+          }
+          onChange={(e) =>
+            setPassword(
+              e.target.value
+            )
+          }
+          sx={{
+            mb:
+              2,
+
+            '& .MuiOutlinedInput-root':
+              {
+                color:
+                  '#FFFFFF',
+
+                backgroundColor:
+                  '#0F172A'
+              },
+
+            '& .MuiInputLabel-root':
+              {
+                color:
+                  '#94A3B8'
+              }
+          }}
+        />
+
+
+        {/* =================================================
+            PHONE
+        ================================================= */}
+
+        {isRegisterMode && (
+
           <TextField
             fullWidth
+            required
             size="small"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email address..."
+            label="Bangladesh Mobile Number"
+            value={
+              phone
+            }
+            onChange={(e) => {
+
+              const onlyDigits =
+                e.target.value
+                  .replace(
+                    /\D/g,
+                    ''
+                  )
+                  .slice(
+                    0,
+                    11
+                  );
+
+
+              setPhone(
+                onlyDigits
+              );
+            }}
+            inputProps={{
+              maxLength:
+                11,
+
+              inputMode:
+                'numeric'
+            }}
+            placeholder="01712345678"
             sx={{
-              mb: 2,
-              '& .MuiOutlinedInput-root': {
-                color: '#FFF',
-                backgroundColor: '#0F172A',
-                '& fieldset': { borderColor: '#2A364F' }
-              }
+              mb:
+                2,
+
+              '& .MuiOutlinedInput-root':
+                {
+                  color:
+                    '#FFFFFF',
+
+                  backgroundColor:
+                    '#0F172A'
+                },
+
+              '& .MuiInputLabel-root':
+                {
+                  color:
+                    '#94A3B8'
+                }
             }}
           />
+        )}
 
-          {isRegisterMode && (
-            <>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                Phone Number
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+880 17XX-XXXXXX"
-                sx={{
-                  mb: 2,
-                  '& .MuiOutlinedInput-root': {
-                    color: '#FFF',
-                    backgroundColor: '#0F172A',
-                    '& fieldset': { borderColor: '#2A364F' }
-                  }
-                }}
-              />
-            </>
-          )}
 
-          <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-            Password
-          </Typography>
-          <TextField
+        {/* =================================================
+            TECHNICIAN SPECIALTY
+        ================================================= */}
+
+        {isRegisterMode &&
+        roleTab ===
+          'TECHNICIAN' && (
+
+          <FormControl
             fullWidth
             size="small"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter password..."
             sx={{
-              mb: isRegisterMode && roleTab === 'TECHNICIAN' ? 2 : 3,
-              '& .MuiOutlinedInput-root': {
-                color: '#FFF',
-                backgroundColor: '#0F172A',
-                '& fieldset': { borderColor: '#2A364F' }
-              }
+              mb:
+                2
             }}
-          />
+          >
 
-          {isRegisterMode && roleTab === 'TECHNICIAN' && (
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                Technician Specialty
-              </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={specialty}
-                  onChange={(e) => setSpecialty(e.target.value)}
-                  sx={{
-                    color: '#FFF',
-                    backgroundColor: '#0F172A',
-                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#2A364F' }
-                  }}
-                >
-                  {specialtiesList.map((spec) => (
-                    <MenuItem key={spec} value={spec}>{spec}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-          )}
-
-          {isRegisterMode ? (
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={handleRegister}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <UserPlus size={18} />}
+            <Select
+              value={
+                specialty
+              }
+              onChange={(e) =>
+                setSpecialty(
+                  e.target.value
+                )
+              }
               sx={{
-                backgroundColor: '#00A8FF',
-                color: '#0D1527',
-                py: 1.3,
-                fontWeight: 700,
-                fontSize: '1rem',
-                '&:hover': { backgroundColor: '#38BDF8' }
+                color:
+                  '#FFFFFF',
+
+                backgroundColor:
+                  '#0F172A'
               }}
             >
-              {loading ? 'Creating Account in Database...' : `Create ${roleTab === 'CUSTOMER' ? 'Customer' : 'Technician'} Account`}
-            </Button>
-          ) : (
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={() => handleLogin()}
-              disabled={loading}
-              endIcon={loading ? <CircularProgress size={18} color="inherit" /> : <ArrowRight size={18} />}
-              sx={{
-                backgroundColor: '#00A8FF',
-                color: '#0D1527',
-                py: 1.3,
-                fontWeight: 700,
-                fontSize: '1rem',
-                '&:hover': { backgroundColor: '#38BDF8' }
-              }}
-            >
-              {loading ? 'Logging in...' : `Log In as ${roleTab === 'CUSTOMER' ? 'Customer' : 'Technician'}`}
-            </Button>
-          )}
-        </Box>
 
+              {
+                specialtiesList.map(
+                  (item) => (
+
+                    <MenuItem
+                      key={
+                        item
+                      }
+                      value={
+                        item
+                      }
+                    >
+                      {item}
+                    </MenuItem>
+                  )
+                )
+              }
+
+            </Select>
+
+          </FormControl>
+        )}
+
+
+        {/* =================================================
+            LOGIN / REGISTER BUTTON
+        ================================================= */}
+
+        <Button
+          fullWidth
+          variant="contained"
+          disabled={
+            loading
+          }
+          onClick={
+            isRegisterMode
+              ? handleRegister
+              : handleLogin
+          }
+          endIcon={
+            !loading
+              ? (
+                <ArrowRight
+                  size={17}
+                />
+              )
+              : null
+          }
+          sx={{
+            py:
+              1.3,
+
+            backgroundColor:
+              '#00A8FF',
+
+            color:
+              '#0D1527',
+
+            fontWeight:
+              800,
+
+            '&:hover': {
+              backgroundColor:
+                '#38BDF8'
+            }
+          }}
+        >
+
+          {
+            loading
+              ? (
+                <CircularProgress
+                  size={21}
+                  color="inherit"
+                />
+              )
+              : isRegisterMode
+                ? `Create ${
+                    roleTab ===
+                      'CUSTOMER'
+                      ? 'Customer'
+                      : 'Technician'
+                  } Account`
+                : `Log In as ${
+                    roleTab ===
+                      'CUSTOMER'
+                      ? 'Customer'
+                      : 'Technician'
+                  }`
+          }
+
+        </Button>
 
       </Paper>
+
     </Box>
   );
 };

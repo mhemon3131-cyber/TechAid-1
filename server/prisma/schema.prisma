@@ -12,7 +12,7 @@ model User {
   name      String
   email     String   @unique
   password  String   @default("123456")
-  role      String   @default("CUSTOMER") // CUSTOMER, TECHNICIAN, ADMIN
+  role      String   @default("CUSTOMER")
   phone     String?
   avatar    String?
   createdAt DateTime @default(now())
@@ -28,49 +28,56 @@ model User {
 }
 
 model Technician {
-  id                   String        @id @default(uuid())
-  userId               String        @unique
-  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String  @id @default(uuid())
+  userId               String  @unique
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                 String
-  specialty            String // e.g. Laptop & Desktop Specialist
-  rating               Float         @default(4.9)
-  distanceKm           Float         @default(2.1)
-  isAvailable          Boolean       @default(true)
+  specialty            String
+  rating               Float   @default(4.9)
+  distanceKm           Float   @default(2.1)
+  isAvailable          Boolean @default(true)
   avatar               String?
-  availableDays        String        @default("Mon,Tue,Wed,Thu,Fri")
-  workingHours         String        @default("09:00 AM - 06:00 PM")
-  serviceAreas         String        @default("Gulshan, Banani, Dhanmondi, Uttara")
-  maxDailyAppointments Int           @default(5)
-  appointments         Appointment[]
+  availableDays        String  @default("Mon,Tue,Wed,Thu,Fri")
+  workingHours         String  @default("09:00 AM - 06:00 PM")
+  serviceAreas         String  @default("Gulshan, Banani, Dhanmondi, Uttara")
+  maxDailyAppointments Int     @default(5)
+
+  appointments Appointment[]
+  reviews      Review[]
 }
 
 model ServiceRequest {
-  id             String          @id @default(uuid())
-  trackingId     String          @unique // e.g. REQ-2026-8942
+  id             String @id @default(uuid())
+  trackingId     String @unique
   customerId     String
-  customer       User            @relation("CustomerRequests", fields: [customerId], references: [id])
-  technicianId   String?
-  technician     User?           @relation("TechnicianRequests", fields: [technicianId], references: [id])
-  deviceCategory String // Laptop, Desktop, Phone, Printer, Internet
+  customer       User   @relation("CustomerRequests", fields: [customerId], references: [id])
+
+  technicianId String?
+  technician   User?   @relation("TechnicianRequests", fields: [technicianId], references: [id])
+
+  deviceCategory String
   title          String
   description    String
-  urgency        String // Low, Moderate, Critical, Emergency
-  serviceMethod  String // Live Chat, Video Call, Home Visit
-  status         String          @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
-  estimatedCost  String          @default("৳800 - 1,500")
-  attachments    Attachment[]
-  appointment    Appointment?
-  statusLogs     StatusHistory[]
-  conversation   Conversation?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt @default(now())
+  urgency        String
+  serviceMethod  String
+  status         String @default("PENDING")
+  estimatedCost  String @default("৳800 - 1,500")
+
+  attachments Attachment[]
+  appointment Appointment?
+  statusLogs  StatusHistory[]
+  review      Review?
+  conversation Conversation?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model StatusHistory {
   id               String         @id @default(uuid())
   serviceRequestId String
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
-  status           String // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
+  status           String
   note             String?
   createdAt        DateTime       @default(now())
 }
@@ -80,7 +87,7 @@ model Attachment {
   serviceRequestId String
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
   fileUrl          String
-  fileType         String // IMAGE, SCREENSHOT, VOICE, VIDEO
+  fileType         String
   fileName         String
   createdAt        DateTime       @default(now())
 }
@@ -89,22 +96,145 @@ model Appointment {
   id               String          @id @default(uuid())
   serviceRequestId String?         @unique
   serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
-  customerId       String
-  customer         User            @relation("CustomerAppointments", fields: [customerId], references: [id])
+
+  customerId String
+  customer   User   @relation("CustomerAppointments", fields: [customerId], references: [id])
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id])
+
+  date          String
+  timeSlot      String
+  serviceType   String
+  status        String @default("PENDING")
+  estimatedCost String @default("৳800 - 1,500")
+
+  createdAt DateTime @default(now())
+}
+
+model TechnicianLocation {
+  id           String   @id @default(uuid())
+  technicianId String   @unique
+  latitude     Float
+  longitude    Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ServiceRequestLocation {
+  id               String   @id @default(uuid())
+  serviceRequestId String   @unique
+  latitude         Float
+  longitude        Float
+  address          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model TechnicianAssignment {
+  id String @id @default(uuid())
+
+  serviceRequestId String
   technicianId     String
-  technician       Technician      @relation(fields: [technicianId], references: [id])
-  date             String // e.g. Mon Jul 13, 2026
-  timeSlot         String // e.g. 10:00 am, 11:30 am
-  serviceType      String // Remote support, Home visit, Service center
-  status           String          @default("PENDING") // PENDING, APPROVED, REJECTED, RESCHEDULED
-  estimatedCost    String          @default("৳800 - 1,500")
-  createdAt        DateTime        @default(now())
+
+  expertiseScore    Float
+  availabilityScore Float
+  proximityScore    Float
+  ratingScore       Float
+  workloadScore     Float
+  totalScore        Float
+
+  distanceKm Float?
+
+  assignedDate     String?
+  assignedTimeSlot String?
+
+  attempt Int @default(1)
+
+  status String @default("PENDING_CUSTOMER_APPROVAL")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serviceRequestId, attempt])
+  @@index([serviceRequestId])
+  @@index([technicianId])
+}
+
+model TechnicianPricing {
+  id           String @id @default(uuid())
+  technicianId String @unique
+
+  liveChatFee  Float @default(500)
+  videoCallFee Float @default(700)
+  homeVisitFee Float @default(1200)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([technicianId])
+}
+
+model Review {
+  id String @id @default(uuid())
+
+  serviceRequestId String         @unique
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  rating Int
+
+  serviceQuality  Int
+  professionalism Int
+  communication   Int
+  responseTime    Int
+
+  comment String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([technicianId])
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  customerId       String
+  technicianId     String
+  serviceRequestId String
+
+  stripeSessionId       String? @unique
+  stripePaymentIntentId String? @unique
+
+  serviceTitle  String
+  serviceMethod String
+
+  amount   Float
+  currency String @default("bdt")
+
+  status String @default("PENDING")
+
+  invoiceNumber String @unique
+
+  paymentMethod String @default("STRIPE_TEST")
+
+  paidAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([serviceRequestId])
 }
 
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  type      String // e.g. REQUEST_ACCEPTED, EMERGENCY_ALERT, APPOINTMENT_REMINDER
+  type      String
   title     String
   message   String
   isRead    Boolean  @default(false)
@@ -123,8 +253,9 @@ model Conversation {
   serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
   customer       User           @relation("CustomerConversations", fields: [customerId], references: [id])
   technician     User           @relation("TechnicianConversations", fields: [technicianId], references: [id])
-  messages       Message[]
-  callSessions   CallSession[]
+
+  messages     Message[]
+  callSessions CallSession[]
 }
 
 model Message {
@@ -142,7 +273,7 @@ model CallSession {
   id             String    @id @default(uuid())
   conversationId String
   roomName       String
-  callType       String // VOICE, VIDEO
+  callType       String
   startedAt      DateTime  @default(now())
   endedAt        DateTime?
 
