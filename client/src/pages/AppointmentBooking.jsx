@@ -26,16 +26,45 @@ import axios from 'axios';
 export const AppointmentBooking = ({ currentUser }) => {
   const [step, setStep] = useState(1);
   const [technicians, setTechnicians] = useState([]);
+  const [fetchingTechs, setFetchingTechs] = useState(true);
   const [selectedTech, setSelectedTech] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
+  // Generate real dynamic upcoming calendar dates (today + next 6 days)
+  const getUpcomingDates = () => {
+    const dates = [];
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const today = new Date();
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(today.getDate() + i);
+      const dayName = days[d.getDay()];
+      const monthName = months[d.getMonth()];
+      const dateNum = d.getDate();
+      const year = d.getFullYear();
+      dates.push({
+        day: dayName,
+        dateNum: `${dateNum}`,
+        monthName: monthName,
+        year: year,
+        fullDateStr: `${dayName}, ${monthName} ${dateNum}, ${year}`,
+        shortLabel: `${dayName} ${dateNum}`
+      });
+    }
+    return dates;
+  };
+
+  const dateOptions = getUpcomingDates();
+
   // Slot selection state
-  const [selectedDate, setSelectedDate] = useState('Mon 13'); // Format: "Day Num" e.g. "Tue 14"
+  const [selectedDate, setSelectedDate] = useState(dateOptions[0]?.shortLabel || 'Mon 13');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('10:00 am');
   const [serviceType, setServiceType] = useState('Remote support');
   
   // PER-TECHNICIAN AND PER-DATE BOOKED SLOTS DICTIONARY (Fixes Leakage Bug!)
-  // Key format: `${techId}_${formattedDate}` e.g. "tech-1_Mon Jul 13, 2026"
+  // Key format: `${techId}_${formattedDate}` e.g. "tech-1_Mon, Aug 24, 2026"
   const [bookedMap, setBookedMap] = useState({});
 
   // Confirmation Modal & API state
@@ -44,31 +73,23 @@ export const AppointmentBooking = ({ currentUser }) => {
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [conflictError, setConflictError] = useState('');
 
-  const dateOptions = [
-    { day: 'Sun', dateNum: '12', fullDay: 'Sun' },
-    { day: 'Mon', dateNum: '13', fullDay: 'Mon' },
-    { day: 'Tue', dateNum: '14', fullDay: 'Tue' },
-    { day: 'Wed', dateNum: '15', fullDay: 'Wed' },
-    { day: 'Thu', dateNum: '16', fullDay: 'Thu' }
-  ];
-
   const timeSlots = [
-    '10:00 am',
+    '09:00 am',
+    '10:30 am',
     '11:30 am',
-    '1:00 pm',
+    '01:00 pm',
     '02:30 pm',
     '04:00 pm',
+    '05:30 pm',
     '06:30 pm'
   ];
 
   const serviceTypes = ['Remote support', 'Home visit', 'Service center'];
 
-  // Helper to format exact date string e.g. "Tue 14" -> "Tue Jul 14, 2026"
+  // Helper to format exact date string e.g. "Mon 24" -> "Mon, Aug 24, 2026"
   const getFormattedDateStr = (dateLabel) => {
-    const parts = dateLabel.split(' ');
-    const dayName = parts[0];
-    const num = parts[1];
-    return `${dayName} Jul ${num}, 2026`;
+    const found = dateOptions.find(d => d.shortLabel === dateLabel);
+    return found ? found.fullDateStr : dateLabel;
   };
 
   useEffect(() => {
@@ -83,6 +104,7 @@ export const AppointmentBooking = ({ currentUser }) => {
   }, [selectedTech?.id, selectedDate]);
 
   const fetchTechs = async () => {
+    setFetchingTechs(true);
     try {
       const res = await axios.get('http://localhost:1345/api/technicians');
       if (res.data.success && res.data.data.length > 0) {
@@ -93,8 +115,11 @@ export const AppointmentBooking = ({ currentUser }) => {
         setSelectedTech(null);
       }
     } catch (err) {
+      console.error('Failed to load technicians:', err);
       setTechnicians([]);
       setSelectedTech(null);
+    } finally {
+      setFetchingTechs(false);
     }
   };
 
@@ -125,10 +150,12 @@ export const AppointmentBooking = ({ currentUser }) => {
   const currentKey = selectedTech ? `${selectedTech.id}_${currentFormattedDate}` : '';
   const activeBookedSlots = bookedMap[currentKey] || [];
 
-  const filteredTechs = technicians.filter((t) =>
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.specialty.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTechs = (technicians || []).filter((t) => {
+    if (!t) return false;
+    const nameMatch = (t.name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+    const specMatch = (t.specialty || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+    return nameMatch || specMatch;
+  });
 
   const handleConfirmBooking = async () => {
     setLoading(true);
@@ -143,7 +170,10 @@ export const AppointmentBooking = ({ currentUser }) => {
     const formattedDate = getFormattedDateStr(selectedDate);
 
     try {
-      const activeRequest = JSON.parse(localStorage.getItem('techaid_active_request') || 'null');
+      let activeRequest = null;
+      try {
+        activeRequest = JSON.parse(localStorage.getItem('techaid_active_request') || 'null');
+      } catch (e) {}
 
       const payload = {
         technicianId: selectedTech ? selectedTech.id : null,
@@ -211,10 +241,17 @@ export const AppointmentBooking = ({ currentUser }) => {
           />
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {filteredTechs.length === 0 ? (
+            {fetchingTechs ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6 }}>
+                <CircularProgress sx={{ color: '#00A8FF', mb: 2 }} />
+                <Typography variant="body2" sx={{ color: '#94A3B8' }}>
+                  Loading available technicians from PostgreSQL database...
+                </Typography>
+              </Box>
+            ) : filteredTechs.length === 0 ? (
               <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#172036', border: '1px dashed #2A364F', borderRadius: 3 }}>
                 <Typography variant="body1" sx={{ color: '#94A3B8' }}>
-                  No technicians found in database. Create a technician account to start booking appointments!
+                  No technicians found in database. Please ensure a technician account exists to schedule an appointment.
                 </Typography>
               </Paper>
             ) : (
@@ -247,14 +284,14 @@ export const AppointmentBooking = ({ currentUser }) => {
                         border: '2px solid #00A8FF'
                       }}
                     >
-                      {tech.avatar || tech.name?.slice(0, 2).toUpperCase()}
+                      {tech.avatar || (tech.name ? tech.name.slice(0, 2).toUpperCase() : 'TC')}
                     </Avatar>
                     <Box>
                       <Typography variant="subtitle1" sx={{ color: '#FFF', fontWeight: 700 }}>
                         {tech.name}
                       </Typography>
                       <Typography variant="body2" sx={{ color: '#94A3B8' }}>
-                        {tech.specialty}
+                        {tech.specialty || 'General Hardware Specialist'}
                       </Typography>
                     </Box>
                   </Box>
@@ -330,10 +367,15 @@ export const AppointmentBooking = ({ currentUser }) => {
               </Box>
 
               {/* Date Selection */}
-              <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1.5 }}>
-                Select a date
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600 }}>
+                  Select an upcoming date
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#00A8FF', fontWeight: 700 }}>
+                  {dateOptions[0]?.monthName} {dateOptions[0]?.year}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1.5, mb: 4, overflowX: 'auto', pb: 1 }}>
                 {dateOptions.map((d) => {
                   const label = `${d.day} ${d.dateNum}`;
                   const selected = selectedDate === label;
@@ -343,7 +385,8 @@ export const AppointmentBooking = ({ currentUser }) => {
                       onClick={() => setSelectedDate(label)}
                       sx={{
                         flex: 1,
-                        py: 1.5,
+                        minWidth: 55,
+                        py: 1.2,
                         px: 1,
                         textAlign: 'center',
                         borderRadius: 2,
@@ -361,6 +404,9 @@ export const AppointmentBooking = ({ currentUser }) => {
                       <Typography variant="body1" sx={{ fontWeight: 700 }}>
                         {d.dateNum}
                       </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', fontSize: '0.65rem', opacity: 0.8 }}>
+                        {d.monthName}
+                      </Typography>
                     </Box>
                   );
                 })}
@@ -368,7 +414,7 @@ export const AppointmentBooking = ({ currentUser }) => {
 
               {/* Time Slots: Dynamic Filtering for selectedTech + selectedDate ONLY */}
               <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1.5 }}>
-                Available time slots for {selectedTech?.name} — {selectedDate}
+                Available time slots for {selectedTech?.name} — {getFormattedDateStr(selectedDate)}
               </Typography>
               <Grid container spacing={1.5} sx={{ mb: 4 }}>
                 {timeSlots.map((slot) => {

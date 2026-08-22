@@ -30,25 +30,45 @@ export const TechnicianDashboard = ({ currentUser }) => {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
 
-  // Reschedule Modal State with Interactive Calendar Grid (Fix #6)
+  // Generate real dynamic upcoming calendar dates (today + next 6 days)
+  const getUpcomingDates = () => {
+    const dates = [];
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const today = new Date();
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(today.getDate() + i);
+      const dayName = days[d.getDay()];
+      const monthName = months[d.getMonth()];
+      const dateNum = d.getDate();
+      const year = d.getFullYear();
+      dates.push({
+        day: dayName,
+        dateNum: `${dateNum}`,
+        fullDateStr: `${dayName}, ${monthName} ${dateNum}, ${year}`,
+        shortLabel: `${dayName} ${dateNum}`
+      });
+    }
+    return dates;
+  };
+
+  const dateOptions = getUpcomingDates();
+
+  // Reschedule Modal State with Interactive Dynamic Calendar Grid
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
-  const [newSelectedDate, setNewSelectedDate] = useState('Mon 13');
+  const [newSelectedDate, setNewSelectedDate] = useState(dateOptions[1]?.shortLabel || 'Mon 13');
   const [newTimeSlot, setNewTimeSlot] = useState('02:30 pm');
 
-  const dateOptions = [
-    { day: 'Sun', dateNum: '12' },
-    { day: 'Mon', dateNum: '13' },
-    { day: 'Tue', dateNum: '14' },
-    { day: 'Wed', dateNum: '15' },
-    { day: 'Thu', dateNum: '16' }
-  ];
-
   const timeSlots = [
-    '10:00 am',
+    '09:00 am',
+    '10:30 am',
     '11:30 am',
-    '1:00 pm',
+    '01:00 pm',
     '02:30 pm',
     '04:00 pm',
+    '05:30 pm',
     '06:30 pm'
   ];
 
@@ -81,16 +101,22 @@ export const TechnicianDashboard = ({ currentUser }) => {
       const reqIdentifier = appItem?.trackingId || appItem?.serviceRequestId;
       if (reqIdentifier) {
         let reqStage = status;
+        let noteMsg = `Technician ${currentUser?.name || ''} updated status to ${reqStage}.`;
         if (status === 'APPROVED') reqStage = 'ACCEPTED';
+        if (status === 'RESCHEDULED') {
+          reqStage = 'ASSIGNED';
+          noteMsg = `⚠️ Technician ${currentUser?.name || ''} rescheduled appointment to ${extraData.newDate} at ${extraData.newTimeSlot}.`;
+        }
+
         try {
           await axios.put(`http://localhost:1345/api/requests/${reqIdentifier}/status`, {
             status: reqStage,
-            note: `Technician ${currentUser?.name || ''} updated status to ${reqStage}.`
+            note: noteMsg
           });
         } catch (e) {}
       }
 
-      setMsg(`Status updated to ${status} in database.`);
+      setMsg(`Appointment status updated to ${status} in database.`);
       fetchData();
     } catch (err) {
       setMsg('Failed to update status.');
@@ -102,7 +128,8 @@ export const TechnicianDashboard = ({ currentUser }) => {
 
   const handleConfirmReschedule = () => {
     if (!rescheduleTarget) return;
-    const formattedDate = `Mon Jul ${newSelectedDate.split(' ')[1]}, 2026`;
+    const selectedObj = dateOptions.find(d => d.shortLabel === newSelectedDate) || dateOptions[0];
+    const formattedDate = selectedObj.fullDateStr;
     handleStatusUpdate(rescheduleTarget.id, 'RESCHEDULED', {
       newDate: formattedDate,
       newTimeSlot: newTimeSlot
@@ -264,8 +291,23 @@ export const TechnicianDashboard = ({ currentUser }) => {
                     </>
                   )}
 
-                  {(app.status === 'APPROVED' || app.status === 'ACCEPTED') && (
+                  {(app.status === 'APPROVED' || app.status === 'ACCEPTED' || app.status === 'RESCHEDULED') && (
                     <>
+                      <Button
+                        size="small"
+                        onClick={() => setRescheduleTarget(app)}
+                        startIcon={<RefreshCw size={16} />}
+                        sx={{
+                          color: '#F59E0B',
+                          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          px: 2,
+                          '&:hover': { backgroundColor: 'rgba(245, 158, 11, 0.2)' }
+                        }}
+                      >
+                        Reschedule
+                      </Button>
+
                       <Button
                         size="small"
                         variant="contained"

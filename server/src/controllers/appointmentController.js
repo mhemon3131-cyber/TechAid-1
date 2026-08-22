@@ -1,6 +1,6 @@
 // Module 2 Controller: Real Database Appointment Scheduling System
 import { PrismaClient } from '@prisma/client';
-import { sendAppointmentConfirmationEmail } from '../utils/emailService.js';
+import { sendAppointmentConfirmationEmail, sendAppointmentRescheduleEmail } from '../utils/emailService.js';
 
 const prisma = new PrismaClient();
 
@@ -261,6 +261,22 @@ export const updateAppointmentStatus = async (req, res) => {
       } else if (status === 'COMPLETED') {
         targetReqStatus = 'COMPLETED';
         logNote = `Service completed successfully by Technician ${techName}.`;
+      } else if (status === 'RESCHEDULED') {
+        targetReqStatus = 'ASSIGNED';
+        logNote = `⚠️ Technician ${techName} rescheduled appointment to ${newDate || updated.date} at ${newTimeSlot || updated.timeSlot}.`;
+        // Send email alert to customer
+        try {
+          await sendAppointmentRescheduleEmail({
+            customerEmail: existing.customer ? existing.customer.email : 'customer@techaid.com',
+            customerName: existing.customer ? existing.customer.name : 'Customer',
+            technicianName: techName,
+            newDate: newDate || updated.date,
+            newTimeSlot: newTimeSlot || updated.timeSlot,
+            serviceType: existing.serviceType
+          });
+        } catch (e) {
+          console.warn('Note: Reschedule email could not be sent', e);
+        }
       } else if (status === 'REJECTED' || status === 'CANCELLED') {
         targetReqStatus = 'PENDING';
         logNote = `Technician declined appointment. Re-queued for assignment.`;
