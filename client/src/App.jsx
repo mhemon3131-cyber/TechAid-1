@@ -3,11 +3,29 @@ import { Box, ThemeProvider, CssBaseline } from '@mui/material';
 import { theme } from './theme';
 import { Auth } from './pages/Auth';
 import { Sidebar } from './components/Sidebar';
+
+// Module 1 Pages
 import { CreateRequest } from './pages/CreateRequest';
+import { AIIssueClassifier } from './pages/AIIssueClassifier';
+import { AITroubleshootAssistant } from './pages/AITroubleshootAssistant';
+import EmergencyQueue from './pages/EmergencyQueue';
+import { IssueResolutionHistory } from './pages/IssueResolutionHistory';
+
+// Module 2 Pages
 import { AppointmentBooking } from './pages/AppointmentBooking';
+import { TechnicianSearch } from './pages/TechnicianSearch';
+import { TechnicianAssignment } from './pages/TechnicianAssignment';
+
+// Module 3 Pages
+import { ServiceProgressTracker } from './pages/ServiceProgressTracker';
 import { TechnicianDashboard } from './pages/TechnicianDashboard';
 import { TechnicianAvailability } from './pages/TechnicianAvailability';
-import { ServiceProgressTracker } from './pages/ServiceProgressTracker';
+import ChatPage from './pages/ChatPage';
+
+// Module 4 Pages
+import Payment from './pages/Payment';
+import RatingReview from './pages/RatingReview';
+import { ServiceCostEstimator } from './pages/ServiceCostEstimator';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -53,8 +71,8 @@ export default function App() {
           onLogout={handleLogout}
         />
 
-        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-          {/* Module 1: Service Request Creation */}
+        <Box sx={{ flexGrow: 1, overflow: 'auto', maxHeight: '100vh' }}>
+          {/* --- MODULE 1: REQUESTS & AI --- */}
           {activeTab === 'new-request' && (
             <CreateRequest
               currentUser={currentUser}
@@ -62,24 +80,75 @@ export default function App() {
             />
           )}
 
-          {/* Module 2: Appointment Scheduling */}
+          {activeTab === 'ai-classifier' && (
+            <AIIssueClassifier
+              currentUser={currentUser}
+              onNavigateToAppointment={() => setActiveTab('appointments')}
+            />
+          )}
+
+          {activeTab === 'ai-assistant' && (
+            <AITroubleshootAssistant
+              currentUser={currentUser}
+              onNavigateToAppointment={() => setActiveTab('appointments')}
+            />
+          )}
+
+          {activeTab === 'emergency-queue' && (
+            <EmergencyQueue
+              currentUser={currentUser}
+              onAcceptSuccess={() => setActiveTab('chat-support')}
+            />
+          )}
+
+          {activeTab === 'resolution-history' && (
+            <IssueResolutionHistory currentUser={currentUser} />
+          )}
+
+          {/* --- MODULE 2: APPOINTMENTS & SEARCH --- */}
           {activeTab === 'appointments' && (
             <AppointmentBooking currentUser={currentUser} />
           )}
 
-          {/* Module 3 Feature 4: Service Progress Tracking */}
+          {activeTab === 'tech-search' && (
+            <TechnicianSearch onBack={() => setActiveTab('new-request')} />
+          )}
+
+          {activeTab === 'auto-assignment' && (
+            <TechnicianAssignment
+              currentUser={currentUser}
+              onSearchTechnicians={() => setActiveTab('tech-search')}
+            />
+          )}
+
+          {/* --- MODULE 3: TRACKING & CHAT --- */}
           {activeTab === 'progress-tracker' && (
             <ServiceProgressTracker currentUser={currentUser} />
           )}
 
-          {/* Technician Dashboard Console */}
+          {activeTab === 'chat-support' && (
+            <ChatPage currentUser={currentUser} />
+          )}
+
           {activeTab === 'tech-dashboard' && (
             <TechnicianDashboard currentUser={currentUser} />
           )}
 
-          {/* Module 3 Feature 3: Technician Availability Management */}
           {activeTab === 'tech-availability' && (
             <TechnicianAvailability currentUser={currentUser} />
+          )}
+
+          {/* --- MODULE 4: PAYMENT, REVIEWS & ESTIMATES --- */}
+          {activeTab === 'payment' && (
+            <Payment currentUser={currentUser} />
+          )}
+
+          {activeTab === 'rating-review' && (
+            <RatingReview currentUser={currentUser} />
+          )}
+
+          {activeTab === 'cost-estimator' && (
+            <ServiceCostEstimator />
           )}
         </Box>
       </Box>

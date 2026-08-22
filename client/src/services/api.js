@@ -41,6 +41,32 @@ export const getAppointments = async () => {
   return response.data;
 };
 
+// AI & Troubleshooting API Services (Module 1)
+export const classifyIssueWithAI = async (data) => {
+  const response = await api.post('/ai/classify', data);
+  return response.data;
+};
+
+export const sendTroubleshootMessage = async (data) => {
+  const response = await api.post('/ai/troubleshoot', data);
+  return response.data;
+};
+
+export const getResolutionHistory = async (userId) => {
+  const response = await api.get(`/history${userId ? `?userId=${userId}` : ''}`);
+  return response.data;
+};
+
+export const calculateEstimatedCost = async (data) => {
+  const response = await api.post('/cost-estimation/calculate', data);
+  return response.data;
+};
+
+export const estimateServiceCost = async (data) => {
+  const response = await api.post('/cost-estimation/calculate', data);
+  return response.data;
+};
+
 export const updateAppointmentStatus = async (appointmentId, statusData) => {
   const response = await api.put(`/appointments/${appointmentId}/status`, statusData);
   return response.data;
