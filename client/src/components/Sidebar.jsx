@@ -220,19 +220,15 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
 
       {/* Navigation Links */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5, mb: 2 }}>
-        <Typography variant="caption" sx={{ color: '#00A8FF', fontWeight: 700, px: 1, mb: 1, display: 'block', letterSpacing: 0.5 }}>
-          {isCustomer ? 'CUSTOMER SERVICES' : 'TECHNICIAN PORTAL'}
+        <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, px: 1, mb: 1, display: 'block' }}>
+          {isCustomer ? 'CUSTOMER PORTAL' : 'TECHNICIAN PORTAL'}
         </Typography>
 
         <List disablePadding>
           {isCustomer ? (
             <>
-              {/* --- MODULE 1: ISSUE CREATION & AI --- */}
-              <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, px: 1, mt: 1.5, mb: 0.5, display: 'block', fontSize: '0.65rem' }}>
-                MODULE 1: REQUESTS & AI
-              </Typography>
-              
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
+              {/* New Request */}
+              <ListItem disablePadding sx={{ mb: 1 }}>
                 <ListItemButton
                   selected={activeTab === 'new-request'}
                   onClick={() => setActiveTab('new-request')}
@@ -244,95 +240,15 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                     '&:hover': { backgroundColor: '#172036' }
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'new-request' ? '#00A8FF' : '#94A3B8' }}>
-                    <PlusCircle size={16} />
+                  <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'new-request' ? '#00A8FF' : '#94A3B8' }}>
+                    <PlusCircle size={18} />
                   </ListItemIcon>
-                  <ListItemText primary="New Request (M2)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
+                  <ListItemText primary="New Request" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
                 </ListItemButton>
               </ListItem>
 
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'ai-classifier'}
-                  onClick={() => setActiveTab('ai-classifier')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'ai-classifier' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'ai-classifier' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'ai-classifier' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'ai-classifier' ? '#00A8FF' : '#94A3B8' }}>
-                    <Activity size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="AI Issue Classifier (M1)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'ai-assistant'}
-                  onClick={() => setActiveTab('ai-assistant')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'ai-assistant' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'ai-assistant' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'ai-assistant' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'ai-assistant' ? '#00A8FF' : '#94A3B8' }}>
-                    <Info size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="AI Troubleshooter (M1)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'emergency-queue'}
-                  onClick={() => setActiveTab('emergency-queue')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'emergency-queue' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'emergency-queue' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'emergency-queue' ? '4px solid #EF4444' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'emergency-queue' ? '#EF4444' : '#94A3B8' }}>
-                    <Shield size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Emergency Queue (M1)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'resolution-history'}
-                  onClick={() => setActiveTab('resolution-history')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'resolution-history' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'resolution-history' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'resolution-history' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'resolution-history' ? '#00A8FF' : '#94A3B8' }}>
-                    <ClipboardList size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Resolution History (M1)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              {/* --- MODULE 2: SCHEDULING & SEARCH --- */}
-              <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, px: 1, mt: 1.5, mb: 0.5, display: 'block', fontSize: '0.65rem' }}>
-                MODULE 2: APPOINTMENTS & MAPS
-              </Typography>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
+              {/* Appointments */}
+              <ListItem disablePadding sx={{ mb: 1 }}>
                 <ListItemButton
                   selected={activeTab === 'appointments'}
                   onClick={() => setActiveTab('appointments')}
@@ -344,57 +260,15 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                     '&:hover': { backgroundColor: '#172036' }
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'appointments' ? '#00A8FF' : '#94A3B8' }}>
-                    <Calendar size={16} />
+                  <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'appointments' ? '#00A8FF' : '#94A3B8' }}>
+                    <Calendar size={18} />
                   </ListItemIcon>
-                  <ListItemText primary="Book Appointment (M2)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
+                  <ListItemText primary="Book Appointment" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
                 </ListItemButton>
               </ListItem>
 
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'tech-search'}
-                  onClick={() => setActiveTab('tech-search')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'tech-search' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'tech-search' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'tech-search' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'tech-search' ? '#00A8FF' : '#94A3B8' }}>
-                    <User size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Find Specialists (M3)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'auto-assignment'}
-                  onClick={() => setActiveTab('auto-assignment')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'auto-assignment' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'auto-assignment' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'auto-assignment' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'auto-assignment' ? '#00A8FF' : '#94A3B8' }}>
-                    <UserCheck size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Auto Assignment & Map (M3)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              {/* --- MODULE 3: TRACKING & CHAT --- */}
-              <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, px: 1, mt: 1.5, mb: 0.5, display: 'block', fontSize: '0.65rem' }}>
-                MODULE 3: TRACKING & SUPPORT
-              </Typography>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
+              {/* Track Progress */}
+              <ListItem disablePadding sx={{ mb: 1 }}>
                 <ListItemButton
                   selected={activeTab === 'progress-tracker'}
                   onClick={() => setActiveTab('progress-tracker')}
@@ -406,91 +280,10 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                     '&:hover': { backgroundColor: '#172036' }
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'progress-tracker' ? '#00A8FF' : '#94A3B8' }}>
-                    <Activity size={16} />
+                  <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'progress-tracker' ? '#00A8FF' : '#94A3B8' }}>
+                    <Activity size={18} />
                   </ListItemIcon>
-                  <ListItemText primary="Track Progress (M2)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'chat-support'}
-                  onClick={() => setActiveTab('chat-support')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'chat-support' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'chat-support' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'chat-support' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'chat-support' ? '#00A8FF' : '#94A3B8' }}>
-                    <Mail size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Live Chat & Video (M3)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              {/* --- MODULE 4: PAYMENT, REVIEWS & ESTIMATES --- */}
-              <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, px: 1, mt: 1.5, mb: 0.5, display: 'block', fontSize: '0.65rem' }}>
-                MODULE 4: BILLING & REVIEWS
-              </Typography>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'payment'}
-                  onClick={() => setActiveTab('payment')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'payment' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'payment' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'payment' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'payment' ? '#00A8FF' : '#94A3B8' }}>
-                    <Shield size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Payment & Invoices (M4)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'rating-review'}
-                  onClick={() => setActiveTab('rating-review')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'rating-review' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'rating-review' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'rating-review' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'rating-review' ? '#00A8FF' : '#94A3B8' }}>
-                    <UserCheck size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Rate & Review (M4)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={activeTab === 'cost-estimator'}
-                  onClick={() => setActiveTab('cost-estimator')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'cost-estimator' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'cost-estimator' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'cost-estimator' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 30, color: activeTab === 'cost-estimator' ? '#00A8FF' : '#94A3B8' }}>
-                    <Sliders size={16} />
-                  </ListItemIcon>
-                  <ListItemText primary="Cost Estimator (M4)" primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: 600 }} />
+                  <ListItemText primary="Track Progress" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
                 </ListItemButton>
               </ListItem>
             </>
@@ -512,7 +305,7 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                   <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'tech-dashboard' ? '#00A8FF' : '#94A3B8' }}>
                     <ClipboardList size={18} />
                   </ListItemIcon>
-                  <ListItemText primary="Job Requests (M2)" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+                  <ListItemText primary="Job Requests" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
                 </ListItemButton>
               </ListItem>
 
@@ -532,7 +325,7 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                   <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'tech-availability' ? '#00A8FF' : '#94A3B8' }}>
                     <Sliders size={18} />
                   </ListItemIcon>
-                  <ListItemText primary="Availability Config (M3)" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+                  <ListItemText primary="Availability Config" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
                 </ListItemButton>
               </ListItem>
 
@@ -552,27 +345,7 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
                   <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'progress-tracker' ? '#00A8FF' : '#94A3B8' }}>
                     <Activity size={18} />
                   </ListItemIcon>
-                  <ListItemText primary="Status Tracker (M2)" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-
-              {/* Live Chat with Customer */}
-              <ListItem disablePadding sx={{ mb: 1 }}>
-                <ListItemButton
-                  selected={activeTab === 'chat-support'}
-                  onClick={() => setActiveTab('chat-support')}
-                  sx={{
-                    borderRadius: 2,
-                    color: activeTab === 'chat-support' ? '#FFFFFF' : '#94A3B8',
-                    backgroundColor: activeTab === 'chat-support' ? '#172036' : 'transparent',
-                    borderLeft: activeTab === 'chat-support' ? '4px solid #00A8FF' : '4px solid transparent',
-                    '&:hover': { backgroundColor: '#172036' }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 34, color: activeTab === 'chat-support' ? '#00A8FF' : '#94A3B8' }}>
-                    <Mail size={18} />
-                  </ListItemIcon>
-                  <ListItemText primary="Customer Chat (M3)" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
+                  <ListItemText primary="Status Tracker" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }} />
                 </ListItemButton>
               </ListItem>
             </>
