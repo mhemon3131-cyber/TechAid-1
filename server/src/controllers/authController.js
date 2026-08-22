@@ -1,737 +1,156 @@
-// ==========================================================
-// AUTHENTICATION CONTROLLER
-// ==========================================================
+// Authentication Controller: Real Database User Login & Registration
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
-import {
-  PrismaClient
-} from '@prisma/client';
+// @desc    Register New User (Customer or Technician) in Prisma Database
+// @route   POST /api/auth/register
+export const registerUser = async (req, res) => {
+  try {
+    const { name, email, password, role, specialty, phone } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Please provide name, email, and password.' });
+    }
 
-const prisma =
-  new PrismaClient();
+    const cleanEmail = email.toLowerCase().trim();
 
+    // Check if user already exists in database
+    const existing = await prisma.user.findUnique({
+      where: { email: cleanEmail }
+    });
 
-// ==========================================================
-// BANGLADESH MOBILE VALIDATION
-//
-// Exactly 11 digits.
-//
-// Allowed prefixes:
-// 013
-// 014
-// 015
-// 016
-// 017
-// 018
-// 019
-// ==========================================================
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'An account with this email address already exists. Please log in.' });
+    }
 
-const isValidBangladeshPhone = (
-  phone
-) => {
+    const userRole = role || 'CUSTOMER';
+    const avatar = name.slice(0, 2).toUpperCase();
 
-  return /^(013|014|015|016|017|018|019)\d{8}$/.test(
-    String(
-      phone || ''
-    ).trim()
-  );
+    // Create User in Prisma Database
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email: cleanEmail,
+        password: password || '123456',
+        role: userRole,
+        phone: phone || '+8801700000000',
+        avatar,
+        // If Technician role, create linked Technician Profile
+        technician: userRole === 'TECHNICIAN' ? {
+          create: {
+            name,
+            specialty: specialty || 'General Hardware Specialist',
+            rating: 4.8,
+            distanceKm: 2.5,
+            isAvailable: true,
+            avatar,
+            availableDays: 'Mon,Tue,Wed,Thu,Fri',
+            workingHours: '09:00 AM - 06:00 PM',
+            serviceAreas: 'Gulshan, Banani, Dhanmondi, Uttara',
+            maxDailyAppointments: 5
+          }
+        } : undefined
+      },
+      include: { technician: true }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Account created successfully for ${newUser.name}! Saved in database.`,
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        avatar: newUser.avatar,
+        technicianId: newUser.technician ? newUser.technician.id : null,
+        specialty: newUser.technician ? newUser.technician.specialty : null
+      }
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ success: false, message: 'Server database error during account creation.' });
+  }
 };
 
-
-// ==========================================================
-// REGISTER USER
-//
-// POST /api/auth/register
-// ==========================================================
-
-export const registerUser =
-  async (
-    req,
-    res
-  ) => {
-
-    try {
-
-      const {
-        name,
-        email,
-        password,
-        role,
-        specialty,
-        phone
-      } = req.body;
-
-
-      // ----------------------------------------------------
-      // REQUIRED FIELDS
-      // ----------------------------------------------------
-
-      if (
-        !name ||
-        !email ||
-        !password ||
-        !phone
-      ) {
-
-        return res.status(
-          400
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'Please provide name, email, password and phone number.'
-        });
-      }
-
-
-      const cleanName =
-        String(
-          name
-        ).trim();
-
-
-      const cleanEmail =
-        String(
-          email
-        )
-          .toLowerCase()
-          .trim();
-
-
-      const cleanPassword =
-        String(
-          password
-        ).trim();
-
-
-      const cleanPhone =
-        String(
-          phone
-        ).trim();
-
-
-      const userRole =
-        role ||
-        'CUSTOMER';
-
-
-      // ----------------------------------------------------
-      // PHONE VALIDATION
-      // ----------------------------------------------------
-
-      if (
-        !isValidBangladeshPhone(
-          cleanPhone
-        )
-      ) {
-
-        return res.status(
-          400
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'Phone number must be a valid 11-digit Bangladesh mobile number.'
-        });
-      }
-
-
-      // ----------------------------------------------------
-      // ROLE VALIDATION
-      // ----------------------------------------------------
-
-      if (
-        userRole !==
-          'CUSTOMER' &&
-        userRole !==
-          'TECHNICIAN' &&
-        userRole !==
-          'ADMIN'
-      ) {
-
-        return res.status(
-          400
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'Invalid user role.'
-        });
-      }
-
-
-      // ----------------------------------------------------
-      // DUPLICATE EMAIL
-      // ----------------------------------------------------
-
-      const existing =
-        await prisma.user.findUnique({
-
-          where: {
-
-            email:
-              cleanEmail
-          }
-        });
-
-
-      if (
-        existing
-      ) {
-
-        return res.status(
-          400
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'An account with this email address already exists. Please log in.'
-        });
-      }
-
-
-      const avatar =
-        cleanName
-          .slice(
-            0,
-            2
-          )
-          .toUpperCase();
-
-
-      // ----------------------------------------------------
-      // CREATE USER
-      //
-      // Technician hole same transaction-e Technician
-      // profile create hobe.
-      // ----------------------------------------------------
-
-      const newUser =
-        await prisma.user.create({
-
-          data: {
-
-            name:
-              cleanName,
-
-            email:
-              cleanEmail,
-
-            password:
-              cleanPassword,
-
-            role:
-              userRole,
-
-            phone:
-              cleanPhone,
-
-            avatar,
-
-
-            technician:
-              userRole ===
-              'TECHNICIAN'
-                ? {
-
-                    create: {
-
-                      name:
-                        cleanName,
-
-                      specialty:
-                        specialty ||
-                        'General Hardware Specialist',
-
-                      rating:
-                        4.8,
-
-                      distanceKm:
-                        2.5,
-
-                      isAvailable:
-                        true,
-
-                      avatar,
-
-                      availableDays:
-                        'Mon,Tue,Wed,Thu,Fri',
-
-                      workingHours:
-                        '09:00 AM - 06:00 PM',
-
-                      serviceAreas:
-                        'Gulshan, Banani, Dhanmondi, Uttara',
-
-                      maxDailyAppointments:
-                        5
-                    }
-                  }
-                : undefined
-          },
-
-
-          include: {
-
-            technician:
-              true
-          }
-        });
-
-
-      // ----------------------------------------------------
-      // SUCCESS RESPONSE
-      // ----------------------------------------------------
-
-      return res.status(
-        201
-      ).json({
-
-        success:
-          true,
-
-        message:
-          `Account created successfully for ${newUser.name}! Saved in database.`,
-
-        user: {
-
-          id:
-            newUser.id,
-
-          name:
-            newUser.name,
-
-          email:
-            newUser.email,
-
-          phone:
-            newUser.phone,
-
-          role:
-            newUser.role,
-
-          avatar:
-            newUser.avatar,
-
-          technicianId:
-            newUser.technician
-              ? newUser.technician.id
-              : null,
-
-          specialty:
-            newUser.technician
-              ? newUser.technician.specialty
-              : null
-        }
-      });
-
-
-    } catch (
-      error
-    ) {
-
-      console.error(
-        'Registration error:',
-        error
-      );
-
-
-      return res.status(
-        500
-      ).json({
-
-        success:
-          false,
-
-        message:
-          'Server database error during account creation.',
-
-        details:
-          error.message
-      });
+// @desc    User Login (Customer or Technician) from Prisma Database
+// @route   POST /api/auth/login
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Please provide email address.' });
     }
-  };
 
+    const cleanEmail = email.toLowerCase().trim();
 
-// ==========================================================
-// LOGIN USER
-//
-// POST /api/auth/login
-//
-// Checks:
-// 1. Email exists
-// 2. Password correct
-// 3. Selected role matches account
-// ==========================================================
+    // Query Prisma Database
+    let user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+      include: { technician: true }
+    });
 
-export const loginUser =
-  async (
-    req,
-    res
-  ) => {
-
-    try {
-
-      const {
-        email,
-        password,
-        role
-      } = req.body;
-
-
-      // ----------------------------------------------------
-      // REQUIRED
-      // ----------------------------------------------------
-
-      if (
-        !email ||
-        !password
-      ) {
-
-        return res.status(
-          400
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'Please provide email address and password.'
-        });
-      }
-
-
-      const cleanEmail =
-        String(
-          email
-        )
-          .toLowerCase()
-          .trim();
-
-
-      const cleanPassword =
-        String(
-          password
-        ).trim();
-
-
-      // ----------------------------------------------------
-      // FIND USER
-      // ----------------------------------------------------
-
-      const user =
-        await prisma.user.findUnique({
-
-          where: {
-
-            email:
-              cleanEmail
-          },
-
-
-          include: {
-
-            technician:
-              true
-          }
-        });
-
-
-      if (
-        !user
-      ) {
-
-        return res.status(
-          404
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'User account not found. Please create an account.'
-        });
-      }
-
-
-      // ----------------------------------------------------
-      // ROLE CHECK
-      // ----------------------------------------------------
-
-      if (
-        role &&
-        user.role !==
-          role
-      ) {
-
-        return res.status(
-          401
-        ).json({
-
-          success:
-            false,
-
-          message:
-            `Access denied. This account is registered as ${user.role}.`
-        });
-      }
-
-
-      // ----------------------------------------------------
-      // PASSWORD CHECK
-      // ----------------------------------------------------
-
-      if (
-        user.password !==
-          cleanPassword
-      ) {
-
-        return res.status(
-          401
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'Incorrect password.'
-        });
-      }
-
-
-      // ----------------------------------------------------
-      // LOGIN SUCCESS
-      // ----------------------------------------------------
-
-      return res.json({
-
-        success:
-          true,
-
-        message:
-          `Welcome back, ${user.name}! Logged in as ${user.role}.`,
-
-        user: {
-
-          id:
-            user.id,
-
-          name:
-            user.name,
-
-          email:
-            user.email,
-
-          phone:
-            user.phone ||
-            '',
-
-          role:
-            user.role,
-
-          avatar:
-            user.avatar ||
-            user.name
-              .slice(
-                0,
-                2
-              )
-              .toUpperCase(),
-
-          technicianId:
-            user.technician
-              ? user.technician.id
-              : null,
-
-          specialty:
-            user.technician
-              ? user.technician.specialty
-              : null
-        }
-      });
-
-
-    } catch (
-      error
-    ) {
-
-      console.error(
-        'Login error:',
-        error
-      );
-
-
-      return res.status(
-        500
-      ).json({
-
-        success:
-          false,
-
-        message:
-          'Server database error during authentication.',
-
-        details:
-          error.message
-      });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found. Please create an account.' });
     }
-  };
 
-
-// ==========================================================
-// GET CURRENT USER
-//
-// GET /api/auth/me/:email
-// ==========================================================
-
-export const getCurrentUser =
-  async (
-    req,
-    res
-  ) => {
-
-    try {
-
-      const {
-        email
-      } = req.params;
-
-
-      const cleanEmail =
-        String(
-          email
-        )
-          .toLowerCase()
-          .trim();
-
-
-      if (
-        !cleanEmail
-      ) {
-
-        return res.status(
-          400
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'Email address is required.'
-        });
-      }
-
-
-      const user =
-        await prisma.user.findUnique({
-
-          where: {
-
-            email:
-              cleanEmail
-          },
-
-
-          include: {
-
-            technician:
-              true
-          }
-        });
-
-
-      if (
-        !user
-      ) {
-
-        return res.status(
-          404
-        ).json({
-
-          success:
-            false,
-
-          message:
-            'User not found.'
-        });
-      }
-
-
-      return res.json({
-
-        success:
-          true,
-
-        user: {
-
-          id:
-            user.id,
-
-          name:
-            user.name,
-
-          email:
-            user.email,
-
-          phone:
-            user.phone ||
-            '',
-
-          role:
-            user.role,
-
-          avatar:
-            user.avatar ||
-            user.name
-              .slice(
-                0,
-                2
-              )
-              .toUpperCase(),
-
-          technicianId:
-            user.technician
-              ? user.technician.id
-              : null,
-
-          specialty:
-            user.technician
-              ? user.technician.specialty
-              : null
-        }
-      });
-
-
-    } catch (
-      error
-    ) {
-
-      console.error(
-        'Get current user error:',
-        error
-      );
-
-
-      return res.status(
-        500
-      ).json({
-
-        success:
-          false,
-
-        message:
-          'Database error.',
-
-        details:
-          error.message
-      });
+    // Role check
+    if (role && user.role !== role) {
+      return res.status(401).json({ success: false, message: `Access denied. Account is registered as ${user.role}.` });
     }
-  };
+
+    res.json({
+      success: true,
+      message: `Welcome back, ${user.name}! Logged in as ${user.role}.`,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+        role: user.role,
+        avatar: user.avatar || user.name.slice(0, 2).toUpperCase(),
+        technicianId: user.technician ? user.technician.id : null,
+        specialty: user.technician ? user.technician.specialty : null
+      }
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ success: false, message: 'Server database error during authentication.' });
+  }
+};
+
+// @desc    Get Current User Profile
+// @route   GET /api/auth/me/:email
+export const getCurrentUser = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+      include: { technician: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        avatar: user.avatar,
+        technicianId: user.technician ? user.technician.id : null,
+        specialty: user.technician ? user.technician.specialty : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Database error.' });
+  }
+};

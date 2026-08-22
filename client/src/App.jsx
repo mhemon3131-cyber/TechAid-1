@@ -1,799 +1,88 @@
-import React, {
-  useEffect,
-  useState
-} from 'react';
-
-import axios from 'axios';
-
-import {
-  Box,
-  ThemeProvider,
-  CssBaseline
-} from '@mui/material';
-
+import React, { useState } from 'react';
+import { Box, ThemeProvider, CssBaseline } from '@mui/material';
 import { theme } from './theme';
-
 import { Auth } from './pages/Auth';
 import { Sidebar } from './components/Sidebar';
-
 import { CreateRequest } from './pages/CreateRequest';
 import { AppointmentBooking } from './pages/AppointmentBooking';
 import { TechnicianDashboard } from './pages/TechnicianDashboard';
 import { TechnicianAvailability } from './pages/TechnicianAvailability';
 import { ServiceProgressTracker } from './pages/ServiceProgressTracker';
 
-import ChatPage from './pages/ChatPage';
-import EmergencyQueue from './pages/EmergencyQueue';
-
-
-// ==========================================================
-// MAIN BRANCH - AI / SUPPORT FEATURES
-// ==========================================================
-
-import {
-  AIIssueClassifier
-} from './pages/AIIssueClassifier';
-
-import {
-  AITroubleshootAssistant
-} from './pages/AITroubleshootAssistant';
-
-import {
-  IssueResolutionHistory
-} from './pages/IssueResolutionHistory';
-
-import {
-  ServiceCostEstimator
-} from './pages/ServiceCostEstimator';
-
-
-// ==========================================================
-// MEMBER 4 - AUTO ASSIGNMENT
-// ==========================================================
-
-import {
-  TechnicianAssignment
-} from './pages/TechnicianAssignment';
-
-
-// ==========================================================
-// MEMBER 4 - MANUAL TECHNICIAN SEARCH
-// ==========================================================
-
-import {
-  TechnicianSearch
-} from './pages/TechnicianSearch';
-
-
-// ==========================================================
-// MODULE 3 FEATURE 4 - RATING & REVIEW
-// ==========================================================
-
-import RatingReview from './pages/RatingReview';
-
-
-// ==========================================================
-// MODULE 2 FEATURE 4 - PAYMENT
-// ==========================================================
-
-import Payment from './pages/Payment';
-
-
 export default function App() {
-
-  // ========================================================
-  // CURRENT USER
-  // ========================================================
-
-  const [
-    currentUser,
-    setCurrentUser
-  ] = useState(() => {
-
-    const saved =
-      localStorage.getItem(
-        'techaid_user'
-      );
-
-    return saved
-      ? JSON.parse(
-          saved
-        )
-      : null;
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('techaid_user');
+    return saved ? JSON.parse(saved) : null;
   });
 
+  const [activeTab, setActiveTab] = useState('new-request');
 
-  // ========================================================
-  // ACTIVE TAB
-  // ========================================================
-
-  const [
-    activeTab,
-    setActiveTab
-  ] = useState(
-    'new-request'
-  );
-
-
-  // ========================================================
-  // ACTIVE CHAT
-  // ========================================================
-
-  const [
-    activeConvId,
-    setActiveConvId
-  ] = useState(
-    null
-  );
-
-
-  // ========================================================
-  // STRIPE REDIRECT
-  // ========================================================
-
-  useEffect(() => {
-
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
-
-    const paymentStatus =
-      params.get(
-        'payment'
-      );
-
-
-    if (
-      paymentStatus ===
-        'success' ||
-      paymentStatus ===
-        'cancelled'
-    ) {
-
-      setActiveTab(
-        'payment'
-      );
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    localStorage.setItem('techaid_user', JSON.stringify(user));
+    if (user.role === 'TECHNICIAN') {
+      setActiveTab('tech-dashboard');
+    } else {
+      setActiveTab('new-request');
     }
-
-  }, []);
-
-
-  // ========================================================
-  // LOGIN SUCCESS
-  // ========================================================
-
-  const handleLoginSuccess =
-    (user) => {
-
-      setCurrentUser(
-        user
-      );
-
-
-      localStorage.setItem(
-        'techaid_user',
-        JSON.stringify(
-          user
-        )
-      );
-
-
-      if (
-        user.role ===
-        'TECHNICIAN'
-      ) {
-
-        setActiveTab(
-          'tech-dashboard'
-        );
-
-      } else {
-
-        setActiveTab(
-          'new-request'
-        );
-      }
-    };
-
-
-  // ========================================================
-  // LOGOUT
-  // ========================================================
-
-  const handleLogout =
-    () => {
-
-      setCurrentUser(
-        null
-      );
-
-
-      localStorage.removeItem(
-        'techaid_user'
-      );
-
-
-      setActiveTab(
-        'new-request'
-      );
-
-
-      setActiveConvId(
-        null
-      );
-
-
-      window.history.replaceState(
-        {},
-        '',
-        window.location.pathname
-      );
-    };
-
-
-  // ========================================================
-  // EMERGENCY REQUEST ACCEPTED
-  // ========================================================
-
-  const handleEmergencyAccepted =
-    (reqItem) => {
-
-      const custId =
-        reqItem?.customer?.id ||
-        reqItem?.customerId ||
-        'usr-1';
-
-
-      const custName =
-        reqItem?.customer?.name ||
-        reqItem?.customerName ||
-        'Customer';
-
-
-      const custEmail =
-        reqItem?.customer?.email ||
-        'customer@techaid.com';
-
-
-      const techId =
-        currentUser?.id ||
-        'usr-4';
-
-
-      const techName =
-        currentUser?.name ||
-        'Technician';
-
-
-      const targetConvId =
-        `conv_${custId}_${techId}`;
-
-
-      axios
-        .post(
-          'http://localhost:1257/api/conversations/register',
-
-          {
-            id:
-              targetConvId,
-
-            serviceRequestId:
-              reqItem?.id ||
-              reqItem?.trackingId,
-
-            customerId:
-              custId,
-
-            customerName:
-              custName,
-
-            customerEmail:
-              custEmail,
-
-            technicianId:
-              techId,
-
-            technicianName:
-              techName,
-
-            title:
-              reqItem?.title ||
-              reqItem?.requestTitle ||
-              'Emergency Technical Support',
-
-            deviceCategory:
-              reqItem?.deviceCategory ||
-              'Laptop'
-          },
-
-          {
-            headers: {
-
-              'user-id':
-                currentUser?.id,
-
-              'user-role':
-                currentUser?.role,
-
-              'user-name':
-                currentUser?.name
-            }
-          }
-        )
-        .catch(
-          () => {}
-        );
-
-
-      setActiveConvId(
-        targetConvId
-      );
-
-
-      setActiveTab(
-        'chat'
-      );
-    };
-
-
-  // ========================================================
-  // TECHNICIAN OPEN CHAT
-  // ========================================================
-
-  const handleTechnicianOpenChat =
-    (app) => {
-
-      const custId =
-        app?.customerId ||
-        'usr-1';
-
-
-      const custName =
-        app?.customerName ||
-        'Customer';
-
-
-      const techId =
-        currentUser?.id ||
-        'usr-4';
-
-
-      const techName =
-        currentUser?.name ||
-        'Technician';
-
-
-      const targetConvId =
-        `conv_${custId}_${techId}`;
-
-
-      axios
-        .post(
-          'http://localhost:1257/api/conversations/register',
-
-          {
-            id:
-              targetConvId,
-
-            serviceRequestId:
-              app?.serviceRequestId ||
-              app?.id,
-
-            customerId:
-              custId,
-
-            customerName:
-              custName,
-
-            technicianId:
-              techId,
-
-            technicianName:
-              techName,
-
-            title:
-              app?.requestTitle ||
-              app?.title ||
-              'Technical Repair Request',
-
-            deviceCategory:
-              app?.deviceCategory ||
-              'Laptop'
-          },
-
-          {
-            headers: {
-
-              'user-id':
-                currentUser?.id,
-
-              'user-role':
-                currentUser?.role,
-
-              'user-name':
-                currentUser?.name
-            }
-          }
-        )
-        .catch(
-          () => {}
-        );
-
-
-      setActiveConvId(
-        targetConvId
-      );
-
-
-      setActiveTab(
-        'chat'
-      );
-    };
-
-
-  // ========================================================
-  // LOGIN PAGE
-  // ========================================================
-
-  if (
-    !currentUser
-  ) {
-
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('techaid_user');
+  };
+
+  // If user is not logged in, render real Login page
+  if (!currentUser) {
     return (
-
-      <ThemeProvider
-        theme={
-          theme
-        }
-      >
-
+      <ThemeProvider theme={theme}>
         <CssBaseline />
-
-
-        <Auth
-          onLoginSuccess={
-            handleLoginSuccess
-          }
-        />
-
+        <Auth onLoginSuccess={handleLoginSuccess} />
       </ThemeProvider>
     );
   }
 
-
-  // ========================================================
-  // MAIN APP
-  // ========================================================
-
   return (
-
-    <ThemeProvider
-      theme={
-        theme
-      }
-    >
-
+    <ThemeProvider theme={theme}>
       <CssBaseline />
-
-
-      <Box
-        sx={{
-          display:
-            'flex',
-
-          minHeight:
-            '100vh',
-
-          backgroundColor:
-            '#0D1527'
-        }}
-      >
-
-        {/* =================================================
-            SIDEBAR
-        ================================================= */}
-
+      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0D1527' }}>
         <Sidebar
-          activeTab={
-            activeTab
-          }
-
-          setActiveTab={
-            setActiveTab
-          }
-
-          currentUser={
-            currentUser
-          }
-
-          onLogout={
-            handleLogout
-          }
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
 
-
-        {/* =================================================
-            MAIN CONTENT
-        ================================================= */}
-
-        <Box
-          sx={{
-            flexGrow:
-              1,
-
-            overflow:
-              'auto'
-          }}
-        >
-
-          {/* ===============================================
-              NEW REQUEST
-          =============================================== */}
-
-          {activeTab ===
-            'new-request' && (
-
+        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+          {/* Module 1: Service Request Creation */}
+          {activeTab === 'new-request' && (
             <CreateRequest
-              currentUser={
-                currentUser
-              }
-
-              onNavigateToAppointment={() =>
-                setActiveTab(
-                  'appointments'
-                )
-              }
-
-              onNavigateToChat={() =>
-                setActiveTab(
-                  'chat'
-                )
-              }
+              currentUser={currentUser}
+              onNavigateToAppointment={() => setActiveTab('appointments')}
             />
           )}
 
-
-          {/* ===============================================
-              AUTO ASSIGNMENT
-          =============================================== */}
-
-          {activeTab ===
-            'technician-assignment' && (
-
-            <TechnicianAssignment
-              currentUser={
-                currentUser
-              }
-
-              onSearchTechnicians={() =>
-                setActiveTab(
-                  'technician-search'
-                )
-              }
-            />
+          {/* Module 2: Appointment Scheduling */}
+          {activeTab === 'appointments' && (
+            <AppointmentBooking currentUser={currentUser} />
           )}
 
-
-          {/* ===============================================
-              TECHNICIAN SEARCH
-          =============================================== */}
-
-          {activeTab ===
-            'technician-search' && (
-
-            <TechnicianSearch
-              currentUser={
-                currentUser
-              }
-
-              onBack={() =>
-                setActiveTab(
-                  'technician-assignment'
-                )
-              }
-            />
+          {/* Module 3 Feature 4: Service Progress Tracking */}
+          {activeTab === 'progress-tracker' && (
+            <ServiceProgressTracker currentUser={currentUser} />
           )}
 
-
-          {/* ===============================================
-              APPOINTMENTS
-          =============================================== */}
-
-          {activeTab ===
-            'appointments' && (
-
-            <AppointmentBooking
-              currentUser={
-                currentUser
-              }
-            />
+          {/* Technician Dashboard Console */}
+          {activeTab === 'tech-dashboard' && (
+            <TechnicianDashboard currentUser={currentUser} />
           )}
 
-
-          {/* ===============================================
-              LIVE CHAT
-          =============================================== */}
-
-          {activeTab ===
-            'chat' && (
-
-            <ChatPage
-              currentUser={
-                currentUser
-              }
-
-              initialConvId={
-                activeConvId
-              }
-            />
+          {/* Module 3 Feature 3: Technician Availability Management */}
+          {activeTab === 'tech-availability' && (
+            <TechnicianAvailability currentUser={currentUser} />
           )}
-
-
-          {/* ===============================================
-              EMERGENCY QUEUE
-          =============================================== */}
-
-          {activeTab ===
-            'emergency-queue' && (
-
-            <EmergencyQueue
-              onAcceptSuccess={
-                handleEmergencyAccepted
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              PROGRESS TRACKER
-          =============================================== */}
-
-          {activeTab ===
-            'progress-tracker' && (
-
-            <ServiceProgressTracker
-              currentUser={
-                currentUser
-              }
-
-              onNavigateToReview={() =>
-                setActiveTab(
-                  'rating-review'
-                )
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              PAYMENT
-          =============================================== */}
-
-          {activeTab ===
-            'payment' && (
-
-            <Payment
-              currentUser={
-                currentUser
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              RATING & REVIEW
-          =============================================== */}
-
-          {activeTab ===
-            'rating-review' && (
-
-            <RatingReview
-              currentUser={
-                currentUser
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              AI ISSUE CLASSIFIER
-          =============================================== */}
-
-          {activeTab ===
-            'ai-classify' && (
-
-            <AIIssueClassifier
-              currentUser={
-                currentUser
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              AI TROUBLESHOOT
-          =============================================== */}
-
-          {activeTab ===
-            'ai-troubleshoot' && (
-
-            <AITroubleshootAssistant
-              currentUser={
-                currentUser
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              ISSUE RESOLUTION HISTORY
-          =============================================== */}
-
-          {activeTab ===
-            'resolution-history' && (
-
-            <IssueResolutionHistory
-              currentUser={
-                currentUser
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              SERVICE COST ESTIMATOR
-          =============================================== */}
-
-          {activeTab ===
-            'cost-estimate' && (
-
-            <ServiceCostEstimator
-              currentUser={
-                currentUser
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              TECHNICIAN DASHBOARD
-          =============================================== */}
-
-          {activeTab ===
-            'tech-dashboard' && (
-
-            <TechnicianDashboard
-              currentUser={
-                currentUser
-              }
-
-              onOpenChat={
-                handleTechnicianOpenChat
-              }
-            />
-          )}
-
-
-          {/* ===============================================
-              TECHNICIAN AVAILABILITY
-          =============================================== */}
-
-          {activeTab ===
-            'tech-availability' && (
-
-            <TechnicianAvailability
-              currentUser={
-                currentUser
-              }
-            />
-          )}
-
         </Box>
-
       </Box>
-
     </ThemeProvider>
   );
 }
