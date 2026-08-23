@@ -4,7 +4,8 @@ import {
   assignBestTechnician,
   getLatestAssignment,
   acceptAssignedTechnician,
-  reassignTechnician
+  reassignTechnician,
+  getTechnicianAcceptedJobs
 } from '../controllers/technicianAssignmentController.js';
 
 const router = express.Router();
@@ -35,6 +36,17 @@ router.put(
 router.put(
   '/requests/:serviceRequestId/reassign',
   reassignTechnician
+);
+
+
+// ==========================================================
+// MODULE 1 FEATURE 4
+// CUSTOMER-CONFIRMED JOBS FOR TECHNICIAN DASHBOARD
+// ==========================================================
+
+router.get(
+  '/technicians/:technicianId/jobs',
+  getTechnicianAcceptedJobs
 );
 
 

@@ -57,4 +57,18 @@ export const reassignAutomaticTechnician = async (serviceRequestId) => {
 };
 
 
+// ==========================================================
+// TECHNICIAN JOB REQUESTS
+// Customer-confirmed automatic assignments
+// ==========================================================
+
+export const getTechnicianAcceptedJobs = async (technicianId) => {
+  const response = await assignmentApi.get(
+    `/assignments/technicians/${technicianId}/jobs`
+  );
+
+  return response.data;
+};
+
+
 export default assignmentApi;

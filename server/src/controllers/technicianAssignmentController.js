@@ -1357,3 +1357,137 @@ export const reassignTechnician = async (
     });
   }
 };
+// ==========================================================
+// GET /api/assignments/technicians/:technicianId/jobs
+// GET CUSTOMER-CONFIRMED AUTO ASSIGNMENT JOBS
+// ==========================================================
+
+export const getTechnicianAcceptedJobs = async (req, res) => {
+  try {
+    const { technicianId } = req.params;
+
+    // Support both Technician.id and User.id
+    const technician = await prisma.technician.findFirst({
+      where: {
+        OR: [
+          { id: technicianId },
+          { userId: technicianId }
+        ]
+      },
+      include: {
+        user: true
+      }
+    });
+
+    if (!technician) {
+      return res.status(404).json({
+        success: false,
+        message: 'Technician not found.'
+      });
+    }
+
+    // Only assignments already confirmed by customer
+    const acceptedAssignments =
+      await prisma.technicianAssignment.findMany({
+        where: {
+          technicianId: technician.id,
+          status: 'ACCEPTED'
+        },
+
+        orderBy: {
+          updatedAt: 'desc'
+        },
+
+        include: {
+          serviceRequest: {
+            include: {
+              customer: true
+            }
+          }
+        }
+      });
+
+    const jobs = acceptedAssignments.map((assignment) => {
+      const request = assignment.serviceRequest;
+      const customer = request?.customer;
+
+      return {
+        // Original assignment UUID
+        id: assignment.id,
+
+        // Readable Job ID for UI
+        jobId: `JOB-${assignment.id
+          .slice(0, 8)
+          .toUpperCase()}`,
+
+        source: 'AUTO_ASSIGNMENT',
+        isAutoAssignment: true,
+
+        assignmentId: assignment.id,
+        serviceRequestId: assignment.serviceRequestId,
+
+        trackingId: request?.trackingId || null,
+
+        customerId: request?.customerId || null,
+        customerName: customer?.name || 'Customer',
+        customerPhone: customer?.phone || null,
+        customerEmail: customer?.email || null,
+
+        requestTitle:
+          request?.title ||
+          `${request?.deviceCategory || 'Technical'} Support`,
+
+        requestDescription:
+          request?.description ||
+          'Customer requested technical assistance.',
+
+        deviceCategory:
+          request?.deviceCategory || 'General',
+
+        urgency:
+          request?.urgency || 'Moderate',
+
+        serviceType:
+          request?.serviceMethod || 'Technical Support',
+
+        serviceMethod:
+          request?.serviceMethod || 'Technical Support',
+
+        status: assignment.status,
+
+        matchScore:
+          assignment.totalScore,
+
+        acceptedAt:
+          assignment.updatedAt,
+
+        technicianId:
+          technician.id,
+
+        technicianUserId:
+          technician.userId,
+
+        technicianName:
+          technician.name
+      };
+    });
+
+    return res.json({
+      success: true,
+      count: jobs.length,
+      data: jobs
+    });
+
+  } catch (error) {
+    console.error(
+      'Error fetching accepted automatic jobs:',
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        'Database error while fetching technician job requests.'
+    });
+  }
+};
