@@ -5,6 +5,7 @@ import requestRoutes from './routes/requestRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import technicianRoutes from './routes/technicianRoutes.js';
 
+import automaticAssignmentRoutes from './routes/technicianAssignmentRoutes.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -17,6 +18,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/technicians', technicianRoutes);
+
+// Module 1 Feature 4 - Automatic Technician Assignment
+app.use('/api/assignments', automaticAssignmentRoutes);
 
 // Health Check Route
 app.get('/', (req, res) => {

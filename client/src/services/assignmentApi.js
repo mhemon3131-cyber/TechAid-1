@@ -1,126 +1,56 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 const assignmentApi = axios.create({
-  baseURL: `${BASE_URL}/assignments`
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 
 // ==========================================================
-// SAVE TECHNICIAN CURRENT LOCATION
+// MODULE 1 - FEATURE 4
+// AUTOMATIC TECHNICIAN ASSIGNMENT
+// NO LOCATION / NO DISTANCE
 // ==========================================================
 
-export const saveAssignmentTechnicianLocation = async (
-  technicianId,
-  latitude,
-  longitude
-) => {
-  const response = await assignmentApi.put(
-    `/technicians/${technicianId}/location`,
-    {
-      latitude,
-      longitude
-    }
-  );
 
-  return response.data;
-};
-
-
-// ==========================================================
-// SAVE CUSTOMER REQUEST LOCATION
-// ==========================================================
-
-export const saveAssignmentRequestLocation = async (
-  serviceRequestId,
-  latitude,
-  longitude,
-  address = null
-) => {
-  const response = await assignmentApi.put(
-    `/requests/${serviceRequestId}/location`,
-    {
-      latitude,
-      longitude,
-      address
-    }
-  );
-
-  return response.data;
-};
-
-
-// ==========================================================
-// AUTOMATIC BEST TECHNICIAN
-// ==========================================================
-
-export const assignAutomaticBestTechnician = async (
-  serviceRequestId
-) => {
+// Automatically find and assign the best technician
+export const assignAutomaticBestTechnician = async (serviceRequestId) => {
   const response = await assignmentApi.post(
-    `/requests/${serviceRequestId}/assign`,
-    {}
+    `/assignments/requests/${serviceRequestId}/assign`
   );
 
   return response.data;
 };
 
 
-// ==========================================================
-// GET LATEST ASSIGNMENT
-// ==========================================================
-
-export const getAutomaticLatestAssignment = async (
-  serviceRequestId
-) => {
+// Get latest technician assignment
+export const getAutomaticLatestAssignment = async (serviceRequestId) => {
   const response = await assignmentApi.get(
-    `/requests/${serviceRequestId}/latest`
+    `/assignments/requests/${serviceRequestId}/latest`
   );
 
   return response.data;
 };
 
 
-// ==========================================================
-// ACCEPT AUTO TECHNICIAN
-// ==========================================================
-
-export const acceptAutomaticTechnician = async (
-  serviceRequestId
-) => {
+// Customer accepts assigned technician
+export const acceptAutomaticTechnician = async (serviceRequestId) => {
   const response = await assignmentApi.put(
-    `/requests/${serviceRequestId}/accept`
+    `/assignments/requests/${serviceRequestId}/accept`
   );
 
   return response.data;
 };
 
 
-// ==========================================================
-// REJECT AUTO TECHNICIAN
-// ==========================================================
-
-export const rejectAutomaticTechnician = async (
-  serviceRequestId
-) => {
+// Customer rejects current technician and gets next best technician
+export const reassignAutomaticTechnician = async (serviceRequestId) => {
   const response = await assignmentApi.put(
-    `/requests/${serviceRequestId}/reassign`
-  );
-
-  return response.data;
-};
-
-
-// ==========================================================
-// TECHNICIAN ACCEPTED AUTO JOBS
-// ==========================================================
-
-export const getTechnicianAutomaticJobs = async (
-  technicianId
-) => {
-  const response = await assignmentApi.get(
-    `/technicians/${technicianId}/jobs`
+    `/assignments/requests/${serviceRequestId}/reassign`
   );
 
   return response.data;

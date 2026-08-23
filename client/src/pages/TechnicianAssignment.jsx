@@ -12,33 +12,22 @@ import {
   CircularProgress,
   Divider,
   Grid,
+  LinearProgress,
   Paper,
   Typography
 } from '@mui/material';
 
 import {
   CheckCircle2,
-  Clock,
+  Clock3,
   Mail,
-  MapPin,
   Phone,
   RefreshCcw,
   Search,
-  Star
+  Star,
+  UserCheck,
+  Wrench
 } from 'lucide-react';
-
-import {
-  MapContainer,
-  Marker,
-  Polyline,
-  Popup,
-  TileLayer,
-  useMap
-} from 'react-leaflet';
-
-import L from 'leaflet';
-
-import 'leaflet/dist/leaflet.css';
 
 import {
   getServiceRequests
@@ -48,78 +37,17 @@ import {
   acceptAutomaticTechnician,
   assignAutomaticBestTechnician,
   getAutomaticLatestAssignment,
-  rejectAutomaticTechnician,
-  saveAssignmentRequestLocation
+  reassignAutomaticTechnician
 } from '../services/assignmentApi';
 
 
 // ==========================================================
-// LEAFLET MARKER FIX
-// ==========================================================
-
-delete L.Icon.Default.prototype._getIconUrl;
-
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-
-  iconUrl:
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-
-  shadowUrl:
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
-});
-
-
-// ==========================================================
-// MAP AUTO FIT
-// ==========================================================
-
-const AssignmentMapController = ({
-  customerLocation,
-  technicianLocation
-}) => {
-  const map = useMap();
-
-  useEffect(() => {
-    if (
-      !customerLocation ||
-      !technicianLocation
-    ) {
-      return;
-    }
-
-    const bounds =
-      L.latLngBounds([
-        [
-          Number(customerLocation.latitude),
-          Number(customerLocation.longitude)
-        ],
-        [
-          Number(technicianLocation.latitude),
-          Number(technicianLocation.longitude)
-        ]
-      ]);
-
-    map.fitBounds(
-      bounds,
-      {
-        padding: [45, 45]
-      }
-    );
-
-  }, [
-    map,
-    customerLocation,
-    technicianLocation
-  ]);
-
-  return null;
-};
-
-
-// ==========================================================
-// MAIN PAGE
+// MODULE 1 - FEATURE 4
+// AUTOMATIC TECHNICIAN ASSIGNMENT
+//
+// NO LOCATION
+// NO MAP
+// NO DISTANCE
 // ==========================================================
 
 export const TechnicianAssignment = ({
@@ -130,12 +58,6 @@ export const TechnicianAssignment = ({
   const [
     serviceRequest,
     setServiceRequest
-  ] = useState(null);
-
-
-  const [
-    customerLocation,
-    setCustomerLocation
   ] = useState(null);
 
 
@@ -152,8 +74,8 @@ export const TechnicianAssignment = ({
 
 
   const [
-    autoAssigning,
-    setAutoAssigning
+    assigning,
+    setAssigning
   ] = useState(false);
 
 
@@ -164,14 +86,8 @@ export const TechnicianAssignment = ({
 
 
   const [
-    rejecting,
-    setRejecting
-  ] = useState(false);
-
-
-  const [
-    noMoreMatches,
-    setNoMoreMatches
+    reassigning,
+    setReassigning
   ] = useState(false);
 
 
@@ -187,50 +103,33 @@ export const TechnicianAssignment = ({
   ] = useState('');
 
 
-  const initializedRequestId =
+  const [
+    noMoreMatches,
+    setNoMoreMatches
+  ] = useState(false);
+
+
+  const initializedRequest =
     useRef(null);
 
 
   // ========================================================
-  // CUSTOMER LOCATION
-  //
-  // Location optional.
-  // LocalStorage-e thakle use korbo.
-  // Na thakle null thakbe.
-  // ========================================================
-
-  useEffect(() => {
-    try {
-      const stored =
-        localStorage.getItem(
-          'techaid_customer_location'
-        );
-
-      if (stored) {
-        setCustomerLocation(
-          JSON.parse(stored)
-        );
-      }
-
-    } catch (err) {
-      console.log(
-        'Customer location error:',
-        err.message
-      );
-    }
-  }, []);
-
-
-  // ========================================================
-  // LOAD LATEST CUSTOMER REQUEST
+  // LOAD CUSTOMER'S LATEST SERVICE REQUEST
   // ========================================================
 
   useEffect(() => {
 
-    const loadRequest =
+    const loadLatestRequest =
       async () => {
 
         if (!currentUser?.id) {
+
+          setPageLoading(false);
+
+          setError(
+            'Customer account information not found.'
+          );
+
           return;
         }
 
@@ -249,17 +148,24 @@ export const TechnicianAssignment = ({
             response?.data || [];
 
 
-          const mine =
-            requests.filter(
-              (request) =>
-                request.customerId ===
-                currentUser.id
-            );
+          const customerRequests =
+            requests
+              .filter(
+                request =>
+                  request.customerId ===
+                  currentUser.id
+              )
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt) -
+                  new Date(a.createdAt)
+              );
 
 
           if (
-            mine.length === 0
+            customerRequests.length === 0
           ) {
+
             setError(
               'No service request found. Please create a service request first.'
             );
@@ -268,24 +174,23 @@ export const TechnicianAssignment = ({
           }
 
 
-          mine.sort(
-            (a, b) =>
-              new Date(b.createdAt) -
-              new Date(a.createdAt)
-          );
-
-
           setServiceRequest(
-            mine[0]
+            customerRequests[0]
           );
+
 
         } catch (err) {
 
-          console.error(err);
+          console.error(
+            'Load request error:',
+            err
+          );
+
 
           setError(
             'Unable to load your service request.'
           );
+
 
         } finally {
 
@@ -294,84 +199,40 @@ export const TechnicianAssignment = ({
       };
 
 
-    loadRequest();
+    loadLatestRequest();
 
-  }, [currentUser]);
-
-
-  // ========================================================
-  // SAVE CUSTOMER LOCATION TO CURRENT REQUEST
-  //
-  // Only run when customer actually has a location.
-  // ========================================================
-
-  const syncCustomerLocation =
-    async () => {
-
-      if (
-        !serviceRequest ||
-        !customerLocation
-      ) {
-        return;
-      }
-
-
-      const address =
-        typeof customerLocation.displayName ===
-          'string'
-          ? customerLocation.displayName
-          : customerLocation.address || null;
-
-
-      await saveAssignmentRequestLocation(
-        serviceRequest.id,
-        customerLocation.latitude,
-        customerLocation.longitude,
-        address
-      );
-    };
+  }, [
+    currentUser
+  ]);
 
 
   // ========================================================
-  // INITIAL AUTOMATIC ASSIGNMENT
-  //
-  // IMPORTANT FIX:
-  //
-  // Before:
-  // serviceRequest + customerLocation both required.
-  //
-  // Now:
-  // only serviceRequest required.
-  //
-  // Location thakle -> sync kore distance-based match.
-  // Location na thakle -> direct backend assignment.
+  // LOAD EXISTING OR CREATE AUTOMATIC ASSIGNMENT
   // ========================================================
 
   useEffect(() => {
 
-    if (
-      !serviceRequest
-    ) {
+    if (!serviceRequest) {
       return;
     }
 
 
     if (
-      initializedRequestId.current ===
+      initializedRequest.current ===
       serviceRequest.id
     ) {
       return;
     }
 
 
-    initializedRequestId.current =
+    initializedRequest.current =
       serviceRequest.id;
 
 
     const startAssignment =
       async () => {
 
-        setAutoAssigning(true);
+        setAssigning(true);
 
         setError('');
 
@@ -382,23 +243,9 @@ export const TechnicianAssignment = ({
 
         try {
 
-          // ==================================================
-          // CUSTOMER LOCATION OPTIONAL
-          //
-          // Location thakle only request-er sathe save korbo.
-          // Location na thakle skip.
-          // ==================================================
-
-          if (
-            customerLocation
-          ) {
-            await syncCustomerLocation();
-          }
-
-
-          // ----------------------------------------------
-          // Existing assignment check
-          // ----------------------------------------------
+          // ------------------------------------------
+          // Check existing assignment first
+          // ------------------------------------------
 
           try {
 
@@ -408,17 +255,18 @@ export const TechnicianAssignment = ({
               );
 
 
-            const existingStatus =
-              existing?.data?.assignment
+            const status =
+              existing?.data
+                ?.assignment
                 ?.status;
 
 
             if (
               existing?.success &&
               (
-                existingStatus ===
+                status ===
                   'PENDING_CUSTOMER_APPROVAL' ||
-                existingStatus ===
+                status ===
                   'ACCEPTED'
               )
             ) {
@@ -430,17 +278,15 @@ export const TechnicianAssignment = ({
               return;
             }
 
+
           } catch {
-            // No existing assignment.
+            // No existing assignment
           }
 
 
-          // ----------------------------------------------
-          // Create automatic assignment
-          //
-          // Customer location thakuk ba na thakuk,
-          // backend API call hobe.
-          // ----------------------------------------------
+          // ------------------------------------------
+          // Create fresh automatic assignment
+          // ------------------------------------------
 
           const response =
             await assignAutomaticBestTechnician(
@@ -454,35 +300,41 @@ export const TechnicianAssignment = ({
               response.data
             );
 
+
             setMessage(
-              customerLocation
-                ? 'Best available technician selected automatically.'
-                : 'Best available technician selected automatically without location.'
+              'The best available technician has been selected automatically.'
             );
           }
 
+
         } catch (err) {
 
-          const data =
+          const responseData =
             err?.response?.data;
 
 
           if (
-            data?.noMoreAutomaticMatches
+            responseData
+              ?.noMoreAutomaticMatches
           ) {
-            setNoMoreMatches(true);
+
+            setNoMoreMatches(
+              true
+            );
           }
 
 
           setError(
-            data?.message ||
-            err.message ||
+            responseData?.message ||
             'Automatic technician assignment failed.'
           );
 
+
         } finally {
 
-          setAutoAssigning(false);
+          setAssigning(
+            false
+          );
         }
       };
 
@@ -490,8 +342,7 @@ export const TechnicianAssignment = ({
     startAssignment();
 
   }, [
-    serviceRequest,
-    customerLocation
+    serviceRequest
   ]);
 
 
@@ -524,26 +375,26 @@ export const TechnicianAssignment = ({
 
         if (response?.success) {
 
-          const latest =
-            await getAutomaticLatestAssignment(
-              serviceRequest.id
-            );
-
-
           setAssignmentData(
-            latest.data
+            response.data
           );
 
 
-          setMessage('');
+          setMessage(
+            'Technician accepted successfully. Your service request is now confirmed.'
+          );
         }
+
 
       } catch (err) {
 
         setError(
-          err?.response?.data?.message ||
+          err?.response
+            ?.data
+            ?.message ||
           'Unable to accept technician.'
         );
+
 
       } finally {
 
@@ -553,13 +404,10 @@ export const TechnicianAssignment = ({
 
 
   // ========================================================
-  // REJECT -> NEXT BEST
-  //
-  // Previous technician backend-e excluded hobe.
-  // Tarpor next best available technician asbe.
+  // REASSIGN / NEXT BEST TECHNICIAN
   // ========================================================
 
-  const handleReject =
+  const handleReassign =
     async () => {
 
       if (!serviceRequest) {
@@ -567,7 +415,7 @@ export const TechnicianAssignment = ({
       }
 
 
-      setRejecting(true);
+      setReassigning(true);
 
       setError('');
 
@@ -578,53 +426,57 @@ export const TechnicianAssignment = ({
 
       try {
 
-        // Current technician reject
-        await rejectAutomaticTechnician(
-          serviceRequest.id
-        );
-
-
-        // Next best technician
         const response =
-          await assignAutomaticBestTechnician(
+          await reassignAutomaticTechnician(
             serviceRequest.id
           );
 
 
-        setAssignmentData(
-          response.data
-        );
+        if (response?.success) {
+
+          setAssignmentData(
+            response.data
+          );
 
 
-        setMessage(
-          'Next best available technician has been suggested.'
-        );
+          setMessage(
+            'The previous technician was rejected. The next best technician has been selected.'
+          );
+        }
+
 
       } catch (err) {
 
-        const data =
+        const responseData =
           err?.response?.data;
 
 
-        setAssignmentData(null);
-
-
         if (
-          data?.noMoreAutomaticMatches ||
-          err?.response?.status === 404
+          responseData
+            ?.noMoreAutomaticMatches
         ) {
-          setNoMoreMatches(true);
+
+          setNoMoreMatches(
+            true
+          );
+
+          setAssignmentData(
+            null
+          );
         }
 
 
         setError(
-          data?.message ||
-          'No more automatic technician matches are available.'
+          responseData?.message ||
+          'No more suitable technicians are available.'
         );
+
 
       } finally {
 
-        setRejecting(false);
+        setReassigning(
+          false
+        );
       }
     };
 
@@ -643,28 +495,14 @@ export const TechnicianAssignment = ({
     null;
 
 
-  const schedule =
-    assignmentData?.autoSchedule ||
-    assignmentData?.schedule ||
-    {
-      date:
-        assignment?.assignedDate,
-
-      timeSlot:
-        assignment?.assignedTimeSlot
-    };
+  const scores =
+    assignment?.scoreBreakdown ||
+    {};
 
 
-  const technicianLocation =
-    technician?.location ||
-    assignmentData?.technicianLocation ||
-    null;
-
-
-  const finalCustomerLocation =
-    assignmentData?.customerLocation ||
-    customerLocation ||
-    null;
+  const workload =
+    assignment?.workload ||
+    {};
 
 
   const accepted =
@@ -672,39 +510,8 @@ export const TechnicianAssignment = ({
     'ACCEPTED';
 
 
-  const fee =
-    technician?.charge?.label ||
-    (
-      technician?.charge?.amount !==
-        undefined
-        ? `৳${technician.charge.amount}`
-        : 'N/A'
-    );
-
-
-  const distance =
-    assignment?.distanceKm ??
-    assignmentData?.distance?.km ??
-    null;
-
-
-  const locationText =
-    finalCustomerLocation?.address ||
-    finalCustomerLocation?.displayName ||
-    (
-      finalCustomerLocation?.latitude &&
-      finalCustomerLocation?.longitude
-        ? `${Number(
-            finalCustomerLocation.latitude
-          ).toFixed(5)}, ${Number(
-            finalCustomerLocation.longitude
-          ).toFixed(5)}`
-        : 'Location not provided'
-    );
-
-
   // ========================================================
-  // LOADING
+  // LOADING SCREEN
   // ========================================================
 
   if (pageLoading) {
@@ -719,14 +526,16 @@ export const TechnicianAssignment = ({
           justifyContent: 'center'
         }}
       >
+
         <CircularProgress />
+
       </Box>
     );
   }
 
 
   // ========================================================
-  // PAGE
+  // MAIN PAGE
   // ========================================================
 
   return (
@@ -743,9 +552,7 @@ export const TechnicianAssignment = ({
       }}
     >
 
-      {/* ===================================================
-          HEADER
-      =================================================== */}
+      {/* HEADER */}
 
       <Typography
         variant="caption"
@@ -755,14 +562,11 @@ export const TechnicianAssignment = ({
               ? '#10B981'
               : '#00A8FF',
 
-          fontWeight: 800
+          fontWeight: 800,
+          letterSpacing: 1
         }}
       >
-        {
-          accepted
-            ? 'SERVICE CONFIRMATION'
-            : 'AUTOMATIC TECHNICIAN ASSIGNMENT'
-        }
+        MODULE 1 • FEATURE 4
       </Typography>
 
 
@@ -773,551 +577,55 @@ export const TechnicianAssignment = ({
           mt: 0.5
         }}
       >
-        {
-          accepted
-            ? 'Service Confirmed'
-            : 'Best Technician Match'
-        }
+        Automatic Technician Assignment
       </Typography>
 
 
       <Typography
         sx={{
           color: '#94A3B8',
-          mt: 0.5,
+          mt: 0.7,
           mb: 3
         }}
       >
-        {
-          accepted
-            ? 'Your technician and service schedule have been confirmed.'
-            : 'The system automatically finds the most suitable available technician and service time.'
-        }
+        The system selects the most suitable technician using technical expertise,
+        availability, current workload and service rating.
       </Typography>
 
 
       {/* ERROR */}
 
       {error && (
+
         <Alert
           severity="error"
-          sx={{
-            mb: 2
-          }}
+          sx={{ mb: 2 }}
         >
           {error}
         </Alert>
+
       )}
 
 
-      {/* SUCCESS MESSAGE BEFORE ACCEPT */}
+      {/* SUCCESS */}
 
-      {message && !accepted && (
+      {message && (
+
         <Alert
           severity="success"
-          sx={{
-            mb: 2
-          }}
+          sx={{ mb: 2 }}
         >
           {message}
         </Alert>
+
       )}
 
 
       {/* ===================================================
-          ACCEPTED / CONFIRMED VIEW
+          SERVICE REQUEST CARD
       =================================================== */}
 
-      {accepted && technician && (
-
-        <Paper
-          elevation={0}
-          sx={{
-            maxWidth: 1050,
-            backgroundColor: '#172036',
-            border: '1px solid #10B981',
-            borderRadius: 3,
-            overflow: 'hidden'
-          }}
-        >
-
-          {/* CONFIRMED HEADER */}
-
-          <Box
-            sx={{
-              p: 3,
-              backgroundColor:
-                'rgba(16,185,129,.08)',
-              borderBottom:
-                '1px solid rgba(16,185,129,.25)'
-            }}
-          >
-
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5
-              }}
-            >
-
-              <CheckCircle2
-                size={32}
-                color="#10B981"
-              />
-
-              <Box>
-
-                <Typography
-                  variant="h5"
-                  sx={{
-                    color: '#10B981',
-                    fontWeight: 800
-                  }}
-                >
-                  Service Confirmed
-                </Typography>
-
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: '#94A3B8',
-                    mt: 0.3
-                  }}
-                >
-                  Your technician has been confirmed for this service.
-                </Typography>
-
-              </Box>
-
-            </Box>
-
-          </Box>
-
-
-          <Box sx={{ p: 3 }}>
-
-            {/* TECHNICIAN */}
-
-            <Box
-              sx={{
-                mb: 3
-              }}
-            >
-
-              <Typography
-                variant="caption"
-                sx={{
-                  color: '#64748B'
-                }}
-              >
-                TECHNICIAN
-              </Typography>
-
-
-              <Typography
-                variant="h4"
-                sx={{
-                  fontWeight: 800,
-                  mt: 0.5
-                }}
-              >
-                {technician.name}
-              </Typography>
-
-
-              <Typography
-                sx={{
-                  color: '#38BDF8',
-                  mt: 0.5,
-                  fontWeight: 600
-                }}
-              >
-                {
-                  technician.specialty ||
-                  'Technical Specialist'
-                }
-              </Typography>
-
-            </Box>
-
-
-            <Divider
-              sx={{
-                borderColor: '#2A364F',
-                mb: 3
-              }}
-            />
-
-
-            <Grid
-              container
-              spacing={3}
-            >
-
-              {/* RATING */}
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Rating
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.7,
-                    mt: 0.5
-                  }}
-                >
-
-                  <Star
-                    size={18}
-                    fill="currentColor"
-                  />
-
-                  <Typography
-                    fontWeight={800}
-                  >
-                    {
-                      technician.rating ||
-                      'N/A'
-                    } / 5
-                  </Typography>
-
-                </Box>
-
-              </Grid>
-
-
-              {/* PHONE */}
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Phone
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.7,
-                    mt: 0.5
-                  }}
-                >
-
-                  <Phone
-                    size={17}
-                    color="#10B981"
-                  />
-
-                  <Typography
-                    fontWeight={700}
-                  >
-                    {
-                      technician.phone ||
-                      'N/A'
-                    }
-                  </Typography>
-
-                </Box>
-
-              </Grid>
-
-
-              {/* EMAIL */}
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Email
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.7,
-                    mt: 0.5
-                  }}
-                >
-
-                  <Mail
-                    size={17}
-                    color="#38BDF8"
-                  />
-
-                  <Typography
-                    fontWeight={700}
-                    sx={{
-                      wordBreak: 'break-word'
-                    }}
-                  >
-                    {
-                      technician.email ||
-                      'N/A'
-                    }
-                  </Typography>
-
-                </Box>
-
-              </Grid>
-
-
-              {/* SERVICE FEE */}
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Service Fee
-                </Typography>
-
-
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: '#10B981',
-                    fontWeight: 800,
-                    mt: 0.3
-                  }}
-                >
-                  {fee}
-                </Typography>
-
-              </Grid>
-
-
-              {/* SERVICE DATE */}
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Service Date
-                </Typography>
-
-
-                <Typography
-                  variant="body1"
-                  sx={{
-                    fontWeight: 800,
-                    mt: 0.5
-                  }}
-                >
-                  {
-                    schedule?.date ||
-                    'N/A'
-                  }
-                </Typography>
-
-              </Grid>
-
-
-              {/* SERVICE TIME */}
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Service Time
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.7,
-                    mt: 0.5
-                  }}
-                >
-
-                  <Clock
-                    size={17}
-                    color="#00A8FF"
-                  />
-
-                  <Typography
-                    fontWeight={800}
-                  >
-                    {
-                      schedule?.timeSlot ||
-                      schedule?.time ||
-                      'N/A'
-                    }
-                  </Typography>
-
-                </Box>
-
-              </Grid>
-
-
-              {/* DISTANCE */}
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Distance
-                </Typography>
-
-
-                <Typography
-                  fontWeight={800}
-                  sx={{
-                    mt: 0.5
-                  }}
-                >
-                  {
-                    distance !==
-                    null
-                      ? `${Number(
-                          distance
-                        ).toFixed(2)} km`
-                      : 'N/A'
-                  }
-                </Typography>
-
-              </Grid>
-
-
-              {/* LOCATION */}
-
-              <Grid
-                item
-                xs={12}
-                md={8}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Service Location
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 0.7,
-                    mt: 0.5
-                  }}
-                >
-
-                  <MapPin
-                    size={18}
-                    color={
-                      finalCustomerLocation
-                        ? '#10B981'
-                        : '#64748B'
-                    }
-                    style={{
-                      marginTop: 2,
-                      flexShrink: 0
-                    }}
-                  />
-
-                  <Typography
-                    fontWeight={700}
-                  >
-                    {locationText}
-                  </Typography>
-
-                </Box>
-
-              </Grid>
-
-            </Grid>
-
-          </Box>
-
-        </Paper>
-      )}
-
-
-      {/* ===================================================
-          BEFORE ACCEPT - SERVICE REQUEST
-      =================================================== */}
-
-      {!accepted &&
-      serviceRequest && (
+      {serviceRequest && (
 
         <Paper
           elevation={0}
@@ -1334,7 +642,7 @@ export const TechnicianAssignment = ({
             variant="caption"
             sx={{
               color: '#64748B',
-              fontWeight: 700
+              fontWeight: 800
             }}
           >
             CURRENT SERVICE REQUEST
@@ -1349,9 +657,7 @@ export const TechnicianAssignment = ({
               mt: 1
             }}
           >
-            {
-              serviceRequest.deviceCategory
-            } Support
+            {serviceRequest.title}
           </Typography>
 
 
@@ -1361,10 +667,7 @@ export const TechnicianAssignment = ({
               mt: 1
             }}
           >
-            {
-              serviceRequest.description ||
-              serviceRequest.title
-            }
+            {serviceRequest.description}
           </Typography>
 
 
@@ -1379,36 +682,51 @@ export const TechnicianAssignment = ({
 
             <Chip
               label={
-                serviceRequest.deviceCategory
+                serviceRequest
+                  .trackingId
+              }
+              sx={{
+                color: '#FFFFFF',
+                backgroundColor: '#0F172A'
+              }}
+            />
+
+
+            <Chip
+              label={
+                serviceRequest
+                  .deviceCategory
               }
               sx={{
                 color: '#00A8FF',
                 backgroundColor:
-                  'rgba(0,168,255,.15)'
+                  'rgba(0,168,255,.12)'
               }}
             />
 
 
             <Chip
               label={
-                serviceRequest.urgency
+                serviceRequest
+                  .urgency
               }
               sx={{
-                color: '#EF4444',
+                color: '#F87171',
                 backgroundColor:
-                  'rgba(239,68,68,.15)'
+                  'rgba(239,68,68,.12)'
               }}
             />
 
 
             <Chip
               label={
-                serviceRequest.serviceMethod
+                serviceRequest
+                  .serviceMethod
               }
               sx={{
-                color: '#FFFFFF',
+                color: '#A78BFA',
                 backgroundColor:
-                  '#0F172A'
+                  'rgba(167,139,250,.12)'
               }}
             />
 
@@ -1419,17 +737,15 @@ export const TechnicianAssignment = ({
 
 
       {/* ===================================================
-          AUTO MATCHING LOADER
+          ASSIGNMENT LOADER
       =================================================== */}
 
-      {!accepted &&
-      autoAssigning && (
+      {assigning && (
 
         <Paper
           elevation={0}
           sx={{
             p: 4,
-            mb: 3,
             textAlign: 'center',
             backgroundColor: '#172036',
             border: '1px solid #00A8FF',
@@ -1457,11 +773,7 @@ export const TechnicianAssignment = ({
               mt: 1
             }}
           >
-            {
-              customerLocation
-                ? 'Checking expertise, availability, location, rating and workload...'
-                : 'Checking expertise, availability, rating and workload...'
-            }
+            Checking expertise, availability, workload and rating...
           </Typography>
 
         </Paper>
@@ -1469,54 +781,100 @@ export const TechnicianAssignment = ({
 
 
       {/* ===================================================
-          BEFORE ACCEPT - TECHNICIAN SUGGESTION
+          ASSIGNED TECHNICIAN
       =================================================== */}
 
-      {!accepted &&
-      !autoAssigning &&
-      technician && (
+      {!assigning &&
+      technician &&
+      assignment && (
 
         <Paper
           elevation={0}
           sx={{
+            maxWidth: 1100,
             backgroundColor: '#172036',
-            border: '1px solid #00A8FF',
+            border:
+              accepted
+                ? '1px solid #10B981'
+                : '1px solid #00A8FF',
+
             borderRadius: 3,
             overflow: 'hidden'
           }}
         >
 
-          <Box sx={{ p: 3 }}>
+          {/* TOP */}
 
-            {/* TECH HEADER */}
+          <Box
+            sx={{
+              p: 3,
+              backgroundColor:
+                accepted
+                  ? 'rgba(16,185,129,.06)'
+                  : 'rgba(0,168,255,.04)'
+            }}
+          >
 
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 2
+                gap: 2,
+                flexWrap: 'wrap'
               }}
             >
 
               <Box>
 
-                <Typography
-                  variant="caption"
+                <Box
                   sx={{
-                    color: '#00A8FF',
-                    fontWeight: 800
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
                   }}
                 >
-                  ★ BEST AVAILABLE MATCH
-                </Typography>
+
+                  {accepted
+                    ? (
+                      <CheckCircle2
+                        size={22}
+                        color="#10B981"
+                      />
+                    )
+                    : (
+                      <UserCheck
+                        size={22}
+                        color="#00A8FF"
+                      />
+                    )
+                  }
+
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color:
+                        accepted
+                          ? '#10B981'
+                          : '#00A8FF',
+
+                      fontWeight: 800
+                    }}
+                  >
+                    {accepted
+                      ? 'CUSTOMER ACCEPTED'
+                      : 'BEST AUTOMATIC MATCH'
+                    }
+                  </Typography>
+
+                </Box>
 
 
                 <Typography
                   variant="h4"
                   sx={{
                     fontWeight: 800,
-                    mt: 0.5
+                    mt: 1
                   }}
                 >
                   {technician.name}
@@ -1526,6 +884,7 @@ export const TechnicianAssignment = ({
                 <Typography
                   sx={{
                     color: '#38BDF8',
+                    fontWeight: 700,
                     mt: 0.5
                   }}
                 >
@@ -1537,9 +896,9 @@ export const TechnicianAssignment = ({
 
               <Box
                 sx={{
+                  minWidth: 125,
+                  p: 2,
                   backgroundColor: '#0F172A',
-                  px: 2,
-                  py: 1.2,
                   borderRadius: 2,
                   textAlign: 'center'
                 }}
@@ -1556,35 +915,543 @@ export const TechnicianAssignment = ({
 
 
                 <Typography
-                  variant="h5"
+                  variant="h4"
                   sx={{
                     color: '#10B981',
-                    fontWeight: 800
+                    fontWeight: 900
                   }}
                 >
-                  {
-                    Number(
-                      assignment?.totalScore ||
-                      0
-                    ).toFixed(1)
-                  }%
+                  {Number(
+                    assignment.totalScore ||
+                    0
+                  ).toFixed(1)}
+                  %
                 </Typography>
 
               </Box>
 
             </Box>
 
+          </Box>
 
-            {/* AUTO SERVICE TIME */}
+
+          <Divider
+            sx={{
+              borderColor: '#2A364F'
+            }}
+          />
+
+
+          {/* TECHNICIAN INFO */}
+
+          <Box sx={{ p: 3 }}>
+
+            <Grid
+              container
+              spacing={3}
+            >
+
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                md={3}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#64748B' }}
+                >
+                  Rating
+                </Typography>
+
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.6,
+                    mt: 0.5
+                  }}
+                >
+
+                  <Star
+                    size={18}
+                    fill="currentColor"
+                  />
+
+                  <Typography
+                    fontWeight={800}
+                  >
+                    {technician.rating}
+                    {' / 5'}
+                  </Typography>
+
+                </Box>
+
+              </Grid>
+
+
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                md={3}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#64748B' }}
+                >
+                  Availability
+                </Typography>
+
+
+                <Typography
+                  sx={{
+                    color: '#10B981',
+                    fontWeight: 800,
+                    mt: 0.5
+                  }}
+                >
+                  Available
+                </Typography>
+
+              </Grid>
+
+
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                md={3}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#64748B' }}
+                >
+                  Today's Workload
+                </Typography>
+
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.7,
+                    mt: 0.5
+                  }}
+                >
+
+                  <Clock3
+                    size={17}
+                    color="#38BDF8"
+                  />
+
+                  <Typography
+                    fontWeight={800}
+                  >
+                    {workload.current ?? 0}
+                    {' / '}
+                    {workload.maximum ?? 0}
+                  </Typography>
+
+                </Box>
+
+              </Grid>
+
+
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                md={3}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#64748B' }}
+                >
+                  Working Hours
+                </Typography>
+
+
+                <Typography
+                  fontWeight={800}
+                  sx={{ mt: 0.5 }}
+                >
+                  {technician.workingHours ||
+                    'N/A'}
+                </Typography>
+
+              </Grid>
+
+
+              <Grid
+                item
+                xs={12}
+                sm={6}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#64748B' }}
+                >
+                  Phone
+                </Typography>
+
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.7,
+                    mt: 0.5
+                  }}
+                >
+
+                  <Phone
+                    size={17}
+                    color="#10B981"
+                  />
+
+                  <Typography
+                    fontWeight={700}
+                  >
+                    {technician.phone ||
+                      'Not provided'}
+                  </Typography>
+
+                </Box>
+
+              </Grid>
+
+
+              <Grid
+                item
+                xs={12}
+                sm={6}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#64748B' }}
+                >
+                  Email
+                </Typography>
+
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.7,
+                    mt: 0.5
+                  }}
+                >
+
+                  <Mail
+                    size={17}
+                    color="#00A8FF"
+                  />
+
+                  <Typography
+                    fontWeight={700}
+                  >
+                    {technician.email ||
+                      'Not provided'}
+                  </Typography>
+
+                </Box>
+
+              </Grid>
+
+
+              <Grid
+                item
+                xs={12}
+              >
+
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#64748B' }}
+                >
+                  Available Days
+                </Typography>
+
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    gap: 1,
+                    flexWrap: 'wrap',
+                    mt: 1
+                  }}
+                >
+
+                  {technician.availableDays
+                    ?.map(
+                      day => (
+
+                        <Chip
+                          key={day}
+                          label={day}
+                          size="small"
+                          sx={{
+                            color: '#FFFFFF',
+                            backgroundColor:
+                              '#0F172A'
+                          }}
+                        />
+
+                      )
+                    )
+                  }
+
+                </Box>
+
+              </Grid>
+
+            </Grid>
+
+
+            {/* MATCH REASON */}
 
             <Paper
               elevation={0}
               sx={{
-                mt: 2.5,
+                mt: 3,
                 p: 2,
                 backgroundColor: '#0F172A',
                 border: '1px solid #334155',
                 borderRadius: 2
+              }}
+            >
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 1
+                }}
+              >
+
+                <Wrench
+                  size={20}
+                  color="#00A8FF"
+                />
+
+
+                <Box>
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: '#64748B',
+                      fontWeight: 800
+                    }}
+                  >
+                    WHY THIS TECHNICIAN?
+                  </Typography>
+
+
+                  <Typography
+                    sx={{
+                      color: '#CBD5E1',
+                      mt: 0.5
+                    }}
+                  >
+                    {assignment.matchReason}
+                  </Typography>
+
+                </Box>
+
+              </Box>
+
+            </Paper>
+
+
+            {/* SCORE BREAKDOWN */}
+
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 800,
+                mt: 3,
+                mb: 2
+              }}
+            >
+              Matching Score Breakdown
+            </Typography>
+
+
+            <ScoreRow
+              label="Technical Expertise"
+              weight="40%"
+              value={scores.expertise}
+            />
+
+
+            <ScoreRow
+              label="Availability"
+              weight="25%"
+              value={scores.availability}
+            />
+
+
+            <ScoreRow
+              label="Current Workload"
+              weight="20%"
+              value={scores.workload}
+            />
+
+
+            <ScoreRow
+              label="Service Rating"
+              weight="15%"
+              value={scores.rating}
+            />
+
+          </Box>
+
+
+          {/* CUSTOMER ACTIONS */}
+
+          {!accepted && (
+
+            <Box
+              sx={{
+                p: 3,
+                backgroundColor: '#0F172A',
+                borderTop:
+                  '1px solid #2A364F'
+              }}
+            >
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 1.5,
+                  flexWrap: 'wrap'
+                }}
+              >
+
+                <Button
+                  variant="contained"
+                  onClick={handleAccept}
+                  disabled={
+                    accepting ||
+                    reassigning
+                  }
+                  startIcon={
+                    accepting
+                      ? (
+                        <CircularProgress
+                          size={17}
+                          color="inherit"
+                        />
+                      )
+                      : (
+                        <CheckCircle2
+                          size={18}
+                        />
+                      )
+                  }
+                  sx={{
+                    flex: 1,
+                    minWidth: 220,
+                    backgroundColor: '#10B981',
+                    color: '#07110D',
+                    fontWeight: 800,
+                    py: 1.3
+                  }}
+                >
+                  {accepting
+                    ? 'Accepting...'
+                    : 'Accept Technician'
+                  }
+                </Button>
+
+
+                <Button
+                  variant="outlined"
+                  onClick={handleReassign}
+                  disabled={
+                    accepting ||
+                    reassigning
+                  }
+                  startIcon={
+                    reassigning
+                      ? (
+                        <CircularProgress
+                          size={17}
+                        />
+                      )
+                      : (
+                        <RefreshCcw
+                          size={18}
+                        />
+                      )
+                  }
+                  sx={{
+                    flex: 1,
+                    minWidth: 220,
+                    borderColor: '#EF4444',
+                    color: '#EF4444',
+                    fontWeight: 800,
+                    py: 1.3
+                  }}
+                >
+                  {reassigning
+                    ? 'Finding Next Best...'
+                    : 'Reject & Reassign'
+                  }
+                </Button>
+
+              </Box>
+
+
+              {onSearchTechnicians && (
+
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={
+                    <Search size={18} />
+                  }
+                  onClick={
+                    onSearchTechnicians
+                  }
+                  sx={{
+                    mt: 1.5,
+                    borderColor: '#00A8FF',
+                    color: '#00A8FF',
+                    fontWeight: 800,
+                    py: 1.2
+                  }}
+                >
+                  Browse Technicians Manually
+                </Button>
+
+              )}
+
+            </Box>
+
+          )}
+
+
+          {/* ACCEPTED FOOTER */}
+
+          {accepted && (
+
+            <Box
+              sx={{
+                p: 2.5,
+                backgroundColor:
+                  'rgba(16,185,129,.08)',
+                borderTop:
+                  '1px solid rgba(16,185,129,.25)'
               }}
             >
 
@@ -1596,179 +1463,9 @@ export const TechnicianAssignment = ({
                 }}
               >
 
-                <Clock
-                  size={20}
+                <CheckCircle2
                   color="#10B981"
                 />
-
-
-                <Box>
-
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: '#64748B'
-                    }}
-                  >
-                    AUTOMATIC AVAILABLE SERVICE TIME
-                  </Typography>
-
-
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 800
-                    }}
-                  >
-                    {
-                      schedule?.date
-                    }
-                    {' • '}
-                    {
-                      schedule?.timeSlot ||
-                      schedule?.time
-                    }
-                  </Typography>
-
-                </Box>
-
-              </Box>
-
-            </Paper>
-
-
-            <Divider
-              sx={{
-                my: 2.5,
-                borderColor: '#2A364F'
-              }}
-            />
-
-
-            {/* TECHNICIAN DETAILS */}
-
-            <Grid
-              container
-              spacing={2.5}
-            >
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Rating
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5
-                  }}
-                >
-
-                  <Star
-                    size={17}
-                    fill="currentColor"
-                  />
-
-
-                  <Typography
-                    fontWeight={700}
-                  >
-                    {
-                      technician.rating
-                    } / 5
-                  </Typography>
-
-                </Box>
-
-              </Grid>
-
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Phone
-                </Typography>
-
-
-                <Typography
-                  fontWeight={700}
-                >
-                  {
-                    technician.phone ||
-                    'N/A'
-                  }
-                </Typography>
-
-              </Grid>
-
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Email
-                </Typography>
-
-
-                <Typography
-                  fontWeight={700}
-                >
-                  {
-                    technician.email ||
-                    'N/A'
-                  }
-                </Typography>
-
-              </Grid>
-
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Service Fee
-                </Typography>
 
 
                 <Typography
@@ -1777,421 +1474,14 @@ export const TechnicianAssignment = ({
                     fontWeight: 800
                   }}
                 >
-                  {fee}
+                  Technician confirmed for this service request.
                 </Typography>
 
-              </Grid>
-
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Distance
-                </Typography>
-
-
-                <Typography
-                  fontWeight={700}
-                >
-                  {
-                    distance !== null
-                      ? `${Number(
-                          distance
-                        ).toFixed(2)} km`
-                      : 'N/A'
-                  }
-                </Typography>
-
-              </Grid>
-
-
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Working Hours
-                </Typography>
-
-
-                <Typography
-                  fontWeight={700}
-                >
-                  {
-                    technician.workingHours ||
-                    'N/A'
-                  }
-                </Typography>
-
-              </Grid>
-
-
-              <Grid
-                item
-                xs={12}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Available Days
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 1,
-                    mt: 0.7
-                  }}
-                >
-
-                  {
-                    technician.availableDays
-                      ?.map(
-                        (day) => (
-
-                          <Chip
-                            key={day}
-                            size="small"
-                            label={day}
-                            sx={{
-                              color: '#FFFFFF',
-                              backgroundColor:
-                                '#0F172A'
-                            }}
-                          />
-
-                        )
-                      )
-                  }
-
-                </Box>
-
-              </Grid>
-
-
-              <Grid
-                item
-                xs={12}
-              >
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#64748B'
-                  }}
-                >
-                  Service Areas
-                </Typography>
-
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 1,
-                    mt: 0.7
-                  }}
-                >
-
-                  {
-                    technician.serviceAreas
-                      ?.map(
-                        (area) => (
-
-                          <Chip
-                            key={area}
-                            size="small"
-                            label={area}
-                            sx={{
-                              color: '#38BDF8',
-                              backgroundColor:
-                                'rgba(0,168,255,.12)'
-                            }}
-                          />
-
-                        )
-                      )
-                  }
-
-                </Box>
-
-              </Grid>
-
-            </Grid>
-
-          </Box>
-
-
-          {/* =================================================
-              MAP BEFORE ACCEPT
-
-              Location না থাকলে map show হবে না.
-          ================================================= */}
-
-          {finalCustomerLocation &&
-          technicianLocation && (
-
-            <Box
-              sx={{
-                height: 320,
-                borderTop:
-                  '1px solid #2A364F'
-              }}
-            >
-
-              <MapContainer
-                center={[
-                  Number(
-                    finalCustomerLocation.latitude
-                  ),
-                  Number(
-                    finalCustomerLocation.longitude
-                  )
-                ]}
-                zoom={12}
-                style={{
-                  height: '100%',
-                  width: '100%'
-                }}
-              >
-
-                <TileLayer
-                  attribution="&copy; OpenStreetMap contributors"
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-
-
-                <AssignmentMapController
-                  customerLocation={
-                    finalCustomerLocation
-                  }
-                  technicianLocation={
-                    technicianLocation
-                  }
-                />
-
-
-                <Marker
-                  position={[
-                    Number(
-                      finalCustomerLocation.latitude
-                    ),
-                    Number(
-                      finalCustomerLocation.longitude
-                    )
-                  ]}
-                >
-                  <Popup>
-                    Customer Location
-                  </Popup>
-                </Marker>
-
-
-                <Marker
-                  position={[
-                    Number(
-                      technicianLocation.latitude
-                    ),
-                    Number(
-                      technicianLocation.longitude
-                    )
-                  ]}
-                >
-                  <Popup>
-                    {technician.name}
-                  </Popup>
-                </Marker>
-
-
-                <Polyline
-                  positions={[
-                    [
-                      Number(
-                        finalCustomerLocation.latitude
-                      ),
-                      Number(
-                        finalCustomerLocation.longitude
-                      )
-                    ],
-
-                    [
-                      Number(
-                        technicianLocation.latitude
-                      ),
-                      Number(
-                        technicianLocation.longitude
-                      )
-                    ]
-                  ]}
-                />
-
-              </MapContainer>
+              </Box>
 
             </Box>
+
           )}
-
-
-          {/* =================================================
-              CUSTOMER ACTION BUTTONS
-          ================================================= */}
-
-          <Box
-            sx={{
-              p: 3,
-              backgroundColor: '#0F172A',
-              borderTop:
-                '1px solid #2A364F'
-            }}
-          >
-
-            <Box
-              sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 1.5
-              }}
-            >
-
-              {/* ACCEPT */}
-
-              <Button
-                variant="contained"
-                onClick={
-                  handleAccept
-                }
-                disabled={
-                  accepting ||
-                  rejecting
-                }
-                startIcon={
-                  accepting
-                    ? (
-                      <CircularProgress
-                        size={17}
-                        color="inherit"
-                      />
-                    )
-                    : (
-                      <CheckCircle2
-                        size={18}
-                      />
-                    )
-                }
-                sx={{
-                  flex: 1,
-                  minWidth: 220,
-                  backgroundColor: '#10B981',
-                  color: '#07110D',
-                  fontWeight: 800,
-                  py: 1.3
-                }}
-              >
-                {
-                  accepting
-                    ? 'Accepting...'
-                    : 'Accept Technician'
-                }
-              </Button>
-
-
-              {/* REJECT */}
-
-              <Button
-                variant="outlined"
-                onClick={
-                  handleReject
-                }
-                disabled={
-                  accepting ||
-                  rejecting
-                }
-                startIcon={
-                  rejecting
-                    ? (
-                      <CircularProgress
-                        size={17}
-                      />
-                    )
-                    : (
-                      <RefreshCcw
-                        size={18}
-                      />
-                    )
-                }
-                sx={{
-                  flex: 1,
-                  minWidth: 220,
-                  borderColor: '#EF4444',
-                  color: '#EF4444',
-                  fontWeight: 800,
-                  py: 1.3
-                }}
-              >
-                {
-                  rejecting
-                    ? 'Finding Next Best...'
-                    : 'Reject & Suggest Another'
-                }
-              </Button>
-
-            </Box>
-
-
-            {/* MANUAL SEARCH */}
-
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={
-                <Search
-                  size={18}
-                />
-              }
-              onClick={() => {
-
-                if (
-                  onSearchTechnicians
-                ) {
-                  onSearchTechnicians();
-                }
-
-              }}
-              sx={{
-                mt: 1.5,
-                borderColor: '#00A8FF',
-                color: '#00A8FF',
-                fontWeight: 800,
-                py: 1.2
-              }}
-            >
-              Search Technician Info
-            </Button>
-
-          </Box>
 
         </Paper>
       )}
@@ -2201,25 +1491,24 @@ export const TechnicianAssignment = ({
           NO MORE MATCHES
       =================================================== */}
 
-      {!accepted &&
-      !autoAssigning &&
-      !technician &&
+      {!assigning &&
       noMoreMatches && (
 
         <Paper
           elevation={0}
           sx={{
-            mt: 3,
             p: 3,
             backgroundColor: '#172036',
-            border: '1px solid #2A364F',
+            border: '1px solid #EF4444',
             borderRadius: 3
           }}
         >
 
           <Typography
             variant="h6"
-            fontWeight={800}
+            sx={{
+              fontWeight: 800
+            }}
           >
             No More Automatic Matches
           </Typography>
@@ -2232,32 +1521,110 @@ export const TechnicianAssignment = ({
               mb: 2
             }}
           >
-            You can search and view technician information manually.
+            No other technician currently satisfies the required expertise,
+            availability and workload conditions.
           </Typography>
 
 
-          <Button
-            variant="outlined"
-            startIcon={
-              <Search
-                size={18}
-              />
-            }
-            onClick={() => {
+          {onSearchTechnicians && (
 
-              if (
-                onSearchTechnicians
-              ) {
-                onSearchTechnicians();
+            <Button
+              variant="outlined"
+              startIcon={
+                <Search size={18} />
               }
+              onClick={
+                onSearchTechnicians
+              }
+            >
+              Browse Technicians
+            </Button>
 
-            }}
-          >
-            Search Technician Info
-          </Button>
+          )}
 
         </Paper>
+
       )}
+
+    </Box>
+  );
+};
+
+
+// ==========================================================
+// SCORE COMPONENT
+// ==========================================================
+
+const ScoreRow = ({
+  label,
+  weight,
+  value
+}) => {
+
+  const numericValue =
+    Number(value || 0);
+
+
+  return (
+
+    <Box sx={{ mb: 2 }}>
+
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          mb: 0.7
+        }}
+      >
+
+        <Typography
+          variant="body2"
+          sx={{
+            color: '#CBD5E1',
+            fontWeight: 700
+          }}
+        >
+          {label}
+          {' '}
+          <Typography
+            component="span"
+            variant="caption"
+            sx={{
+              color: '#64748B'
+            }}
+          >
+            ({weight})
+          </Typography>
+        </Typography>
+
+
+        <Typography
+          variant="body2"
+          sx={{
+            color: '#FFFFFF',
+            fontWeight: 800
+          }}
+        >
+          {numericValue.toFixed(1)}%
+        </Typography>
+
+      </Box>
+
+
+      <LinearProgress
+        variant="determinate"
+        value={
+          Math.min(
+            numericValue,
+            100
+          )
+        }
+        sx={{
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: '#0F172A'
+        }}
+      />
 
     </Box>
   );

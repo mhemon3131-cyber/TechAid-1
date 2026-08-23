@@ -62,7 +62,7 @@ export const Auth = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-      const res = await axios.post('http://localhost:1345/api/auth/login', {
+      const res = await axios.post('http://localhost:5000/api/auth/login', {
         email: targetEmail.trim(),
         password: password.trim(),
         role: targetRole
@@ -114,7 +114,7 @@ export const Auth = ({ onLoginSuccess }) => {
         specialty: roleTab === 'TECHNICIAN' ? specialty : null
       };
 
-      const res = await axios.post('http://localhost:1345/api/auth/register', payload);
+      const res = await axios.post('http://localhost:5000/api/auth/register', payload);
 
       if (res.data.success) {
         setSuccessMsg(`Account created successfully for ${res.data.user.name}! Saved in database.`);
