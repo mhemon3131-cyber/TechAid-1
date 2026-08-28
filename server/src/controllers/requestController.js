@@ -33,19 +33,48 @@ export const createServiceRequest = async (req, res) => {
 
     const trackingId = generateTrackingId();
 
-    // 1. Process Cloudinary uploads
+    // 1. Process Cloudinary uploads safely
     const processedAttachments = [];
-    for (const file of attachments) {
-      const cloudinaryResult = await uploadToCloudinary(null, file.name || 'attachment.png', file.type);
-      processedAttachments.push({
-        fileUrl: file.url || cloudinaryResult.url,
-        fileType: file.type || 'IMAGE',
-        fileName: file.name || 'Uploaded File'
-      });
+    if (Array.isArray(attachments)) {
+      for (const file of attachments) {
+        try {
+          const fileUrl = file.url || file.preview || (typeof file === 'string' ? file : null);
+          if (fileUrl) {
+            processedAttachments.push({
+              fileUrl: fileUrl,
+              fileType: file.type || 'IMAGE',
+              fileName: file.name || 'Uploaded File'
+            });
+          } else {
+            const cloudinaryResult = await uploadToCloudinary(null, file.name || 'attachment.png', file.type).catch(() => null);
+            if (cloudinaryResult && cloudinaryResult.url) {
+              processedAttachments.push({
+                fileUrl: cloudinaryResult.url,
+                fileType: file.type || 'IMAGE',
+                fileName: file.name || 'Uploaded File'
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Attachment processing fallback:', e.message);
+        }
+      }
     }
 
-    // Default to Customer Mehedi Hasan if customerId not passed
+    // Default to Customer if customerId not passed
     const custId = customerId || 'usr-1';
+
+    // Auto-upsert Customer User in Prisma DB to prevent Foreign Key errors
+    await prisma.user.upsert({
+      where: { id: custId },
+      create: {
+        id: custId,
+        name: req.body.customerName || 'Customer',
+        email: `${String(custId).toLowerCase().replace(/\s+/g, '')}@techaid.com`,
+        role: 'CUSTOMER'
+      },
+      update: {}
+    }).catch((err) => console.warn('User upsert notice:', err.message));
 
     // 2. Save directly to Prisma Database
     const newRequest = await prisma.serviceRequest.create({
@@ -86,7 +115,7 @@ export const createServiceRequest = async (req, res) => {
 
   } catch (error) {
     console.error('Error creating service request in DB:', error);
-    res.status(500).json({ success: false, message: 'Server database error while creating request.' });
+    res.status(500).json({ success: false, message: error.message || 'Server database error while creating request.' });
   }
 };
 

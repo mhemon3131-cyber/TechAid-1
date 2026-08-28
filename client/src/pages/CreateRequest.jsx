@@ -126,6 +126,7 @@ export const CreateRequest = ({ currentUser, onNavigateToAppointment, onNavigate
     try {
       const payload = {
         customerId: currentUser?.id || 'usr-1',
+        customerName: currentUser?.name || 'Customer',
         deviceCategory,
         title: `${deviceCategory} Issue: ${description.slice(0, 35)}...`,
         description: description.trim(),
