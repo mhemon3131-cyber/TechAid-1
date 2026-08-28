@@ -28,7 +28,8 @@ import {
   Phone,
   Mail,
   Hash,
-  UserCheck
+  UserCheck,
+  MessageSquare
 } from 'lucide-react';
 
 import axios from 'axios';
@@ -39,7 +40,7 @@ import {
 } from '../services/assignmentApi';
 
 
-export const TechnicianDashboard = ({ currentUser }) => {
+export const TechnicianDashboard = ({ currentUser, onOpenChat }) => {
 
   const [appointments, setAppointments] = useState([]);
 
@@ -850,6 +851,29 @@ export const TechnicianDashboard = ({ currentUser }) => {
 
                         <Button
                           size="small"
+                          onClick={() => {
+                            if (onOpenChat) onOpenChat(app);
+                          }}
+                          startIcon={
+                            <MessageSquare size={16} />
+                          }
+                          sx={{
+                            color: '#00A8FF',
+                            backgroundColor: 'transparent',
+                            border: '1px solid #00A8FF',
+                            px: 2,
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 168, 255, 0.15)'
+                            }
+                          }}
+                        >
+                          Open Live Chat
+                        </Button>
+
+                        <Button
+                          size="small"
                           onClick={() =>
                             setRescheduleTarget(
                               app
@@ -955,6 +979,29 @@ export const TechnicianDashboard = ({ currentUser }) => {
                     ) && (
 
                       <>
+
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            if (onOpenChat) onOpenChat(app);
+                          }}
+                          startIcon={
+                            <MessageSquare size={16} />
+                          }
+                          sx={{
+                            color: '#00A8FF',
+                            backgroundColor: 'transparent',
+                            border: '1px solid #00A8FF',
+                            px: 2,
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 168, 255, 0.15)'
+                            }
+                          }}
+                        >
+                          Open Live Chat
+                        </Button>
 
                         <Button
                           size="small"
