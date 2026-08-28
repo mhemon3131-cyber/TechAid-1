@@ -19,7 +19,6 @@ model User {
 
   technician                  Technician?
   serviceRequests             ServiceRequest[] @relation("CustomerRequests")
-  serviceRequestsAsTechnician ServiceRequest[] @relation("TechnicianRequests")
   appointments                Appointment[]    @relation("CustomerAppointments")
   notifications               Notification[]
   conversationsAsCustomer     Conversation[]   @relation("CustomerConversations")
@@ -52,8 +51,6 @@ model ServiceRequest {
   trackingId     String          @unique // e.g. REQ-2026-8942
   customerId     String
   customer       User            @relation("CustomerRequests", fields: [customerId], references: [id])
-  technicianId   String?
-  technician     User?           @relation("TechnicianRequests", fields: [technicianId], references: [id])
   deviceCategory String // Laptop, Desktop, Phone, Printer, Internet
   title          String
   description    String
@@ -145,7 +142,7 @@ model TechnicianAssignment {
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  type      String // e.g. REQUEST_ACCEPTED, EMERGENCY_ALERT, APPOINTMENT_REMINDER
+  type      String
   title     String
   message   String
   isRead    Boolean  @default(false)
@@ -183,7 +180,7 @@ model CallSession {
   id             String    @id @default(uuid())
   conversationId String
   roomName       String
-  callType       String // VOICE, VIDEO
+  callType       String
   startedAt      DateTime  @default(now())
   endedAt        DateTime?
 

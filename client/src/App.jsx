@@ -8,26 +8,26 @@ import { getSocket } from './socket/socket';
 
 // Module 1 Pages
 import { CreateRequest } from './pages/CreateRequest';
-import { AIIssueClassifier } from './pages/AIIssueClassifier';
 import { AITroubleshootAssistant } from './pages/AITroubleshootAssistant';
-import EmergencyQueue from './pages/EmergencyQueue';
-import { IssueResolutionHistory } from './pages/IssueResolutionHistory';
-
-// Module 2 Pages
-import { AppointmentBooking } from './pages/AppointmentBooking';
+import { AIIssueClassifier } from './pages/AIIssueClassifier';
 import { TechnicianSearch } from './pages/TechnicianSearch';
 import { TechnicianAssignment } from './pages/TechnicianAssignment';
 
-// Module 3 Pages
-import { ServiceProgressTracker } from './pages/ServiceProgressTracker';
-import { TechnicianDashboard } from './pages/TechnicianDashboard';
-import { TechnicianAvailability } from './pages/TechnicianAvailability';
+// Module 2 Pages
+import { AppointmentBooking } from './pages/AppointmentBooking';
 import ChatPage from './pages/ChatPage';
 
+// Module 3 Pages
+import EmergencyQueue from './pages/EmergencyQueue';
+import ServiceProgressTracker from './pages/ServiceProgressTracker';
+import { TechnicianDashboard } from './pages/TechnicianDashboard';
+import TechnicianAvailability from './pages/TechnicianAvailability';
+
 // Module 4 Pages
-import Payment from './pages/Payment';
+import { Payment } from './pages/Payment';
 import RatingReview from './pages/RatingReview';
-import { ServiceCostEstimator } from './pages/ServiceCostEstimator';
+import ServiceCostEstimator from './pages/ServiceCostEstimator';
+import IssueResolutionHistory from './pages/IssueResolutionHistory';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -93,7 +93,7 @@ export default function App() {
     });
 
     setActiveConvId(targetConvId);
-    setActiveTab('chat-support');
+    setActiveTab('chat');
   };
 
   // If user is not logged in, render real Login page
@@ -117,43 +117,22 @@ export default function App() {
           onLogout={handleLogout}
         />
 
-        <Box sx={{ flexGrow: 1, overflow: 'auto', maxHeight: '100vh' }}>
-          {/* --- MODULE 1: REQUESTS & AI --- */}
+        <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
+          {/* --- MODULE 1: REQUEST CREATION & DISCOVERY --- */}
           {activeTab === 'new-request' && (
             <CreateRequest
               currentUser={currentUser}
               onNavigateToAppointment={() => setActiveTab('appointments')}
+              onNavigateToChat={() => setActiveTab('chat')}
             />
+          )}
+
+          {activeTab === 'ai-troubleshoot' && (
+            <AITroubleshootAssistant currentUser={currentUser} />
           )}
 
           {activeTab === 'ai-classifier' && (
-            <AIIssueClassifier
-              currentUser={currentUser}
-              onNavigateToAppointment={() => setActiveTab('appointments')}
-            />
-          )}
-
-          {activeTab === 'ai-assistant' && (
-            <AITroubleshootAssistant
-              currentUser={currentUser}
-              onNavigateToAppointment={() => setActiveTab('appointments')}
-            />
-          )}
-
-          {activeTab === 'emergency-queue' && (
-            <EmergencyQueue
-              currentUser={currentUser}
-              onAcceptSuccess={(reqItem) => handleEmergencyAccepted(reqItem)}
-            />
-          )}
-
-          {activeTab === 'resolution-history' && (
-            <IssueResolutionHistory currentUser={currentUser} />
-          )}
-
-          {/* --- MODULE 2: APPOINTMENTS & SEARCH --- */}
-          {activeTab === 'appointments' && (
-            <AppointmentBooking currentUser={currentUser} />
+            <AIIssueClassifier currentUser={currentUser} />
           )}
 
           {activeTab === 'tech-search' && (
@@ -167,16 +146,27 @@ export default function App() {
             />
           )}
 
-          {/* --- MODULE 3: TRACKING & CHAT --- */}
-          {activeTab === 'progress-tracker' && (
-            <ServiceProgressTracker currentUser={currentUser} />
+          {/* --- MODULE 2 & 3: SCHEDULING, EMERGENCY QUEUE & CHAT --- */}
+          {activeTab === 'appointments' && (
+            <AppointmentBooking currentUser={currentUser} />
           )}
 
-          {(activeTab === 'chat-support' || activeTab === 'chat') && (
+          {(activeTab === 'chat' || activeTab === 'chat-support') && (
             <ChatPage
               currentUser={currentUser}
               initialConvId={activeConvId}
             />
+          )}
+
+          {activeTab === 'emergency-queue' && (
+            <EmergencyQueue
+              currentUser={currentUser}
+              onAcceptSuccess={(reqItem) => handleEmergencyAccepted(reqItem)}
+            />
+          )}
+
+          {activeTab === 'progress-tracker' && (
+            <ServiceProgressTracker currentUser={currentUser} />
           )}
 
           {activeTab === 'tech-dashboard' && (
@@ -209,7 +199,7 @@ export default function App() {
                 } catch (e) {}
 
                 setActiveConvId(targetConvId);
-                setActiveTab('chat-support');
+                setActiveTab('chat');
               }}
             />
           )}
@@ -228,7 +218,11 @@ export default function App() {
           )}
 
           {activeTab === 'cost-estimator' && (
-            <ServiceCostEstimator />
+            <ServiceCostEstimator currentUser={currentUser} />
+          )}
+
+          {activeTab === 'resolution-history' && (
+            <IssueResolutionHistory currentUser={currentUser} />
           )}
         </Box>
       </Box>
