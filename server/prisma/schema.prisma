@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -17,14 +17,9 @@ model User {
   avatar    String?
   createdAt DateTime @default(now())
 
-  technician                  Technician?
-  serviceRequests             ServiceRequest[] @relation("CustomerRequests")
-  serviceRequestsAsTechnician ServiceRequest[] @relation("TechnicianRequests")
-  appointments                Appointment[]    @relation("CustomerAppointments")
-  notifications               Notification[]
-  conversationsAsCustomer     Conversation[]   @relation("CustomerConversations")
-  conversationsAsTechnician   Conversation[]   @relation("TechnicianConversations")
-  messages                    Message[]
+  technician      Technician?
+  serviceRequests ServiceRequest[] @relation("CustomerRequests")
+  appointments    Appointment[]    @relation("CustomerAppointments")
 }
 
 model Technician {
@@ -42,6 +37,9 @@ model Technician {
   serviceAreas         String        @default("Gulshan, Banani, Dhanmondi, Uttara")
   maxDailyAppointments Int           @default(5)
   appointments         Appointment[]
+
+  // Module 1 Feature 4 - ADD ONLY
+  assignments TechnicianAssignment[]
 }
 
 model ServiceRequest {
@@ -49,21 +47,21 @@ model ServiceRequest {
   trackingId     String          @unique // e.g. REQ-2026-8942
   customerId     String
   customer       User            @relation("CustomerRequests", fields: [customerId], references: [id])
-  technicianId   String?
-  technician     User?           @relation("TechnicianRequests", fields: [technicianId], references: [id])
   deviceCategory String // Laptop, Desktop, Phone, Printer, Internet
   title          String
   description    String
-  urgency        String // Low, Moderate, Critical, Emergency
+  urgency        String // Low, Moderate, Critical
   serviceMethod  String // Live Chat, Video Call, Home Visit
   status         String          @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, IN_PROGRESS, ON_THE_WAY, COMPLETED
   estimatedCost  String          @default("৳800 - 1,500")
   attachments    Attachment[]
   appointment    Appointment?
   statusLogs     StatusHistory[]
-  conversation   Conversation?
   createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt @default(now())
+  updatedAt      DateTime        @default(now()) @updatedAt
+
+  // Module 1 Feature 4 - ADD ONLY
+  assignments TechnicianAssignment[]
 }
 
 model StatusHistory {
@@ -101,50 +99,37 @@ model Appointment {
   createdAt        DateTime        @default(now())
 }
 
-model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  type      String // e.g. REQUEST_ACCEPTED, EMERGENCY_ALERT, APPOINTMENT_REMINDER
-  title     String
-  message   String
-  isRead    Boolean  @default(false)
+// ==========================================================
+// MODULE 1 - FEATURE 4
+// AUTOMATIC TECHNICIAN ASSIGNMENT ENGINE
+// ADD ONLY
+// ==========================================================
+
+model TechnicianAssignment {
+  id String @id @default(uuid())
+
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  status String @default("PENDING_CUSTOMER_APPROVAL")
+
+  totalScore        Float
+  expertiseScore    Float
+  availabilityScore Float
+  workloadScore     Float
+  ratingScore       Float
+
+  workloadCount        Int @default(0)
+  maxDailyAppointments Int @default(5)
+
+  matchReason String?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Conversation {
-  id               String   @id @default(uuid())
-  serviceRequestId String   @unique
-  customerId       String
-  technicianId     String
-  createdAt        DateTime @default(now())
-
-  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
-  customer       User           @relation("CustomerConversations", fields: [customerId], references: [id])
-  technician     User           @relation("TechnicianConversations", fields: [technicianId], references: [id])
-  messages       Message[]
-  callSessions   CallSession[]
-}
-
-model Message {
-  id             String   @id @default(uuid())
-  conversationId String
-  senderId       String
-  content        String
-  createdAt      DateTime @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-}
-
-model CallSession {
-  id             String    @id @default(uuid())
-  conversationId String
-  roomName       String
-  callType       String // VOICE, VIDEO
-  startedAt      DateTime  @default(now())
-  endedAt        DateTime?
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([serviceRequestId, createdAt])
+  @@index([technicianId, status])
 }

@@ -47,6 +47,7 @@ const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
 export const ServiceProgressTracker = ({ currentUser }) => {
   const [trackingIdInput, setTrackingIdInput] = useState('');
   const [activeTrackingId, setActiveTrackingId] = useState('');
+  const [userTickets, setUserTickets] = useState([]);
   const [progressData, setProgressData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -60,16 +61,9 @@ export const ServiceProgressTracker = ({ currentUser }) => {
     { key: 'COMPLETED', label: 'Completed', icon: <CheckCheck size={18} /> }
   ];
 
-  // Initial Load: Find current user's active request or saved tracking ID
+  // Initial Load: Find current user's active requests and saved tracking ID
   useEffect(() => {
-    const savedTrackingId = localStorage.getItem('techaid_active_tracking_id');
-    if (savedTrackingId) {
-      setTrackingIdInput(savedTrackingId);
-      setActiveTrackingId(savedTrackingId);
-      fetchProgress(savedTrackingId);
-    } else {
-      fetchLatestUserRequest();
-    }
+    fetchUserTicketsAndLatest();
   }, [currentUser]);
 
   // Background Polling: Periodically refresh active tracking ID every 2 seconds without touching search input
@@ -83,20 +77,31 @@ export const ServiceProgressTracker = ({ currentUser }) => {
     return () => clearInterval(interval);
   }, [activeTrackingId]);
 
-  const fetchLatestUserRequest = async () => {
+  const fetchUserTicketsAndLatest = async () => {
     try {
-      const res = await axios.get('http://localhost:1257/api/requests');
+      const res = await axios.get('http://localhost:1345/api/requests');
       if (res.data.success && res.data.data.length > 0) {
-        const userReq = res.data.data.find(r => r.customerId === currentUser?.id) || res.data.data[0];
-        if (userReq && userReq.trackingId) {
-          setTrackingIdInput(userReq.trackingId);
-          setActiveTrackingId(userReq.trackingId);
-          fetchProgress(userReq.trackingId);
+        const userReqs = res.data.data.filter(r => r.customerId === currentUser?.id);
+        setUserTickets(userReqs.length > 0 ? userReqs : res.data.data);
+
+        const savedTrackingId = localStorage.getItem('techaid_active_tracking_id');
+        const targetId = savedTrackingId || (userReqs.length > 0 ? userReqs[0].trackingId : res.data.data[0].trackingId);
+
+        if (targetId) {
+          setTrackingIdInput(targetId);
+          setActiveTrackingId(targetId);
+          fetchProgress(targetId);
         }
       }
     } catch (err) {
-      console.warn('Could not auto-fetch request.');
+      console.warn('Could not load user requests.');
     }
+  };
+
+  const handleSelectTicket = (ticket) => {
+    setTrackingIdInput(ticket.trackingId);
+    setActiveTrackingId(ticket.trackingId);
+    fetchProgress(ticket.trackingId, false);
   };
 
   const handleSearchSubmit = (e) => {
@@ -126,7 +131,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
 
     try {
       const cleanId = idToFetch.trim().toUpperCase();
-      const res = await axios.get(`http://localhost:1257/api/requests/${cleanId}/progress`);
+      const res = await axios.get(`http://localhost:1345/api/requests/${cleanId}/progress`);
       if (res.data.success) {
         setProgressData(res.data.data);
         localStorage.setItem('techaid_active_tracking_id', cleanId);
@@ -144,10 +149,14 @@ export const ServiceProgressTracker = ({ currentUser }) => {
     }
   };
 
+  const hasRescheduleLog = progressData?.logs?.some(l => 
+    l.status === 'RESCHEDULED' || (l.note && l.note.toLowerCase().includes('rescheduled'))
+  );
+
   return (
     <Box sx={{ flexGrow: 1, p: 4, backgroundColor: '#0D1527', minHeight: '100vh', overflowY: 'auto' }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography variant="h5" sx={{ color: '#FFF', fontWeight: 700 }}>
           Service Progress Tracking System
         </Typography>
@@ -156,16 +165,60 @@ export const ServiceProgressTracker = ({ currentUser }) => {
         </Typography>
       </Box>
 
+      {/* Persistent "My Service Requests" Selector Box (No memorization needed!) */}
+      {userTickets.length > 0 && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            backgroundColor: '#172036',
+            borderRadius: 3,
+            border: '1px solid #2A364F',
+            maxWidth: 900,
+            mb: 3
+          }}
+        >
+          <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 700, display: 'block', mb: 1.5, letterSpacing: 0.5 }}>
+            MY SERVICE TICKETS (CLICK TO TRACK INSTANTLY)
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            {userTickets.map((t) => {
+              const isSelected = activeTrackingId === t.trackingId;
+              return (
+                <Chip
+                  key={t.id || t.trackingId}
+                  label={`${t.trackingId} • ${t.deviceCategory || 'Request'} (${t.status})`}
+                  onClick={() => handleSelectTicket(t)}
+                  variant={isSelected ? 'filled' : 'outlined'}
+                  sx={{
+                    backgroundColor: isSelected ? '#00A8FF' : '#0F172A',
+                    color: isSelected ? '#0D1527' : '#E2E8F0',
+                    borderColor: isSelected ? '#00A8FF' : '#2A364F',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    py: 2,
+                    px: 1,
+                    '&:hover': {
+                      backgroundColor: isSelected ? '#38BDF8' : '#1E293B'
+                    }
+                  }}
+                />
+              );
+            })}
+          </Box>
+        </Paper>
+      )}
+
       {/* Search Bar for Tracking ID */}
       <Paper
         elevation={0}
         sx={{
-          p: 2.5,
+          p: 2,
           backgroundColor: '#172036',
           borderRadius: 3,
           border: '1px solid #2A364F',
           maxWidth: 900,
-          mb: 4,
+          mb: 3,
           display: 'flex',
           gap: 2,
           alignItems: 'center'
@@ -174,7 +227,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
         <TextField
           fullWidth
           size="small"
-          placeholder="Enter Unique Tracking ID (e.g. REQ-2026-XXXX)..."
+          placeholder="Enter or paste any Tracking ID (e.g. REQ-2026-XXXX)..."
           value={trackingIdInput}
           onChange={(e) => setTrackingIdInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(e)}
@@ -201,6 +254,27 @@ export const ServiceProgressTracker = ({ currentUser }) => {
           Track Request
         </Button>
       </Paper>
+
+      {/* Reschedule Alert Notification Banner (Role-aware) */}
+      {hasRescheduleLog && (
+        <Alert
+          severity={currentUser?.role === 'TECHNICIAN' ? 'info' : 'warning'}
+          sx={{
+            mb: 3,
+            maxWidth: 900,
+            backgroundColor: currentUser?.role === 'TECHNICIAN' ? 'rgba(0, 168, 255, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+            color: currentUser?.role === 'TECHNICIAN' ? '#00A8FF' : '#F59E0B',
+            border: currentUser?.role === 'TECHNICIAN' ? '1px solid #00A8FF' : '1px solid #F59E0B',
+            fontWeight: 600
+          }}
+        >
+          {currentUser?.role === 'TECHNICIAN' ? (
+            <>ℹ️ <strong>Reschedule Notice:</strong> You rescheduled this service appointment. The updated schedule and customer notification logs are active below.</>
+          ) : (
+            <>⚠️ <strong>Appointment Rescheduled by Technician:</strong> Your technician has updated the appointment schedule. Please review the updated date, time, and history logs below.</>
+          )}
+        </Alert>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3, maxWidth: 900, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
@@ -236,8 +310,8 @@ export const ServiceProgressTracker = ({ currentUser }) => {
                 <Chip
                   label={progressData.currentStatus}
                   sx={{
-                    backgroundColor: progressData.currentStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 168, 255, 0.2)',
-                    color: progressData.currentStatus === 'COMPLETED' ? '#10B981' : '#00A8FF',
+                    backgroundColor: progressData.currentStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.2)' : progressData.currentStatus === 'RESCHEDULED' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(0, 168, 255, 0.2)',
+                    color: progressData.currentStatus === 'COMPLETED' ? '#10B981' : progressData.currentStatus === 'RESCHEDULED' ? '#F59E0B' : '#00A8FF',
                     fontWeight: 700,
                     fontSize: '0.85rem'
                   }}
@@ -315,15 +389,15 @@ export const ServiceProgressTracker = ({ currentUser }) => {
                         p: 1.5,
                         backgroundColor: '#0F172A',
                         borderRadius: 2,
-                        borderLeft: '4px solid #00A8FF'
+                        borderLeft: log.note && log.note.includes('rescheduled') ? '4px solid #F59E0B' : '4px solid #00A8FF'
                       }}
                     >
-                      <CheckCircle2 size={20} color="#00A8FF" />
+                      <CheckCircle2 size={20} color={log.note && log.note.includes('rescheduled') ? '#F59E0B' : '#00A8FF'} />
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography variant="body2" sx={{ color: '#FFF', fontWeight: 600 }}>
                           Stage: {log.status}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                        <Typography variant="caption" sx={{ color: log.note && log.note.includes('rescheduled') ? '#FBBF24' : '#94A3B8' }}>
                           {log.note || 'Status updated in system.'}
                         </Typography>
                       </Box>
@@ -344,7 +418,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
       ) : (
         <Paper elevation={0} sx={{ p: 4, backgroundColor: '#172036', borderRadius: 3, border: '1px dashed #2A364F', maxWidth: 900, textAlign: 'center' }}>
           <Typography variant="body1" sx={{ color: '#94A3B8' }}>
-            Enter your Service Request Tracking ID above and click <strong>Track Request</strong> to view its live progress.
+            Select a service ticket above or enter your Tracking ID to view its live progress.
           </Typography>
         </Paper>
       )}

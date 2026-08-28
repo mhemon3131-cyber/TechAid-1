@@ -44,7 +44,7 @@ export const createServiceRequest = async (req, res) => {
       });
     }
 
-    // Default to Customer Claire if customerId not passed
+    // Default to Customer Mehedi Hasan if customerId not passed
     const custId = customerId || 'usr-1';
 
     // 2. Save directly to Prisma Database
@@ -191,7 +191,7 @@ export const getServiceProgress = async (req, res) => {
 export const updateServiceStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, note, technicianId } = req.body;
+    const { status, note } = req.body;
 
     const validStatuses = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'ON_THE_WAY', 'COMPLETED'];
     if (!validStatuses.includes(status)) {
@@ -216,7 +216,6 @@ export const updateServiceStatus = async (req, res) => {
       where: { id: targetRequest.id },
       data: {
         status,
-        ...(technicianId && { technicianId }),
         statusLogs: {
           create: {
             status,
@@ -224,37 +223,8 @@ export const updateServiceStatus = async (req, res) => {
           }
         }
       },
-      include: { statusLogs: true, customer: true }
+      include: { statusLogs: true }
     });
-
-    // Auto-create Conversation when request is ACCEPTED
-    if (status === 'ACCEPTED' && updated.technicianId) {
-      await prisma.conversation.upsert({
-        where: { serviceRequestId: id },
-        create: {
-          serviceRequestId: id,
-          customerId: updated.customerId,
-          technicianId: updated.technicianId,
-        },
-        update: {
-          technicianId: updated.technicianId,
-        },
-      }).catch(() => null);
-    }
-
-    // Trigger Notification
-    try {
-      const { createNotificationHelper } = await import('./notificationController.js');
-      await createNotificationHelper({
-        userId: updated.customerId,
-        userEmail: updated.customer?.email,
-        type: `REQUEST_${status}`,
-        title: `Service Request #${updated.trackingId || id} Updated`,
-        message: `Your technical issue "${updated.title}" status is now ${status}.`,
-      });
-    } catch (e) {
-      console.log('Notification trigger skipped:', e.message);
-    }
 
     res.json({
       success: true,
@@ -266,42 +236,3 @@ export const updateServiceStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Database error updating status.' });
   }
 };
-
-// @desc    Get Emergency Support Queue (Priority 1)
-// @route   GET /api/requests/emergency/queue
-export const getEmergencyQueue = async (req, res) => {
-  try {
-    let emergencyRequests = [];
-    if (prisma) {
-      emergencyRequests = await prisma.serviceRequest.findMany({
-        where: {
-          OR: [{ urgency: 'Emergency' }, { urgency: 'Critical' }, { urgency: 'EMERGENCY' }, { urgency: 'HIGH' }],
-          status: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] },
-        },
-        include: {
-          customer: true,
-          attachments: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      }).catch(() => []);
-    }
-
-    if (emergencyRequests.length === 0) {
-      const { mockDatabase } = await import('../db.js');
-      emergencyRequests = mockDatabase.serviceRequests.map(r => ({
-        ...r,
-        customer: mockDatabase.users.find(u => u.id === r.customerId) || { name: 'Claire', email: 'claire@techaid.com' }
-      }));
-    }
-
-    res.json({
-      success: true,
-      count: emergencyRequests.length,
-      data: emergencyRequests,
-    });
-  } catch (error) {
-    console.error('Get emergency queue error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch emergency support queue.' });
-  }
-};
-

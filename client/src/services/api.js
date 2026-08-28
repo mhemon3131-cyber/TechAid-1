@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:1257/api';
-
+const API_BASE_URL = 'http://localhost:5000/api';
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -38,6 +37,32 @@ export const createAppointment = async (appointmentData) => {
 
 export const getAppointments = async () => {
   const response = await api.get('/appointments');
+  return response.data;
+};
+
+// AI & Troubleshooting API Services (Module 1)
+export const classifyIssueWithAI = async (data) => {
+  const response = await api.post('/ai/classify', data);
+  return response.data;
+};
+
+export const sendTroubleshootMessage = async (data) => {
+  const response = await api.post('/ai/troubleshoot', data);
+  return response.data;
+};
+
+export const getResolutionHistory = async (userId) => {
+  const response = await api.get(`/history${userId ? `?userId=${userId}` : ''}`);
+  return response.data;
+};
+
+export const calculateEstimatedCost = async (data) => {
+  const response = await api.post('/cost-estimation/calculate', data);
+  return response.data;
+};
+
+export const estimateServiceCost = async (data) => {
+  const response = await api.post('/cost-estimation/calculate', data);
   return response.data;
 };
 
