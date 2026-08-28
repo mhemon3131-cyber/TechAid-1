@@ -106,7 +106,7 @@ export const AppointmentBooking = ({ currentUser }) => {
   const fetchTechs = async () => {
     setFetchingTechs(true);
     try {
-      const res = await axios.get('http://localhost:1345/api/technicians');
+      const res = await axios.get('http://localhost:5000/api/technicians');
       if (res.data.success && res.data.data.length > 0) {
         setTechnicians(res.data.data);
         setSelectedTech(res.data.data[0]);
@@ -129,7 +129,7 @@ export const AppointmentBooking = ({ currentUser }) => {
     const key = `${selectedTech.id}_${formattedDate}`;
 
     try {
-      const res = await axios.get(`http://localhost:1345/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`);
+      const res = await axios.get(`http://localhost:5000/api/appointments?technicianId=${selectedTech.id}&date=${encodeURIComponent(formattedDate)}`);
       if (res.data.success) {
         const taken = res.data.data
           .filter(app => app.status !== 'REJECTED' && app.technicianId === selectedTech.id && app.date === formattedDate)
@@ -184,7 +184,7 @@ export const AppointmentBooking = ({ currentUser }) => {
         serviceRequestId: activeRequest ? activeRequest.id : null
       };
 
-      const res = await axios.post('http://localhost:1345/api/appointments', payload);
+      const res = await axios.post('http://localhost:5000/api/appointments', payload);
       if (res.data.success) {
         setBookingSuccess(res.data.data);
         setBookedMap(prev => ({

@@ -67,7 +67,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
 
   const fetchConversations = (preferredConvId = null) => {
     axios
-      .get('http://localhost:1257/api/conversations', {
+      .get('http://localhost:5000/api/conversations', {
         headers: {
           'user-id': activeUser.id,
           'user-role': activeUser.role,
@@ -155,7 +155,7 @@ export default function ChatPage({ currentUser, initialConvId }) {
   const handleStartCall = (type) => {
     if (!selectedConv) return;
     axios
-      .post(`http://localhost:1257/api/conversations/${selectedConv.id}/calls`, { callType: type })
+      .post(`http://localhost:5000/api/conversations/${selectedConv.id}/calls`, { callType: type })
       .then((res) => {
         setCallModal({ open: true, roomName: res.data.roomName, callType: type });
       })

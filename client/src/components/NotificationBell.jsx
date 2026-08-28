@@ -86,7 +86,7 @@ export default function NotificationBell({ currentUser }) {
 
   const fetchNotifications = () => {
     axios
-      .get('http://localhost:1257/api/notifications', { headers: { 'user-id': userId } })
+      .get('http://localhost:5000/api/notifications', { headers: { 'user-id': userId } })
       .then((res) => {
         if (res.data && res.data.length > 0) {
           setNotifications(res.data);

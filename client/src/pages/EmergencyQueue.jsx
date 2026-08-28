@@ -51,7 +51,7 @@ export default function EmergencyQueue({ currentUser, onAcceptSuccess }) {
     setLoading(true);
     setError('');
     axios
-      .get('http://localhost:1257/api/requests/emergency/queue')
+      .get('http://localhost:5000/api/requests/emergency/queue')
       .then((res) => {
         const fetched = res.data?.data || [];
         if (fetched.length > 0) {
@@ -75,7 +75,7 @@ export default function EmergencyQueue({ currentUser, onAcceptSuccess }) {
     const techName = currentUser?.name || 'Technician';
 
     axios
-      .put(`http://localhost:1257/api/requests/${requestItem.id}/status`, {
+      .put(`http://localhost:5000/api/requests/${requestItem.id}/status`, {
         status: 'ACCEPTED',
         technicianId: techId,
         technicianName: techName,

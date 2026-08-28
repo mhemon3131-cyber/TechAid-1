@@ -304,7 +304,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
       try {
 
         await axios.put(
-          `http://localhost:1345/api/appointments/${id}/status`,
+          `http://localhost:5000/api/appointments/${id}/status`,
           {
             status,
             ...extraData
@@ -355,7 +355,7 @@ export const TechnicianDashboard = ({ currentUser }) => {
           try {
 
             await axios.put(
-              `http://localhost:1345/api/requests/${reqIdentifier}/status`,
+              `http://localhost:5000/api/requests/${reqIdentifier}/status`,
               {
                 status:
                   reqStage,

@@ -62,7 +62,7 @@ export default function App() {
     const targetConvId = `conv_${custId}_${techId}`;
 
     try {
-      await axios.post('http://localhost:1257/api/conversations/register', {
+      await axios.post('http://localhost:5000/api/conversations/register', {
         id: targetConvId,
         serviceRequestId: reqItem?.id || reqItem?.trackingId,
         customerId: custId,
@@ -180,7 +180,7 @@ export default function App() {
                 const targetConvId = `conv_${custId}_${techId}`;
 
                 try {
-                  await axios.post('http://localhost:1257/api/conversations/register', {
+                  await axios.post('http://localhost:5000/api/conversations/register', {
                     id: targetConvId,
                     serviceRequestId: app?.serviceRequestId || app?.id,
                     customerId: custId,
