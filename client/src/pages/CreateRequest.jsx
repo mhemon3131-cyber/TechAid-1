@@ -173,7 +173,7 @@ export const CreateRequest = ({ currentUser, onNavigateToAppointment, onNavigate
         /* STEP 1: Two Column Layout matching User Screenshot */
         <Grid container spacing={3}>
           {/* Left Column: Standard Request Form */}
-          <Grid item xs={12} lg={7}>
+          <Grid item xs={12} lg={currentUser?.role === 'TECHNICIAN' ? 12 : 7}>
             <Paper
               elevation={0}
               sx={{
@@ -322,155 +322,157 @@ export const CreateRequest = ({ currentUser, onNavigateToAppointment, onNavigate
             </Paper>
           </Grid>
 
-          {/* Right Column: Dedicated "Request Emergency Support" Card matching User Screenshot */}
-          <Grid item xs={12} lg={5}>
-            <Paper
-              elevation={0}
-              sx={{
-                backgroundColor: '#131C31',
-                borderRadius: 4,
-                p: { xs: 2.5, md: 3.5 },
-                border: '1px solid #EF4444',
-                boxShadow: '0 0 20px rgba(239, 68, 68, 0.15)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2.5
-              }}
-            >
-              {/* Card Title Header */}
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box
-                  sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '12px',
-                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#EF4444',
-                    border: '1px solid rgba(239, 68, 68, 0.4)'
-                  }}
-                >
-                  <AlertOctagon size={24} />
-                </Box>
-                <Typography variant="h6" fontWeight={800} sx={{ color: '#FFFFFF', fontSize: '1.25rem' }}>
-                  Request Emergency Support
-                </Typography>
-              </Stack>
-
-              <Typography variant="body2" sx={{ color: '#94A3B8', lineHeight: 1.6 }}>
-                Need immediate help for a critical server, laptop, or network outage? Request immediate technician dispatch to your location or priority queue.
-              </Typography>
-
-              <Divider sx={{ borderColor: '#2A364F' }} />
-
-              {/* Feature Highlights matching screenshot */}
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={1.8} alignItems="flex-start">
-                  <Box sx={{ color: '#EF4444', mt: 0.3 }}>
-                    <Zap size={18} />
-                  </Box>
-                  <Typography variant="body2" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
-                    Response Time: <span style={{ fontWeight: 400, color: '#94A3B8' }}>Under 15 minutes guaranteed</span>
-                  </Typography>
-                </Stack>
-
-                <Stack direction="row" spacing={1.8} alignItems="flex-start">
-                  <Box sx={{ color: '#F59E0B', mt: 0.3 }}>
-                    <Clock size={18} />
-                  </Box>
-                  <Typography variant="body2" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
-                    24/7 Availability: <span style={{ fontWeight: 400, color: '#94A3B8' }}>Immediate Technician Alert</span>
-                  </Typography>
-                </Stack>
-
-                <Stack direction="row" spacing={1.8} alignItems="flex-start">
-                  <Box sx={{ color: '#00A8FF', mt: 0.3 }}>
-                    <AlertTriangle size={18} />
-                  </Box>
-                  <Typography variant="body2" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
-                    Priority Queue: <span style={{ fontWeight: 400, color: '#94A3B8' }}>First-class dispatch routing</span>
-                  </Typography>
-                </Stack>
-              </Stack>
-
-              {/* Contact Phone Input */}
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1 }}>
-                  Contact Phone for Emergency Dispatch
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  value={emergencyPhone}
-                  onChange={(e) => setEmergencyPhone(e.target.value)}
-                  placeholder="+8801700000000"
-                  sx={{
-                    backgroundColor: '#0F172A',
-                    borderRadius: 2.5,
-                    '& .MuiOutlinedInput-root': {
-                      color: '#FFF',
-                      fontWeight: 600,
-                      '& fieldset': { borderColor: '#2A364F' },
-                      '&:hover fieldset': { borderColor: '#EF4444' },
-                      '&.Mui-focused fieldset': { borderColor: '#EF4444' }
-                    }
-                  }}
-                />
-              </Box>
-
-              {/* Emergency Note Input */}
-              <Box>
-                <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1 }}>
-                  Emergency Note (Optional)
-                </Typography>
-                <TextField
-                  multiline
-                  rows={2}
-                  fullWidth
-                  value={emergencyNote}
-                  onChange={(e) => setEmergencyNote(e.target.value)}
-                  placeholder="Briefly state critical emergency details..."
-                  sx={{
-                    backgroundColor: '#0F172A',
-                    borderRadius: 2.5,
-                    '& .MuiOutlinedInput-root': {
-                      color: '#FFF',
-                      '& fieldset': { borderColor: '#2A364F' },
-                      '&:hover fieldset': { borderColor: '#EF4444' },
-                      '&.Mui-focused fieldset': { borderColor: '#EF4444' }
-                    }
-                  }}
-                />
-              </Box>
-
-              {/* Red Dispatch Button matching screenshot */}
-              <Button
-                fullWidth
-                size="large"
-                onClick={handleDispatchEmergency}
-                disabled={emergencyLoading}
-                startIcon={emergencyLoading ? <CircularProgress size={20} color="inherit" /> : <ShieldAlert size={20} />}
+          {/* Right Column: Dedicated "Request Emergency Support" Card (Customers Only) */}
+          {currentUser?.role !== 'TECHNICIAN' && (
+            <Grid item xs={12} lg={5}>
+              <Paper
+                elevation={0}
                 sx={{
-                  backgroundColor: '#EF4444',
-                  color: '#FFFFFF',
-                  fontWeight: 800,
-                  fontSize: '1rem',
-                  py: 1.6,
-                  mt: 1,
-                  borderRadius: '30px',
-                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)',
-                  '&:hover': {
-                    backgroundColor: '#DC2626',
-                    boxShadow: '0 6px 25px rgba(239, 68, 68, 0.6)'
-                  }
+                  backgroundColor: '#131C31',
+                  borderRadius: 4,
+                  p: { xs: 2.5, md: 3.5 },
+                  border: '1px solid #EF4444',
+                  boxShadow: '0 0 20px rgba(239, 68, 68, 0.15)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2.5
                 }}
               >
-                {emergencyLoading ? 'Dispatching...' : 'Dispatch Emergency Request'}
-              </Button>
-            </Paper>
-          </Grid>
+                {/* Card Title Header */}
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#EF4444',
+                      border: '1px solid rgba(239, 68, 68, 0.4)'
+                    }}
+                  >
+                    <AlertOctagon size={24} />
+                  </Box>
+                  <Typography variant="h6" fontWeight={800} sx={{ color: '#FFFFFF', fontSize: '1.25rem' }}>
+                    Request Emergency Support
+                  </Typography>
+                </Stack>
+
+                <Typography variant="body2" sx={{ color: '#94A3B8', lineHeight: 1.6 }}>
+                  Need immediate help for a critical server, laptop, or network outage? Request immediate technician dispatch to your location or priority queue.
+                </Typography>
+
+                <Divider sx={{ borderColor: '#2A364F' }} />
+
+                {/* Feature Highlights matching screenshot */}
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={1.8} alignItems="flex-start">
+                    <Box sx={{ color: '#EF4444', mt: 0.3 }}>
+                      <Zap size={18} />
+                    </Box>
+                    <Typography variant="body2" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
+                      Response Time: <span style={{ fontWeight: 400, color: '#94A3B8' }}>Under 15 minutes guaranteed</span>
+                    </Typography>
+                  </Stack>
+
+                  <Stack direction="row" spacing={1.8} alignItems="flex-start">
+                    <Box sx={{ color: '#F59E0B', mt: 0.3 }}>
+                      <Clock size={18} />
+                    </Box>
+                    <Typography variant="body2" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
+                      24/7 Availability: <span style={{ fontWeight: 400, color: '#94A3B8' }}>Immediate Technician Alert</span>
+                    </Typography>
+                  </Stack>
+
+                  <Stack direction="row" spacing={1.8} alignItems="flex-start">
+                    <Box sx={{ color: '#00A8FF', mt: 0.3 }}>
+                      <AlertTriangle size={18} />
+                    </Box>
+                    <Typography variant="body2" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
+                      Priority Queue: <span style={{ fontWeight: 400, color: '#94A3B8' }}>First-class dispatch routing</span>
+                    </Typography>
+                  </Stack>
+                </Stack>
+
+                {/* Contact Phone Input */}
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1 }}>
+                    Contact Phone for Emergency Dispatch
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={emergencyPhone}
+                    onChange={(e) => setEmergencyPhone(e.target.value)}
+                    placeholder="+8801700000000"
+                    sx={{
+                      backgroundColor: '#0F172A',
+                      borderRadius: 2.5,
+                      '& .MuiOutlinedInput-root': {
+                        color: '#FFF',
+                        fontWeight: 600,
+                        '& fieldset': { borderColor: '#2A364F' },
+                        '&:hover fieldset': { borderColor: '#EF4444' },
+                        '&.Mui-focused fieldset': { borderColor: '#EF4444' }
+                      }
+                    }}
+                  />
+                </Box>
+
+                {/* Emergency Note Input */}
+                <Box>
+                  <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600, mb: 1 }}>
+                    Emergency Note (Optional)
+                  </Typography>
+                  <TextField
+                    multiline
+                    rows={2}
+                    fullWidth
+                    value={emergencyNote}
+                    onChange={(e) => setEmergencyNote(e.target.value)}
+                    placeholder="Briefly state critical emergency details..."
+                    sx={{
+                      backgroundColor: '#0F172A',
+                      borderRadius: 2.5,
+                      '& .MuiOutlinedInput-root': {
+                        color: '#FFF',
+                        '& fieldset': { borderColor: '#2A364F' },
+                        '&:hover fieldset': { borderColor: '#EF4444' },
+                        '&.Mui-focused fieldset': { borderColor: '#EF4444' }
+                      }
+                    }}
+                  />
+                </Box>
+
+                {/* Red Dispatch Button matching screenshot */}
+                <Button
+                  fullWidth
+                  size="large"
+                  onClick={handleDispatchEmergency}
+                  disabled={emergencyLoading}
+                  startIcon={emergencyLoading ? <CircularProgress size={20} color="inherit" /> : <ShieldAlert size={20} />}
+                  sx={{
+                    backgroundColor: '#EF4444',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '1rem',
+                    py: 1.6,
+                    mt: 1,
+                    borderRadius: '30px',
+                    boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)',
+                    '&:hover': {
+                      backgroundColor: '#DC2626',
+                      boxShadow: '0 6px 25px rgba(239, 68, 68, 0.6)'
+                    }
+                  }}
+                >
+                  {emergencyLoading ? 'Dispatching...' : 'Dispatch Emergency Request'}
+                </Button>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
       ) : (
         /* STEP 2: Attachments & Review */
