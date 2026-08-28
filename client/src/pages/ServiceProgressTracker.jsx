@@ -425,3 +425,5 @@ export const ServiceProgressTracker = ({ currentUser }) => {
     </Box>
   );
 };
+
+export default ServiceProgressTracker;

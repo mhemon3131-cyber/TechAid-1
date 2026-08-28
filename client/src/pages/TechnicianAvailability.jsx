@@ -351,3 +351,5 @@ export const TechnicianAvailability = ({ currentUser }) => {
     </Box>
   );
 };
+
+export default TechnicianAvailability;

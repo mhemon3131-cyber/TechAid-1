@@ -256,3 +256,5 @@ export const ServiceCostEstimator = () => {
     </Box>
   );
 };
+
+export default ServiceCostEstimator;

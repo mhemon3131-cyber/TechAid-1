@@ -159,3 +159,5 @@ export const IssueResolutionHistory = ({ currentUser }) => {
     </Box>
   );
 };
+
+export default IssueResolutionHistory;
