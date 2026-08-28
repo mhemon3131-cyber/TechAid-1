@@ -13,8 +13,7 @@ import {
   Divider,
   Snackbar,
   Alert,
-  Stack,
-  Chip
+  Stack
 } from '@mui/material';
 import {
   Bell,
@@ -22,7 +21,8 @@ import {
   AlertCircle,
   Calendar,
   CheckCheck,
-  MessageSquare
+  MessageSquare,
+  Activity
 } from 'lucide-react';
 import { getSocket } from '../socket/socket';
 import axios from 'axios';
@@ -39,6 +39,7 @@ export function cleanName(nameVal, fallback = 'User') {
 export default function NotificationBell({ currentUser }) {
   const isTechnician = currentUser?.role === 'TECHNICIAN';
   const userId = currentUser?.id || 'usr-1';
+  const activeName = cleanName(currentUser?.name, isTechnician ? 'tech01' : 'cust01');
 
   const customerDefaultNotifs = [
     {
@@ -53,7 +54,7 @@ export default function NotificationBell({ currentUser }) {
       id: 'notif-app-1',
       title: 'Appointment Booked Successfully',
       message: 'Your appointment with tech01 is confirmed for Tue Jul 14, 2026 at 1:00 pm.',
-      type: 'APPOINTMENT_REMINDER',
+      type: 'APPOINTMENT_BOOKED',
       isRead: false,
       createdAt: new Date(Date.now() - 60000).toISOString()
     },
@@ -61,8 +62,8 @@ export default function NotificationBell({ currentUser }) {
       id: 'notif-app-2',
       title: 'Appointment Booked Successfully',
       message: 'Your appointment with tech01 is confirmed for Tue Jul 14, 2026 at 11:30 am.',
-      type: 'APPOINTMENT_REMINDER',
-      isRead: false,
+      type: 'APPOINTMENT_BOOKED',
+      isRead: true,
       createdAt: new Date(Date.now() - 180000).toISOString()
     }
   ];
@@ -71,26 +72,26 @@ export default function NotificationBell({ currentUser }) {
     {
       id: 'notif-tech-msg-1',
       title: 'New Message from cust01',
-      message: '"Need urgent help with laptop screen"',
+      message: '"Is the technician on the way?"',
       type: 'NEW_CHAT_MESSAGE',
       isRead: false,
       createdAt: new Date().toISOString()
     },
     {
       id: 'notif-tech-1',
-      title: 'Emergency Support Queue Alert',
-      message: 'New Critical emergency request submitted by customer.',
-      type: 'EMERGENCY_ALERT',
+      title: 'New Appointment Booked',
+      message: 'Customer cust01 booked Remote support for Tue Jul 14, 2026 at 1:00 pm.',
+      type: 'APPOINTMENT_BOOKED',
       isRead: false,
       createdAt: new Date(Date.now() - 60000).toISOString()
     },
     {
       id: 'notif-tech-2',
-      title: 'New Service Job Assigned',
-      message: 'You have been assigned to Service Request #REQ-2026-8942.',
-      type: 'APPOINTMENT_REMINDER',
-      isRead: false,
-      createdAt: new Date(Date.now() - 1800000).toISOString()
+      title: 'Emergency Support Request Alert',
+      message: 'New Critical emergency request submitted by customer.',
+      type: 'EMERGENCY_ALERT',
+      isRead: true,
+      createdAt: new Date(Date.now() - 3600000).toISOString()
     }
   ];
 
@@ -106,11 +107,11 @@ export default function NotificationBell({ currentUser }) {
       .then((res) => {
         if (res.data && res.data.length > 0) {
           setNotifications((prev) => {
-            const combinedMap = {};
+            const uniqueMap = {};
             [...res.data, ...prev].forEach((n) => {
-              combinedMap[n.id || `${n.title}_${n.createdAt}`] = n;
+              if (!uniqueMap[n.id]) uniqueMap[n.id] = n;
             });
-            return Object.values(combinedMap);
+            return Object.values(uniqueMap);
           });
         }
       })
@@ -124,10 +125,6 @@ export default function NotificationBell({ currentUser }) {
 
     const handleNewNotif = (notif) => {
       if (!notif) return;
-      // The person who sends the text won't receive a notification; only the recipient gets notified
-      if (notif.type === 'NEW_CHAT_MESSAGE' && String(notif.senderId) === String(userId)) {
-        return;
-      }
       setNotifications((prev) => {
         const exists = prev.some((n) => n.id === notif.id || (n.title === notif.title && n.message === notif.message));
         if (exists) return prev;
@@ -141,8 +138,9 @@ export default function NotificationBell({ currentUser }) {
       const senderIdStr = String(msg.senderId || msg.sender?.id || '');
       const userIdStr = String(userId);
 
+      // Trigger notification if message is sent by the partner
       if (senderIdStr && senderIdStr !== userIdStr) {
-        const rawSender = msg.sender?.name || (isTechnician ? 'Customer' : 'Technician');
+        const rawSender = msg.sender?.name || (isTechnician ? 'cust01' : 'tech01');
         const senderName = cleanName(rawSender, isTechnician ? 'cust01' : 'tech01');
         const notifTitle = `New Message from ${senderName}`;
         const notifMsg = `"${msg.content.slice(0, 40)}${msg.content.length > 40 ? '...' : ''}"`;
@@ -172,7 +170,7 @@ export default function NotificationBell({ currentUser }) {
       socket.off('new_notification', handleNewNotif);
       socket.off('receive_message', handleReceiveMessageNotif);
     };
-  }, [userId, isTechnician]);
+  }, [userId, activeName, isTechnician]);
 
   const handleOpen = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
@@ -185,35 +183,50 @@ export default function NotificationBell({ currentUser }) {
 
   const getNotifIcon = (type) => {
     switch (type) {
+      case 'NEW_CHAT_MESSAGE':
+        return <MessageSquare size={18} color="#00A8FF" />;
+      case 'APPOINTMENT_BOOKED':
+      case 'APPOINTMENT_REMINDER':
+        return <Calendar size={18} color="#00A8FF" />;
+      case 'STEP_COMPLETED':
       case 'REQUEST_ACCEPTED':
       case 'COMPLETED':
         return <CheckCircle size={18} color="#10B981" />;
       case 'EMERGENCY_ALERT':
         return <AlertCircle size={18} color="#EF4444" />;
-      case 'APPOINTMENT_REMINDER':
-        return <Calendar size={18} color="#00A8FF" />;
-      case 'NEW_CHAT_MESSAGE':
-        return <MessageSquare size={18} color="#00A8FF" />;
       default:
-        return <Bell size={18} color="#00A8FF" />;
+        return <Activity size={18} color="#00A8FF" />;
     }
   };
 
   return (
     <>
+      {/* Bell Icon with Red Badge Counter */}
       <IconButton
         onClick={handleOpen}
         sx={{
           color: '#94A3B8',
-          position: 'relative',
-          '&:hover': { color: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+          p: 0.8,
+          '&:hover': { color: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.08)' }
         }}
       >
-        <Badge badgeContent={unreadCount} color="error" max={99}>
-          <Bell size={22} color="#FFFFFF" />
+        <Badge
+          badgeContent={unreadCount}
+          color="error"
+          sx={{
+            '& .MuiBadge-badge': {
+              backgroundColor: '#EF4444',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              fontSize: '0.7rem'
+            }
+          }}
+        >
+          <Bell size={20} />
         </Badge>
       </IconButton>
 
+      {/* Notifications Popover matching User Screenshot */}
       <Popover
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
@@ -228,53 +241,52 @@ export default function NotificationBell({ currentUser }) {
             color: '#FFFFFF',
             border: '1px solid #2A364F',
             borderRadius: 3.5,
-            boxShadow: '0 12px 35px rgba(0,0,0,0.6)',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
             mt: 1.5,
             overflow: 'hidden'
           }
         }}
       >
-        {/* Header matching user screenshot */}
-        <Box sx={{ p: 2.2, px: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#172036' }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.1rem', color: '#FFF' }}>
+        {/* Header */}
+        <Box sx={{ p: 2, px: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#172036' }}>
+          <Stack direction="row" spacing={1.2} alignItems="center">
+            <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.1rem' }}>
               Notifications
             </Typography>
             {unreadCount > 0 && (
-              <Chip
-                label={unreadCount}
-                size="small"
-                color="error"
-                sx={{ height: 20, fontSize: 11, fontWeight: 800, borderRadius: '10px' }}
-              />
+              <Box
+                sx={{
+                  backgroundColor: '#EF4444',
+                  color: '#FFF',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  px: 1,
+                  py: 0.2,
+                  borderRadius: '12px'
+                }}
+              >
+                {unreadCount}
+              </Box>
             )}
           </Stack>
-
           {unreadCount > 0 && (
             <Button
               size="small"
               onClick={markAllRead}
               startIcon={<CheckCheck size={14} />}
-              sx={{
-                color: '#00A8FF',
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: 'none',
-                '&:hover': { backgroundColor: 'rgba(0, 168, 255, 0.1)' }
-              }}
+              sx={{ color: '#00A8FF', fontSize: '0.78rem', fontWeight: 700, textTransform: 'none' }}
             >
               Mark all read
             </Button>
           )}
         </Box>
-
         <Divider sx={{ borderColor: '#2A364F' }} />
 
-        {/* Notifications List */}
+        {/* List of Notifications */}
         <List sx={{ p: 0, overflowY: 'auto', maxHeight: 420 }}>
           {notifications.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Typography variant="body2" sx={{ color: '#94A3B8' }}>
+              <Typography variant="body2" color="#94A3B8">
                 No notifications right now.
               </Typography>
             </Box>
@@ -291,21 +303,21 @@ export default function NotificationBell({ currentUser }) {
                     px: 2.5
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 38, mt: 0.5 }}>
+                  <ListItemIcon sx={{ minWidth: 38, mt: 0.4 }}>
                     {getNotifIcon(notif.type)}
                   </ListItemIcon>
                   <ListItemText
                     primary={
-                      <Typography variant="subtitle2" fontWeight={notif.isRead ? 600 : 800} sx={{ color: '#F8FAFC', fontSize: '0.92rem' }}>
+                      <Typography variant="subtitle2" fontWeight={notif.isRead ? 600 : 800} color="#F8FAFC" sx={{ fontSize: '0.92rem' }}>
                         {notif.title}
                       </Typography>
                     }
                     secondary={
                       <React.Fragment>
-                        <Typography variant="body2" sx={{ color: '#94A3B8', fontSize: '0.82rem', mt: 0.5, lineHeight: 1.5 }}>
+                        <Typography variant="caption" color="#94A3B8" display="block" sx={{ mt: 0.5, lineHeight: 1.5, fontSize: '0.82rem' }}>
                           {notif.message}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.72rem', mt: 0.8, display: 'block', fontWeight: 600 }}>
+                        <Typography variant="caption" color="#64748B" sx={{ fontSize: '0.72rem', mt: 0.6, display: 'block', fontWeight: 600 }}>
                           {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </Typography>
                       </React.Fragment>
@@ -319,10 +331,10 @@ export default function NotificationBell({ currentUser }) {
         </List>
       </Popover>
 
-      {/* Toast Banner for New Incoming Notifications */}
+      {/* Toast Alert Banner */}
       <Snackbar
         open={toast.open}
-        autoHideDuration={4500}
+        autoHideDuration={4000}
         onClose={() => setToast({ ...toast, open: false })}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
@@ -342,7 +354,7 @@ export default function NotificationBell({ currentUser }) {
           <Typography variant="subtitle2" fontWeight={700}>
             {toast.title}
           </Typography>
-          <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block' }}>
+          <Typography variant="caption" color="#94A3B8" display="block">
             {toast.message}
           </Typography>
         </Alert>
