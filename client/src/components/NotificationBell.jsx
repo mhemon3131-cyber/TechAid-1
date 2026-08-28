@@ -13,7 +13,8 @@ import {
   Divider,
   Snackbar,
   Alert,
-  Stack
+  Stack,
+  Chip
 } from '@mui/material';
 import {
   Bell,
@@ -38,35 +39,50 @@ export function cleanName(nameVal, fallback = 'User') {
 export default function NotificationBell({ currentUser }) {
   const isTechnician = currentUser?.role === 'TECHNICIAN';
   const userId = currentUser?.id || 'usr-1';
-  const activeName = cleanName(currentUser?.name, isTechnician ? 'Technician' : 'Customer');
 
   const customerDefaultNotifs = [
     {
-      id: 'notif-1',
-      title: 'Service Request Accepted',
-      message: 'Technician TechAlex accepted request #REQ-2026-8942.',
-      type: 'REQUEST_ACCEPTED',
+      id: 'notif-msg-1',
+      title: 'New Message from tech01',
+      message: '"heyyy"',
+      type: 'NEW_CHAT_MESSAGE',
       isRead: false,
       createdAt: new Date().toISOString()
     },
     {
-      id: 'notif-2',
-      title: 'Upcoming Appointment Reminder',
-      message: 'Reminder: Home Visit appointment scheduled for tomorrow at 10:00 AM.',
+      id: 'notif-app-1',
+      title: 'Appointment Booked Successfully',
+      message: 'Your appointment with tech01 is confirmed for Tue Jul 14, 2026 at 1:00 pm.',
       type: 'APPOINTMENT_REMINDER',
       isRead: false,
-      createdAt: new Date(Date.now() - 3600000).toISOString()
+      createdAt: new Date(Date.now() - 60000).toISOString()
+    },
+    {
+      id: 'notif-app-2',
+      title: 'Appointment Booked Successfully',
+      message: 'Your appointment with tech01 is confirmed for Tue Jul 14, 2026 at 11:30 am.',
+      type: 'APPOINTMENT_REMINDER',
+      isRead: false,
+      createdAt: new Date(Date.now() - 180000).toISOString()
     }
   ];
 
   const technicianDefaultNotifs = [
+    {
+      id: 'notif-tech-msg-1',
+      title: 'New Message from cust01',
+      message: '"Need urgent help with laptop screen"',
+      type: 'NEW_CHAT_MESSAGE',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    },
     {
       id: 'notif-tech-1',
       title: 'Emergency Support Queue Alert',
       message: 'New Critical emergency request submitted by customer.',
       type: 'EMERGENCY_ALERT',
       isRead: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date(Date.now() - 60000).toISOString()
     },
     {
       id: 'notif-tech-2',
@@ -89,7 +105,13 @@ export default function NotificationBell({ currentUser }) {
       .get('http://localhost:5000/api/notifications', { headers: { 'user-id': userId } })
       .then((res) => {
         if (res.data && res.data.length > 0) {
-          setNotifications(res.data);
+          setNotifications((prev) => {
+            const combinedMap = {};
+            [...res.data, ...prev].forEach((n) => {
+              combinedMap[n.id || `${n.title}_${n.createdAt}`] = n;
+            });
+            return Object.values(combinedMap);
+          });
         }
       })
       .catch(() => {});
@@ -102,6 +124,10 @@ export default function NotificationBell({ currentUser }) {
 
     const handleNewNotif = (notif) => {
       if (!notif) return;
+      // The person who sends the text won't receive a notification; only the recipient gets notified
+      if (notif.type === 'NEW_CHAT_MESSAGE' && String(notif.senderId) === String(userId)) {
+        return;
+      }
       setNotifications((prev) => {
         const exists = prev.some((n) => n.id === notif.id || (n.title === notif.title && n.message === notif.message));
         if (exists) return prev;
@@ -112,13 +138,12 @@ export default function NotificationBell({ currentUser }) {
 
     const handleReceiveMessageNotif = (msg) => {
       if (!msg) return;
-      // If message is sent by the other person (not current user)
       const senderIdStr = String(msg.senderId || msg.sender?.id || '');
       const userIdStr = String(userId);
 
       if (senderIdStr && senderIdStr !== userIdStr) {
         const rawSender = msg.sender?.name || (isTechnician ? 'Customer' : 'Technician');
-        const senderName = cleanName(rawSender, isTechnician ? 'Customer' : 'Technician');
+        const senderName = cleanName(rawSender, isTechnician ? 'cust01' : 'tech01');
         const notifTitle = `New Message from ${senderName}`;
         const notifMsg = `"${msg.content.slice(0, 40)}${msg.content.length > 40 ? '...' : ''}"`;
 
@@ -147,7 +172,7 @@ export default function NotificationBell({ currentUser }) {
       socket.off('new_notification', handleNewNotif);
       socket.off('receive_message', handleReceiveMessageNotif);
     };
-  }, [userId, activeName, isTechnician]);
+  }, [userId, isTechnician]);
 
   const handleOpen = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
@@ -180,11 +205,12 @@ export default function NotificationBell({ currentUser }) {
         onClick={handleOpen}
         sx={{
           color: '#94A3B8',
+          position: 'relative',
           '&:hover': { color: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.05)' }
         }}
       >
-        <Badge badgeContent={unreadCount} color="error">
-          <Bell size={22} />
+        <Badge badgeContent={unreadCount} color="error" max={99}>
+          <Bell size={22} color="#FFFFFF" />
         </Badge>
       </IconButton>
 
@@ -192,47 +218,63 @@ export default function NotificationBell({ currentUser }) {
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
         onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         PaperProps={{
           sx: {
-            width: 360,
-            maxHeight: 480,
-            backgroundColor: '#172036',
+            width: 380,
+            maxHeight: 520,
+            backgroundColor: '#131C31',
             color: '#FFFFFF',
             border: '1px solid #2A364F',
-            borderRadius: 3,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-            mt: 1.5
+            borderRadius: 3.5,
+            boxShadow: '0 12px 35px rgba(0,0,0,0.6)',
+            mt: 1.5,
+            overflow: 'hidden'
           }
         }}
       >
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Header matching user screenshot */}
+        <Box sx={{ p: 2.2, px: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#172036' }}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="subtitle1" fontWeight={700}>
+            <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.1rem', color: '#FFF' }}>
               Notifications
             </Typography>
             {unreadCount > 0 && (
-              <Badge badgeContent={unreadCount} color="error" sx={{ ml: 1 }} />
+              <Chip
+                label={unreadCount}
+                size="small"
+                color="error"
+                sx={{ height: 20, fontSize: 11, fontWeight: 800, borderRadius: '10px' }}
+              />
             )}
           </Stack>
+
           {unreadCount > 0 && (
             <Button
               size="small"
               onClick={markAllRead}
               startIcon={<CheckCheck size={14} />}
-              sx={{ color: '#00A8FF', fontSize: 12 }}
+              sx={{
+                color: '#00A8FF',
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: 'none',
+                '&:hover': { backgroundColor: 'rgba(0, 168, 255, 0.1)' }
+              }}
             >
               Mark all read
             </Button>
           )}
         </Box>
+
         <Divider sx={{ borderColor: '#2A364F' }} />
 
-        <List sx={{ p: 0, overflowY: 'auto', maxHeight: 380 }}>
+        {/* Notifications List */}
+        <List sx={{ p: 0, overflowY: 'auto', maxHeight: 420 }}>
           {notifications.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="#94A3B8">
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ color: '#94A3B8' }}>
                 No notifications right now.
               </Typography>
             </Box>
@@ -244,25 +286,26 @@ export default function NotificationBell({ currentUser }) {
                   sx={{
                     backgroundColor: notif.isRead ? 'transparent' : 'rgba(0, 168, 255, 0.08)',
                     transition: 'background-color 0.2s',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.03)' },
-                    py: 1.5
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
+                    py: 1.8,
+                    px: 2.5
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
+                  <ListItemIcon sx={{ minWidth: 38, mt: 0.5 }}>
                     {getNotifIcon(notif.type)}
                   </ListItemIcon>
                   <ListItemText
                     primary={
-                      <Typography variant="subtitle2" fontWeight={notif.isRead ? 500 : 700} color="#F8FAFC">
+                      <Typography variant="subtitle2" fontWeight={notif.isRead ? 600 : 800} sx={{ color: '#F8FAFC', fontSize: '0.92rem' }}>
                         {notif.title}
                       </Typography>
                     }
                     secondary={
                       <React.Fragment>
-                        <Typography variant="caption" color="#94A3B8" display="block" sx={{ mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: '#94A3B8', fontSize: '0.82rem', mt: 0.5, lineHeight: 1.5 }}>
                           {notif.message}
                         </Typography>
-                        <Typography variant="caption" color="#64748B" sx={{ fontSize: 10, mt: 0.5, display: 'block' }}>
+                        <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.72rem', mt: 0.8, display: 'block', fontWeight: 600 }}>
                           {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </Typography>
                       </React.Fragment>
@@ -279,7 +322,7 @@ export default function NotificationBell({ currentUser }) {
       {/* Toast Banner for New Incoming Notifications */}
       <Snackbar
         open={toast.open}
-        autoHideDuration={4000}
+        autoHideDuration={4500}
         onClose={() => setToast({ ...toast, open: false })}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
@@ -292,14 +335,14 @@ export default function NotificationBell({ currentUser }) {
             backgroundColor: '#172036',
             color: '#FFFFFF',
             border: '1px solid #00A8FF',
-            borderRadius: 2,
+            borderRadius: 2.5,
             boxShadow: '0 8px 24px rgba(0,168,255,0.3)'
           }}
         >
           <Typography variant="subtitle2" fontWeight={700}>
             {toast.title}
           </Typography>
-          <Typography variant="caption" color="#94A3B8" display="block">
+          <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block' }}>
             {toast.message}
           </Typography>
         </Alert>

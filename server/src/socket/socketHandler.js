@@ -180,7 +180,7 @@ export function initSocket(io) {
         if (recipientId) io.to(`user_${recipientId}`).emit('receive_message', message);
         io.emit('receive_message', message);
 
-        // Create Real-Time Bell Notification for Recipient
+        // Create Real-Time Bell Notification ONLY for Recipient (Never Sender)
         const notifTitle = `New Message from ${effectiveSenderName}`;
         const notifMsg = `"${content.trim().slice(0, 40)}${content.trim().length > 40 ? '...' : ''}"`;
         const notifObj = {
@@ -188,6 +188,7 @@ export function initSocket(io) {
           title: notifTitle,
           message: notifMsg,
           type: 'NEW_CHAT_MESSAGE',
+          senderId: effectiveSenderId,
           isRead: false,
           createdAt: new Date().toISOString(),
         };
@@ -201,7 +202,9 @@ export function initSocket(io) {
             message: notifMsg,
           }).catch(() => null);
         } else {
-          io.to(room1).to(room2).emit('new_notification', notifObj);
+          // Send only to recipient role (e.g. if sender is Customer, send to Technician, and vice versa)
+          const targetRoleRoom = senderRole === 'CUSTOMER' ? 'role_TECHNICIAN_ALL' : 'role_CUSTOMER_ALL';
+          socket.to(room1).to(room2).to(targetRoleRoom).emit('new_notification', notifObj);
         }
 
       } catch (err) {
