@@ -8,7 +8,7 @@ export function getSocket() {
     const user = savedUser ? JSON.parse(savedUser) : { id: 'usr-1', role: 'CUSTOMER' };
     const token = localStorage.getItem('token') || 'dev-token';
 
-    socket = io('http://localhost:1257', {
+    socket = io('http://localhost:5000', {
       auth: { token, userId: user.id, role: user.role },
       autoConnect: true,
     });

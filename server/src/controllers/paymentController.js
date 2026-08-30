@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 // ==========================================================
 
 const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY
+  process.env.STRIPE_SECRET_KEY || 'sk_test_51MockTechAidStripeSecretKeyForDemoTesting2026'
 );
 
 

@@ -79,7 +79,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
 
   const fetchUserTicketsAndLatest = async () => {
     try {
-      const res = await axios.get('http://localhost:1345/api/requests');
+      const res = await axios.get('http://localhost:5000/api/requests');
       if (res.data.success && res.data.data.length > 0) {
         const userReqs = res.data.data.filter(r => r.customerId === currentUser?.id);
         setUserTickets(userReqs.length > 0 ? userReqs : res.data.data);
@@ -131,7 +131,7 @@ export const ServiceProgressTracker = ({ currentUser }) => {
 
     try {
       const cleanId = idToFetch.trim().toUpperCase();
-      const res = await axios.get(`http://localhost:1345/api/requests/${cleanId}/progress`);
+      const res = await axios.get(`http://localhost:5000/api/requests/${cleanId}/progress`);
       if (res.data.success) {
         setProgressData(res.data.data);
         localStorage.setItem('techaid_active_tracking_id', cleanId);
@@ -425,3 +425,5 @@ export const ServiceProgressTracker = ({ currentUser }) => {
     </Box>
   );
 };
+
+export default ServiceProgressTracker;

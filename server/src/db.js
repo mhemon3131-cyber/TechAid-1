@@ -89,4 +89,5 @@ export const mockDatabase = {
   ]
 };
 
+export { prisma };
 export default prisma;

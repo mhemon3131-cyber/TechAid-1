@@ -1,41 +1,15 @@
 import express from 'express';
 
 import {
-  saveTechnicianLocation,
-  saveServiceRequestLocation,
   assignBestTechnician,
-  acceptAssignedTechnician,
-  requestTechnicianReassignment,
   getLatestAssignment,
+  acceptAssignedTechnician,
+  reassignTechnician,
   getTechnicianAcceptedJobs
 } from '../controllers/technicianAssignmentController.js';
 
+const router = express.Router();
 
-const router =
-  express.Router();
-
-
-// ==========================================================
-// LOCATION
-// ==========================================================
-
-// Technician current location
-router.put(
-  '/technicians/:technicianId/location',
-  saveTechnicianLocation
-);
-
-
-// Customer service request location
-router.put(
-  '/requests/:serviceRequestId/location',
-  saveServiceRequestLocation
-);
-
-
-// ==========================================================
-// AUTOMATIC ASSIGNMENT
-// ==========================================================
 
 // Automatic best technician
 router.post(
@@ -44,31 +18,30 @@ router.post(
 );
 
 
-// Latest suggested/accepted technician
+// Latest assignment
 router.get(
   '/requests/:serviceRequestId/latest',
   getLatestAssignment
 );
 
 
-// Customer accept
+// Customer accepts technician
 router.put(
   '/requests/:serviceRequestId/accept',
   acceptAssignedTechnician
 );
 
 
-// Customer reject
+// Customer rejects current technician and gets next best
 router.put(
   '/requests/:serviceRequestId/reassign',
-  requestTechnicianReassignment
+  reassignTechnician
 );
 
 
 // ==========================================================
-// TECHNICIAN JOB REQUESTS
-//
-// Customer accepted automatic assignments only.
+// MODULE 1 FEATURE 4
+// CUSTOMER-CONFIRMED JOBS FOR TECHNICIAN DASHBOARD
 // ==========================================================
 
 router.get(

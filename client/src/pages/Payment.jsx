@@ -1615,4 +1615,5 @@ const Payment = ({
 };
 
 
+export { Payment };
 export default Payment;

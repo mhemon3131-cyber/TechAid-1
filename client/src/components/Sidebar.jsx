@@ -31,6 +31,8 @@ import {
   Info
 } from 'lucide-react';
 
+import NotificationBell from './NotificationBell';
+
 export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
   const isCustomer = currentUser?.role === 'CUSTOMER';
   const [profileOpen, setProfileOpen] = useState(false);
@@ -48,31 +50,36 @@ export const Sidebar = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
         boxSizing: 'border-box'
       }}
     >
-      {/* Brand Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            borderRadius: '10px',
-            backgroundColor: '#00A8FF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#0D1527',
-            boxShadow: '0 0 15px rgba(0, 168, 255, 0.4)'
-          }}
-        >
-          <Shield size={24} strokeWidth={2.5} />
+      {/* Brand Header with Notification Bell */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 38,
+              height: 38,
+              borderRadius: '10px',
+              backgroundColor: '#00A8FF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#0D1527',
+              boxShadow: '0 0 15px rgba(0, 168, 255, 0.4)'
+            }}
+          >
+            <Shield size={24} strokeWidth={2.5} />
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ color: '#FFFFFF', fontWeight: 700, fontSize: '1.25rem' }}>
+              Tech<span style={{ color: '#00A8FF' }}>Aid</span>
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#64748B', display: 'block', fontSize: '0.7rem' }}>
+              IT Support Platform
+            </Typography>
+          </Box>
         </Box>
-        <Box>
-          <Typography variant="h6" sx={{ color: '#FFFFFF', fontWeight: 700, fontSize: '1.25rem' }}>
-            Tech<span style={{ color: '#00A8FF' }}>Aid</span>
-          </Typography>
-          <Typography variant="caption" sx={{ color: '#64748B', display: 'block', fontSize: '0.7rem' }}>
-            IT Support Platform
-          </Typography>
-        </Box>
+
+        {/* Real-time Notification Bell Icon matching user screenshot */}
+        <NotificationBell currentUser={currentUser} />
       </Box>
 
       {/* Current Active Account Card with Clickable Profile Details */}
