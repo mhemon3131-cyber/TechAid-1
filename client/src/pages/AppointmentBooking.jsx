@@ -177,10 +177,12 @@ export const AppointmentBooking = ({ currentUser }) => {
 
       const payload = {
         technicianId: selectedTech ? selectedTech.id : null,
+        technicianName: selectedTech ? selectedTech.name : 'Technician',
         date: formattedDate,
         timeSlot: selectedTimeSlot,
         serviceType,
         customerId: currentUser?.id || 'usr-1',
+        customerName: currentUser?.name || 'Customer',
         serviceRequestId: activeRequest ? activeRequest.id : null
       };
 
