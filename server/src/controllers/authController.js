@@ -12,19 +12,22 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide name, email, and password.' });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    let cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail.includes('@')) {
+      cleanEmail = `${cleanEmail.replace(/[^a-z0-9]/g, '')}@gmail.com`;
+    }
 
     // Check if user already exists in database
     const existing = await prisma.user.findUnique({
       where: { email: cleanEmail }
-    });
+    }).catch(() => null);
 
     if (existing) {
       return res.status(400).json({ success: false, message: 'An account with this email address already exists. Please log in.' });
     }
 
     const userRole = role || 'CUSTOMER';
-    const avatar = name.slice(0, 2).toUpperCase();
+    const avatar = (name || 'User').slice(0, 2).toUpperCase();
 
     // Create User in Prisma Database
     const newUser = await prisma.user.create({
@@ -34,14 +37,21 @@ export const registerUser = async (req, res) => {
         password: password || '123456',
         role: userRole,
         phone: phone || '+8801700000000',
-        avatar,
-        // If Technician role, create linked Technician Profile
-        technician: userRole === 'TECHNICIAN' ? {
-          create: {
-            name,
-            specialty: specialty || 'General Hardware Specialist',
-            rating: 4.8,
-            distanceKm: 2.5,
+        avatar
+      }
+    });
+
+    // If Technician role, create linked Technician Profile
+    let techRecord = null;
+    if (userRole === 'TECHNICIAN') {
+      try {
+        techRecord = await prisma.technician.create({
+          data: {
+            userId: newUser.id,
+            name: newUser.name,
+            specialty: specialty || 'Smartphone Repair & OS Recovery',
+            rating: 4.9,
+            distanceKm: 2.1,
             isAvailable: true,
             avatar,
             availableDays: 'Mon,Tue,Wed,Thu,Fri',
@@ -49,10 +59,11 @@ export const registerUser = async (req, res) => {
             serviceAreas: 'Gulshan, Banani, Dhanmondi, Uttara',
             maxDailyAppointments: 5
           }
-        } : undefined
-      },
-      include: { technician: true }
-    });
+        });
+      } catch (tErr) {
+        console.warn('Technician profile create notice:', tErr.message);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -64,14 +75,14 @@ export const registerUser = async (req, res) => {
         phone: newUser.phone,
         role: newUser.role,
         avatar: newUser.avatar,
-        technicianId: newUser.technician ? newUser.technician.id : null,
-        specialty: newUser.technician ? newUser.technician.specialty : null
+        technicianId: techRecord ? techRecord.id : null,
+        specialty: techRecord ? techRecord.specialty : null
       }
     });
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ success: false, message: 'Server database error during account creation.' });
+    res.status(500).json({ success: false, message: error.message || 'Server database error during account creation.' });
   }
 };
 
