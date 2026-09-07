@@ -105,7 +105,7 @@ export const Auth = ({ onLoginSuccess }) => {
         specialty: roleTab === 'TECHNICIAN' ? specialty : null
       };
 
-      const res = await axios.post('/auth/register', payload);
+      const res = await axios.post('/api/auth/register', payload);
 
       if (res.data.success) {
         setSuccessMsg(`Account created successfully for ${res.data.user.name}! Saved in database.`);
