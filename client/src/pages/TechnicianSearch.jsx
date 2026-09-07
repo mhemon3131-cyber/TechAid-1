@@ -118,7 +118,7 @@ export const TechnicianSearch = ({ onBack }) => {
 
         const response =
           await axios.get(
-            'http://localhost:5000/api/technicians'
+            '/api/technicians'
           );
 
         const data =

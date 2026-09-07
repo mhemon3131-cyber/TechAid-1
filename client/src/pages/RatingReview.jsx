@@ -31,7 +31,7 @@ import {
 
 
 const API_BASE =
-  'http://localhost:5000/api';
+  '/api';
 
 
 const RatingReview = () => {

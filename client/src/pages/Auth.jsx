@@ -62,7 +62,7 @@ export const Auth = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await axios.post('/api/auth/login', {
         email: targetEmail.trim(),
         password: password.trim(),
         role: targetRole
@@ -80,29 +80,20 @@ export const Auth = ({ onLoginSuccess }) => {
   };
 
   // Submit Registration
-  const handleRegister = async () => {
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError('Please fill in your name, email, and password.');
-      return;
-    }
-
-    setLoading(true);
+  const handleRegister = async (e) => {
+    e.preventDefault();
     setError('');
     setSuccessMsg('');
 
     const cleanName = name.trim();
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = email.trim();
 
-    const newTechProfile = {
-      id: `tech-${Date.now()}`,
-      userId: `usr-${Date.now()}`,
-      name: cleanName,
-      specialty: roleTab === 'TECHNICIAN' ? specialty : 'General Repair',
-      rating: 4.8,
-      distanceKm: 2.5,
-      isAvailable: true,
-      avatar: cleanName.slice(0, 2).toUpperCase()
-    };
+    if (!cleanName || !cleanEmail || !password.trim()) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const payload = {
@@ -114,7 +105,7 @@ export const Auth = ({ onLoginSuccess }) => {
         specialty: roleTab === 'TECHNICIAN' ? specialty : null
       };
 
-      const res = await axios.post('http://localhost:5000/api/auth/register', payload);
+      const res = await axios.post('/auth/register', payload);
 
       if (res.data.success) {
         setSuccessMsg(`Account created successfully for ${res.data.user.name}! Saved in database.`);

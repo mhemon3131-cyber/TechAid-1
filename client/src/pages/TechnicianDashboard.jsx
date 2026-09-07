@@ -258,7 +258,7 @@ export const TechnicianDashboard = ({ currentUser, onOpenChat }) => {
 
       const res =
         await axios.get(
-          `http://localhost:5000/api/appointments?technicianId=${techId}`
+          `/api/appointments?technicianId=${techId}`
         );
 
 
@@ -305,7 +305,7 @@ export const TechnicianDashboard = ({ currentUser, onOpenChat }) => {
       try {
 
         await axios.put(
-          `http://localhost:5000/api/appointments/${id}/status`,
+          `/api/appointments/${id}/status`,
           {
             status,
             ...extraData
@@ -356,7 +356,7 @@ export const TechnicianDashboard = ({ currentUser, onOpenChat }) => {
           try {
 
             await axios.put(
-              `http://localhost:5000/api/requests/${reqIdentifier}/status`,
+              `/api/requests/${reqIdentifier}/status`,
               {
                 status:
                   reqStage,
