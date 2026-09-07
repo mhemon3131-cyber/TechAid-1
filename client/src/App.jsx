@@ -127,7 +127,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'ai-troubleshoot' && (
+          {(activeTab === 'ai-troubleshoot' || activeTab === 'ai-assistant') && (
             <AITroubleshootAssistant currentUser={currentUser} />
           )}
 
